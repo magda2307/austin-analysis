@@ -22,9 +22,11 @@ data/processed/*
 reports/figures/*
 reports/tables/*
 reports/metrics/*
+reports/summary/*
 !reports/figures/.gitkeep
 !reports/tables/.gitkeep
 !reports/metrics/.gitkeep
+!reports/summary/.gitkeep
 
 # Generated model artifacts
 models/baseline/*

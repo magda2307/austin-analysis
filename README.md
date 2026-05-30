@@ -229,6 +229,30 @@ reports/tables/h3_age_adoption_speed.csv
 reports/tables/h5_covid_period.csv
 ```
 
+## Generate Thesis Report Outputs
+
+After analysis tables exist, generate thesis-ready summary text and figures:
+
+```bash
+python scripts/generate_report_outputs.py
+```
+
+Outputs:
+
+```text
+reports/summary/current_results.md
+reports/figures/model_comparison_classification_roc_auc.png
+reports/figures/model_comparison_classification_f1.png
+reports/figures/model_comparison_regression_mae.png
+reports/figures/model_comparison_regression_rmse.png
+reports/figures/h1_intake_type_adoption_rate.png
+reports/figures/h1_intake_condition_adoption_rate.png
+reports/figures/h3_age_group_adoption_rate.png
+reports/figures/h3_age_group_median_days.png
+reports/figures/h5_covid_period_adoption_rate.png
+reports/figures/h5_covid_period_median_days.png
+```
+
 ## Current Results Snapshot
 
 Current full-data model comparison:
@@ -253,6 +277,7 @@ python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
 python scripts/train_boosting.py --data data/processed/modeling_dataset.csv
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
+python scripts/generate_report_outputs.py
 pytest
 ```
 

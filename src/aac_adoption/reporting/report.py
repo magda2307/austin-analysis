@@ -1,0 +1,345 @@
+"""Generate thesis-ready Markdown summaries and figures from pipeline outputs."""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import matplotlib
+
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+SUBSET_ORDER = ["combined", "dogs", "cats"]
+
+
+def _read_table(path: Path) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def _format_number(value: object, digits: int = 3) -> str:
+    if pd.isna(value):
+        return "n/a"
+    try:
+        return f"{float(value):.{digits}f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _format_days(value: object) -> str:
+    if pd.isna(value):
+        return "n/a"
+    try:
+        return f"{float(value):.2f} days"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _ordered_subsets(values: pd.Series) -> list[str]:
+    present = set(values.dropna().astype(str))
+    ordered = [subset for subset in SUBSET_ORDER if subset in present]
+    ordered.extend(sorted(present - set(ordered)))
+    return ordered
+
+
+def _save_grouped_metric_plot(
+    df: pd.DataFrame,
+    metric: str,
+    path: Path,
+    title: str,
+    ylabel: str,
+    lower_is_better: bool = False,
+) -> None:
+    required = {"animal_subset", "model_name", metric}
+    if df.empty or not required.issubset(df.columns):
+        return
+
+    plot_df = df.dropna(subset=[metric]).copy()
+    if plot_df.empty:
+        return
+
+    subsets = _ordered_subsets(plot_df["animal_subset"])
+    models = list(dict.fromkeys(plot_df["model_name"].astype(str)))
+    width = 0.8 / max(len(models), 1)
+    x_positions = list(range(len(subsets)))
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+
+    for index, model in enumerate(models):
+        values = []
+        for subset in subsets:
+            match = plot_df[
+                (plot_df["animal_subset"].astype(str) == subset)
+                & (plot_df["model_name"].astype(str) == model)
+            ]
+            values.append(float(match.iloc[0][metric]) if not match.empty else 0.0)
+        offset = (index - (len(models) - 1) / 2) * width
+        ax.bar([x + offset for x in x_positions], values, width=width, label=model.replace("_", " "))
+
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(subsets)
+    ax.legend(loc="best", fontsize=8)
+    if not lower_is_better:
+        ax.set_ylim(bottom=0)
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def _save_hypothesis_bar_plot(
+    df: pd.DataFrame,
+    value_column: str,
+    metric: str,
+    path: Path,
+    title: str,
+    ylabel: str,
+    variable: str | None = None,
+    max_categories: int = 12,
+) -> None:
+    required = {value_column, metric}
+    if df.empty or not required.issubset(df.columns):
+        return
+
+    plot_df = df.copy()
+    if variable and "variable" in plot_df.columns:
+        plot_df = plot_df[plot_df["variable"] == variable]
+    plot_df = plot_df.dropna(subset=[metric])
+    if plot_df.empty:
+        return
+
+    if "records" in plot_df.columns:
+        plot_df = plot_df.sort_values("records", ascending=False).head(max_categories)
+    else:
+        plot_df = plot_df.head(max_categories)
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    ax.bar(plot_df[value_column].astype(str), plot_df[metric].astype(float))
+    ax.set_title(title)
+    ax.set_ylabel(ylabel)
+    ax.set_xlabel("")
+    ax.tick_params(axis="x", rotation=35)
+    for label in ax.get_xticklabels():
+        label.set_horizontalalignment("right")
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
+
+
+def _best_rows(df: pd.DataFrame, metric: str, ascending: bool) -> pd.DataFrame:
+    if df.empty or metric not in df.columns or "animal_subset" not in df.columns:
+        return pd.DataFrame()
+    ranked = df.dropna(subset=[metric]).copy()
+    ranked["subset_order"] = ranked["animal_subset"].map(
+        {subset: index for index, subset in enumerate(SUBSET_ORDER)}
+    )
+    ranked["subset_order"] = ranked["subset_order"].fillna(len(SUBSET_ORDER))
+    ranked = ranked.sort_values(
+        ["subset_order", "animal_subset", metric],
+        ascending=[True, True, ascending],
+    )
+    return ranked.groupby("animal_subset", as_index=False).head(1).drop(columns=["subset_order"])
+
+
+def _summary_lines(
+    classification: pd.DataFrame,
+    regression: pd.DataFrame,
+    h1: pd.DataFrame,
+    h3: pd.DataFrame,
+    h5: pd.DataFrame,
+) -> list[str]:
+    lines = [
+        "# Generated Current Results Summary",
+        "",
+        "This summary is generated from existing pipeline outputs. Treat these results as reproducible working outputs, not final causal conclusions.",
+        "",
+        "## Model Comparison",
+        "",
+    ]
+
+    best_classification = _best_rows(classification, "roc_auc", ascending=False)
+    if best_classification.empty:
+        lines.append("Classification comparison table was not available.")
+    else:
+        lines.append("Best classification models by ROC-AUC:")
+        lines.append("")
+        for _, row in best_classification.iterrows():
+            lines.append(
+                f"- {row['animal_subset']}: {row['model_name']} "
+                f"(ROC-AUC {_format_number(row.get('roc_auc'))}, F1 {_format_number(row.get('f1'))})"
+            )
+
+    lines.append("")
+    best_regression = _best_rows(regression, "mae", ascending=True)
+    if best_regression.empty:
+        lines.append("Regression comparison table was not available.")
+    else:
+        lines.append("Best regression models by MAE:")
+        lines.append("")
+        for _, row in best_regression.iterrows():
+            lines.append(
+                f"- {row['animal_subset']}: {row['model_name']} "
+                f"(MAE {_format_days(row.get('mae'))}, RMSE {_format_days(row.get('rmse'))})"
+            )
+
+    lines.extend(["", "## Hypothesis Signals", ""])
+
+    if not h1.empty and {"variable", "records", "adoption_rate_pct"}.issubset(h1.columns):
+        intake_rows = h1[h1["variable"] == "intake_type"].sort_values("records", ascending=False)
+        if not intake_rows.empty:
+            lines.append("H1 intake-type patterns:")
+            lines.append("")
+            for _, row in intake_rows.head(5).iterrows():
+                lines.append(
+                    f"- {row['value']}: {int(row['records'])} records, "
+                    f"{_format_number(row['adoption_rate_pct'], 1)}% adoption rate"
+                )
+            lines.append("")
+
+    if not h3.empty and {"value", "adoption_rate_pct", "median_days_to_outcome"}.issubset(h3.columns):
+        lines.append("H3 age-group patterns:")
+        lines.append("")
+        for _, row in h3.head(5).iterrows():
+            lines.append(
+                f"- {row['value']}: {_format_number(row['adoption_rate_pct'], 1)}% adoption rate, "
+                f"median outcome time {_format_days(row['median_days_to_outcome'])}"
+            )
+        lines.append("")
+
+    if not h5.empty and {"value", "adoption_rate_pct", "median_days_to_outcome"}.issubset(h5.columns):
+        lines.append("H5 COVID-period patterns:")
+        lines.append("")
+        for _, row in h5.head(5).iterrows():
+            lines.append(
+                f"- {row['value']}: {_format_number(row['adoption_rate_pct'], 1)}% adoption rate, "
+                f"median outcome time {_format_days(row['median_days_to_outcome'])}"
+            )
+        lines.append("")
+
+    lines.extend(
+        [
+            "## Interpretation Guardrails",
+            "",
+            "- Use model outputs as predictive association evidence, not proof of causal effects.",
+            "- Emphasize the time-aware train/validation/test split when discussing evaluation.",
+            "- Keep H1, H3, and H5 central; use H2 and H4 as descriptive supporting analyses unless stronger tests are added.",
+            "- Regression should be discussed primarily through MAE because it is easiest to explain operationally.",
+            "",
+        ]
+    )
+    return lines
+
+
+def create_report_outputs(
+    tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
+    summary_dir: str | Path = "reports/summary",
+) -> Path:
+    """Create Markdown and figure outputs from existing analysis tables."""
+    tables = Path(tables_dir)
+    figures = Path(figures_dir)
+    summary = Path(summary_dir)
+    summary.mkdir(parents=True, exist_ok=True)
+
+    classification = _read_table(tables / "model_comparison_classification.csv")
+    regression = _read_table(tables / "model_comparison_regression.csv")
+    h1 = _read_table(tables / "h1_intake_vs_appearance.csv")
+    h3 = _read_table(tables / "h3_age_adoption_speed.csv")
+    h5 = _read_table(tables / "h5_covid_period.csv")
+
+    _save_grouped_metric_plot(
+        classification,
+        "roc_auc",
+        figures / "model_comparison_classification_roc_auc.png",
+        "Classification ROC-AUC by model and subset",
+        "ROC-AUC",
+    )
+    _save_grouped_metric_plot(
+        classification,
+        "f1",
+        figures / "model_comparison_classification_f1.png",
+        "Classification F1 by model and subset",
+        "F1",
+    )
+    _save_grouped_metric_plot(
+        regression,
+        "mae",
+        figures / "model_comparison_regression_mae.png",
+        "Regression MAE by model and subset",
+        "MAE in days",
+        lower_is_better=True,
+    )
+    _save_grouped_metric_plot(
+        regression,
+        "rmse",
+        figures / "model_comparison_regression_rmse.png",
+        "Regression RMSE by model and subset",
+        "RMSE in days",
+        lower_is_better=True,
+    )
+
+    _save_hypothesis_bar_plot(
+        h1,
+        "value",
+        "adoption_rate_pct",
+        figures / "h1_intake_type_adoption_rate.png",
+        "H1 adoption rate by intake type",
+        "Adoption rate (%)",
+        variable="intake_type",
+    )
+    _save_hypothesis_bar_plot(
+        h1,
+        "value",
+        "adoption_rate_pct",
+        figures / "h1_intake_condition_adoption_rate.png",
+        "H1 adoption rate by intake condition",
+        "Adoption rate (%)",
+        variable="intake_condition",
+    )
+    _save_hypothesis_bar_plot(
+        h3,
+        "value",
+        "adoption_rate_pct",
+        figures / "h3_age_group_adoption_rate.png",
+        "H3 adoption rate by age group",
+        "Adoption rate (%)",
+    )
+    _save_hypothesis_bar_plot(
+        h3,
+        "value",
+        "median_days_to_outcome",
+        figures / "h3_age_group_median_days.png",
+        "H3 median outcome time by age group",
+        "Median days to outcome",
+    )
+    _save_hypothesis_bar_plot(
+        h5,
+        "value",
+        "adoption_rate_pct",
+        figures / "h5_covid_period_adoption_rate.png",
+        "H5 adoption rate by COVID period",
+        "Adoption rate (%)",
+    )
+    _save_hypothesis_bar_plot(
+        h5,
+        "value",
+        "median_days_to_outcome",
+        figures / "h5_covid_period_median_days.png",
+        "H5 median outcome time by COVID period",
+        "Median days to outcome",
+    )
+
+    summary_path = summary / "current_results.md"
+    summary_path.write_text(
+        "\n".join(_summary_lines(classification, regression, h1, h3, h5)),
+        encoding="utf-8",
+    )
+    return summary_path
