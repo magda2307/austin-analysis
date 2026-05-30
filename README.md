@@ -253,6 +253,21 @@ reports/figures/h5_covid_period_adoption_rate.png
 reports/figures/h5_covid_period_median_days.png
 ```
 
+## Run Streamlit Thesis Demo
+
+After the dataset, models, analysis tables, and report figures exist, run:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The demo reads existing artifacts instead of retraining models. It includes:
+
+- overview of current generated results,
+- model comparison figures and tables,
+- H1/H3/H5 hypothesis figures and tables,
+- a simple what-if prediction form using combined histogram gradient boosting artifacts.
+
 ## Current Results Snapshot
 
 Current full-data model comparison:
