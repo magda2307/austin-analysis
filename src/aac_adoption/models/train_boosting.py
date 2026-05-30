@@ -10,7 +10,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostin
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
@@ -22,7 +22,13 @@ from aac_adoption.interpretation.explain import append_table
 from aac_adoption.models.artifacts import save_model_artifact
 from aac_adoption.models.evaluate import classification_metrics, regression_metrics
 from aac_adoption.models.split import DatasetSplit, make_time_split
-from aac_adoption.models.train_baseline import ANIMAL_SUBSETS, CATEGORICAL_FEATURES, NUMERIC_FEATURES, limit_rows
+from aac_adoption.models.train_baseline import (
+    ANIMAL_SUBSETS,
+    CATEGORICAL_FEATURES,
+    NUMERIC_FEATURES,
+    categorical_to_object,
+    limit_rows,
+)
 
 
 @dataclass(frozen=True)
@@ -53,6 +59,7 @@ def make_boosting_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     numeric_pipeline = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
     categorical_pipeline = Pipeline(
         steps=[
+            ("as_object", FunctionTransformer(categorical_to_object, feature_names_out="one-to-one")),
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=20, sparse_output=False)),
         ]
@@ -291,4 +298,3 @@ def train_all_boosting(
         index=False,
     )
     return BoostingTrainingOutputs(classification_metrics=classification, regression_metrics=regression)
-

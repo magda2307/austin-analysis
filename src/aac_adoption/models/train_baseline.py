@@ -11,7 +11,7 @@ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardScaler
 
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
@@ -57,6 +57,11 @@ CATEGORICAL_FEATURES = [
 ANIMAL_SUBSETS = ["combined", "dogs", "cats"]
 
 
+def categorical_to_object(df: pd.DataFrame) -> pd.DataFrame:
+    """Keep categorical preprocessing stable across sklearn/pandas versions."""
+    return df.astype("object")
+
+
 @dataclass(frozen=True)
 class BaselineTrainingOutputs:
     """Metric tables returned by baseline training."""
@@ -91,6 +96,7 @@ def make_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     )
     categorical_pipeline = Pipeline(
         steps=[
+            ("as_object", FunctionTransformer(categorical_to_object, feature_names_out="one-to-one")),
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=20)),
         ]

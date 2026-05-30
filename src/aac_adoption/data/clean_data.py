@@ -29,7 +29,7 @@ def parse_datetime_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
                 .str.replace("T", " ", regex=False)
                 .str.replace(r"(Z|[+-]\d{2}:?\d{2})$", "", regex=True)
             )
-            result[column] = pd.to_datetime(normalized, errors="coerce", format="mixed")
+            result[column] = pd.to_datetime(normalized, errors="coerce", format="mixed").astype("datetime64[ns]")
     return result
 
 
