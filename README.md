@@ -211,6 +211,29 @@ For a faster sampled training pass:
 python scripts/train_boosting.py --data data/processed/modeling_dataset.csv --max-rows 50000 --permutation-repeats 1
 ```
 
+## Train Advanced CatBoost Models
+
+For categorical-heavy shelter data, train CatBoost classifiers and regressors:
+
+```bash
+python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
+```
+
+Outputs:
+
+```text
+reports/metrics/advanced_classification_metrics.csv
+reports/metrics/advanced_regression_metrics.csv
+reports/metrics/advanced_metrics.csv
+models/advanced/
+```
+
+For a faster development run:
+
+```bash
+python scripts/train_advanced.py --data data/processed/modeling_dataset.csv --max-rows 50000 --iterations 100 --depth 4
+```
+
 ## Run Thesis Analysis Tables
 
 After baseline and boosting metrics exist, run:
@@ -228,6 +251,31 @@ reports/tables/h1_intake_vs_appearance.csv
 reports/tables/h3_age_adoption_speed.csv
 reports/tables/h5_covid_period.csv
 ```
+
+## Generate Model Diagnostics and Interpretability
+
+After advanced model artifacts exist, generate reliability diagnostics, error slices, placement-risk quadrants, adoption timeline tables, and optional SHAP outputs:
+
+```bash
+python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
+```
+
+Outputs include:
+
+```text
+reports/diagnostics/classification_thresholds.csv
+reports/diagnostics/classification_calibration.csv
+reports/diagnostics/classification_error_slices.csv
+reports/diagnostics/regression_error_slices.csv
+reports/diagnostics/placement_risk_quadrants.csv
+reports/tables/shap_global_classification.csv
+reports/tables/shap_feature_families_classification.csv
+reports/tables/adoption_by_day_milestones.csv
+reports/figures/diagnostic_calibration_curve.png
+reports/figures/shap_summary_classification.png
+```
+
+All interpretation outputs describe predictive association with the model, not causal effects.
 
 ## Generate Thesis Report Outputs
 
@@ -263,9 +311,11 @@ streamlit run streamlit_app.py
 
 The demo reads existing artifacts instead of retraining models. It includes:
 
+- story mode with workflow and approach-comparison visuals,
 - overview of current generated results,
 - model comparison figures and tables,
 - H1/H3/H5 hypothesis figures and tables,
+- reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
 - a simple what-if prediction form using combined histogram gradient boosting artifacts.
 
 ## Current Results Snapshot
@@ -291,7 +341,9 @@ python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/r
 python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
 python scripts/train_boosting.py --data data/processed/modeling_dataset.csv
+python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
+python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
 python scripts/generate_report_outputs.py
 pytest
 ```

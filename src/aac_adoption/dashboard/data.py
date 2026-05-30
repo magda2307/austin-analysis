@@ -20,6 +20,7 @@ from aac_adoption.features.feature_engineering import (
 )
 from aac_adoption.features.feature_sets import INTAKE_TIME_FEATURES
 from aac_adoption.models.artifacts import artifact_path
+from aac_adoption.models.train_advanced import prepare_catboost_frame
 
 
 TABLE_FILES = {
@@ -30,6 +31,15 @@ TABLE_FILES = {
     "h5": "h5_covid_period.csv",
 }
 
+DIAGNOSTIC_FILES = {
+    "thresholds": "classification_thresholds.csv",
+    "calibration": "classification_calibration.csv",
+    "classification_slices": "classification_error_slices.csv",
+    "regression_slices": "regression_error_slices.csv",
+    "risk_quadrants": "placement_risk_quadrants.csv",
+    "predictions": "diagnostic_predictions_sample.csv",
+}
+
 
 def load_table(tables_dir: str | Path, key: str) -> pd.DataFrame:
     """Load one known dashboard table or return an empty frame."""
@@ -38,6 +48,19 @@ def load_table(tables_dir: str | Path, key: str) -> pd.DataFrame:
     if not path.exists():
         return pd.DataFrame()
     return pd.read_csv(path)
+
+
+def load_optional_csv(base_dir: str | Path, filename: str) -> pd.DataFrame:
+    """Load an optional CSV artifact."""
+    path = Path(base_dir) / filename
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path)
+
+
+def load_diagnostic(diagnostics_dir: str | Path, key: str) -> pd.DataFrame:
+    """Load one known diagnostic artifact."""
+    return load_optional_csv(diagnostics_dir, DIAGNOSTIC_FILES[key])
 
 
 def load_summary(summary_dir: str | Path = "reports/summary") -> str:
@@ -126,7 +149,7 @@ def build_prediction_record(
     return pd.DataFrame([{column: record[column] for column in INTAKE_TIME_FEATURES}])
 
 
-def load_model(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "hist_gradient_boosting"):
+def load_model(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost"):
     """Load a trained model artifact by canonical path."""
     path = artifact_path(models_dir, task, subset, model_name)
     if not path.exists():
@@ -136,15 +159,70 @@ def load_model(models_dir: str | Path, task: str, subset: str = "combined", mode
 
 def predict_from_record(
     record: pd.DataFrame,
-    models_dir: str | Path = "models/boosting",
+    models_dir: str | Path = "models/advanced",
     subset: str = "combined",
 ) -> dict[str, float]:
     """Predict adoption probability and expected days to outcome for one row."""
     classifier = load_model(models_dir, "classification", subset)
     regressor = load_model(models_dir, "regression", subset)
-    probability = float(classifier.predict_proba(record)[:, 1][0])
-    days = max(0.0, float(regressor.predict(record)[0]))
+    catboost_record = prepare_catboost_frame(record, list(record.columns))
+    probability = float(classifier.predict_proba(catboost_record)[:, 1][0])
+    days = max(0.0, float(regressor.predict(catboost_record)[0]))
     return {
         "adoption_probability": probability,
         "predicted_days_to_outcome": days,
     }
+
+
+def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_rows: int = 50000) -> pd.DataFrame:
+    """Find exact/coarse historical matches for a what-if record."""
+    path = Path(data_path)
+    if not path.exists():
+        return pd.DataFrame()
+    columns = [
+        "animal_type",
+        "age_group",
+        "intake_type",
+        "intake_condition",
+        "simplified_breed_group",
+        "simplified_color_group",
+        "sex_upon_intake",
+        "classification_target",
+        "days_to_outcome",
+    ]
+    df = pd.read_csv(path, usecols=lambda column: column in columns, nrows=max_rows)
+    if df.empty:
+        return pd.DataFrame()
+    query = record.iloc[0]
+    match_columns = [
+        "animal_type",
+        "age_group",
+        "intake_type",
+        "intake_condition",
+        "simplified_breed_group",
+        "simplified_color_group",
+        "sex_upon_intake",
+    ]
+    mask = pd.Series(True, index=df.index)
+    for column in match_columns:
+        if column in df.columns and column in record.columns:
+            mask &= df[column].astype(str).eq(str(query[column]))
+    matches = df[mask]
+    if matches.empty:
+        match_columns = ["animal_type", "age_group", "intake_type", "intake_condition"]
+        mask = pd.Series(True, index=df.index)
+        for column in match_columns:
+            mask &= df[column].astype(str).eq(str(query[column]))
+        matches = df[mask]
+    if matches.empty:
+        return pd.DataFrame()
+    return pd.DataFrame(
+        [
+            {
+                "similar_records": len(matches),
+                "historical_adoption_rate_pct": float(matches["classification_target"].mean() * 100),
+                "median_days_to_outcome": float(matches["days_to_outcome"].median()),
+                "matching_level": "coarse" if len(match_columns) == 4 else "exact_coarse_features",
+            }
+        ]
+    )

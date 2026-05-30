@@ -155,6 +155,10 @@ def _summary_lines(
     h1: pd.DataFrame,
     h3: pd.DataFrame,
     h5: pd.DataFrame,
+    calibration: pd.DataFrame,
+    thresholds: pd.DataFrame,
+    risk: pd.DataFrame,
+    shap_classification: pd.DataFrame,
 ) -> list[str]:
     lines = [
         "# Generated Current Results Summary",
@@ -224,6 +228,39 @@ def _summary_lines(
             )
         lines.append("")
 
+    if not calibration.empty and {"mean_predicted_probability", "observed_adoption_rate"}.issubset(calibration.columns):
+        valid = calibration.dropna(subset=["mean_predicted_probability", "observed_adoption_rate"])
+        if not valid.empty:
+            mean_gap = (valid["observed_adoption_rate"] - valid["mean_predicted_probability"]).abs().mean()
+            lines.extend(
+                [
+                    "## Reliability Diagnostics",
+                    "",
+                    f"- Mean absolute calibration gap across probability bins: {_format_number(mean_gap, 3)}.",
+                ]
+            )
+            if not thresholds.empty and {"threshold", "precision", "recall", "f1"}.issubset(thresholds.columns):
+                default_threshold = thresholds.iloc[(thresholds["threshold"] - 0.5).abs().argsort()[:1]]
+                if not default_threshold.empty:
+                    row = default_threshold.iloc[0]
+                    lines.append(
+                        f"- At threshold {_format_number(row['threshold'], 2)}, precision is {_format_number(row['precision'])}, "
+                        f"recall is {_format_number(row['recall'])}, and F1 is {_format_number(row['f1'])}."
+                    )
+            if not risk.empty and {"risk_quadrant", "records"}.issubset(risk.columns):
+                top_risk = risk.sort_values("records", ascending=False).iloc[0]
+                lines.append(f"- Largest placement-risk quadrant: {top_risk['risk_quadrant']} ({int(top_risk['records'])} records).")
+            lines.append("")
+
+    if not shap_classification.empty and {"feature", "mean_abs_shap", "feature_family"}.issubset(shap_classification.columns):
+        top = shap_classification.sort_values("mean_abs_shap", ascending=False).head(5)
+        lines.extend(["## Interpretability Signals", ""])
+        for _, row in top.iterrows():
+            lines.append(
+                f"- {row['feature']} ({row['feature_family']}): mean absolute SHAP {_format_number(row['mean_abs_shap'])}."
+            )
+        lines.append("")
+
     lines.extend(
         [
             "## Interpretation Guardrails",
@@ -254,6 +291,11 @@ def create_report_outputs(
     h1 = _read_table(tables / "h1_intake_vs_appearance.csv")
     h3 = _read_table(tables / "h3_age_adoption_speed.csv")
     h5 = _read_table(tables / "h5_covid_period.csv")
+    diagnostics = tables.parent / "diagnostics"
+    calibration = _read_table(diagnostics / "classification_calibration.csv")
+    thresholds = _read_table(diagnostics / "classification_thresholds.csv")
+    risk = _read_table(diagnostics / "placement_risk_quadrants.csv")
+    shap_classification = _read_table(tables / "shap_global_classification.csv")
 
     _save_grouped_metric_plot(
         classification,
@@ -339,7 +381,19 @@ def create_report_outputs(
 
     summary_path = summary / "current_results.md"
     summary_path.write_text(
-        "\n".join(_summary_lines(classification, regression, h1, h3, h5)),
+        "\n".join(
+            _summary_lines(
+                classification,
+                regression,
+                h1,
+                h3,
+                h5,
+                calibration,
+                thresholds,
+                risk,
+                shap_classification,
+            )
+        ),
         encoding="utf-8",
     )
     return summary_path

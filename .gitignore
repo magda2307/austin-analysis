@@ -23,13 +23,18 @@ reports/figures/*
 reports/tables/*
 reports/metrics/*
 reports/summary/*
+reports/diagnostics/*
 !reports/figures/.gitkeep
 !reports/tables/.gitkeep
 !reports/metrics/.gitkeep
 !reports/summary/.gitkeep
+!reports/diagnostics/.gitkeep
 
 # Generated model artifacts
 models/baseline/*
 models/boosting/*
+models/advanced/*
+catboost_info/
 !models/baseline/.gitkeep
 !models/boosting/.gitkeep
+!models/advanced/.gitkeep

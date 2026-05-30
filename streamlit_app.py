@@ -8,6 +8,7 @@ import sys
 
 import pandas as pd
 import streamlit as st
+import altair as alt
 
 PROJECT_ROOT = Path(__file__).resolve().parent
 SRC_DIR = PROJECT_ROOT / "src"
@@ -17,16 +18,27 @@ if str(SRC_DIR) not in sys.path:
 from aac_adoption.dashboard.data import (  # noqa: E402
     best_model_rows,
     build_prediction_record,
+    load_diagnostic,
+    load_optional_csv,
     load_summary,
     load_table,
     predict_from_record,
+    similar_historical_cases,
+)
+from aac_adoption.dashboard.story import (  # noqa: E402
+    approach_comparison_rows,
+    decision_sankey,
+    story_cards,
+    workflow_dot,
 )
 
 
 TABLES_DIR = PROJECT_ROOT / "reports" / "tables"
 FIGURES_DIR = PROJECT_ROOT / "reports" / "figures"
 SUMMARY_DIR = PROJECT_ROOT / "reports" / "summary"
-MODELS_DIR = PROJECT_ROOT / "models" / "boosting"
+DIAGNOSTICS_DIR = PROJECT_ROOT / "reports" / "diagnostics"
+MODELS_DIR = PROJECT_ROOT / "models" / "advanced"
+DATA_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_dataset.csv"
 
 
 st.set_page_config(
@@ -44,6 +56,23 @@ def cached_tables() -> dict[str, pd.DataFrame]:
         "h1": load_table(TABLES_DIR, "h1"),
         "h3": load_table(TABLES_DIR, "h3"),
         "h5": load_table(TABLES_DIR, "h5"),
+        "shap_classification": load_optional_csv(TABLES_DIR, "shap_global_classification.csv"),
+        "shap_regression": load_optional_csv(TABLES_DIR, "shap_global_regression.csv"),
+        "shap_family_classification": load_optional_csv(TABLES_DIR, "shap_feature_families_classification.csv"),
+        "shap_family_regression": load_optional_csv(TABLES_DIR, "shap_feature_families_regression.csv"),
+        "milestones": load_optional_csv(TABLES_DIR, "adoption_by_day_milestones.csv"),
+    }
+
+
+@st.cache_data
+def cached_diagnostics() -> dict[str, pd.DataFrame]:
+    return {
+        "thresholds": load_diagnostic(DIAGNOSTICS_DIR, "thresholds"),
+        "calibration": load_diagnostic(DIAGNOSTICS_DIR, "calibration"),
+        "classification_slices": load_diagnostic(DIAGNOSTICS_DIR, "classification_slices"),
+        "regression_slices": load_diagnostic(DIAGNOSTICS_DIR, "regression_slices"),
+        "risk_quadrants": load_diagnostic(DIAGNOSTICS_DIR, "risk_quadrants"),
+        "predictions": load_diagnostic(DIAGNOSTICS_DIR, "predictions"),
     }
 
 
@@ -72,18 +101,60 @@ def figure(path: Path, caption: str) -> None:
 
 
 tables = cached_tables()
+diagnostics = cached_diagnostics()
 best_rows = best_model_rows(tables["classification"], tables["regression"])
 
 st.title("AAC Adoption Thesis Demo")
 st.caption("Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions.")
 
-tabs = st.tabs(["Overview", "Models", "Hypotheses", "What-if Prediction", "Artifacts"])
+tabs = st.tabs(
+    [
+        "Executive Overview",
+        "Story Mode",
+        "Model Quality",
+        "Interpretability",
+        "Risk Explorer",
+        "Hypothesis Lab",
+        "Campaign Finder",
+        "What-if Prediction",
+        "Adoption Timeline",
+        "Artifacts",
+    ]
+)
 
 with tabs[0]:
     show_metric_cards(best_rows)
     st.markdown(load_summary(SUMMARY_DIR))
 
 with tabs[1]:
+    st.subheader("Data-to-Decision Story")
+    st.caption("How raw shelter records become thesis evidence and practical shelter-facing signals.")
+    st.graphviz_chart(workflow_dot(), use_container_width=True)
+    st.plotly_chart(decision_sankey(), use_container_width=True)
+
+    st.subheader("Approach Comparison")
+    approaches = approach_comparison_rows()
+    st.altair_chart(
+        alt.Chart(approaches)
+        .mark_bar()
+        .encode(
+            y=alt.Y("layer:N", sort=None, title="Analytical layer"),
+            x=alt.X("count():Q", title="Story weight"),
+            color=alt.Color("layer:N", legend=None),
+            tooltip=["layer", "technology", "answers", "strength", "dashboard_use"],
+        )
+        .properties(height=280),
+        use_container_width=True,
+    )
+    st.dataframe(approaches, use_container_width=True, hide_index=True)
+
+    st.subheader("Real-life Shelter Questions")
+    card_columns = st.columns(5)
+    for column, card in zip(card_columns, story_cards()):
+        column.metric(card["title"], card["artifact"])
+        column.caption(card["question"])
+
+with tabs[2]:
     left, right = st.columns(2)
     with left:
         figure(FIGURES_DIR / "model_comparison_classification_roc_auc.png", "Classification ROC-AUC")
@@ -97,7 +168,110 @@ with tabs[1]:
     st.subheader("Regression Table")
     st.dataframe(tables["regression"], use_container_width=True, hide_index=True)
 
-with tabs[2]:
+    st.subheader("Probability Trust Meter")
+    calibration = diagnostics["calibration"]
+    if calibration.empty:
+        st.info("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics.")
+    else:
+        st.altair_chart(
+            alt.Chart(calibration)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("mean_predicted_probability:Q", title="Mean predicted probability"),
+                y=alt.Y("observed_adoption_rate:Q", title="Observed adoption rate"),
+                tooltip=["probability_bin", "records", "mean_predicted_probability", "observed_adoption_rate"],
+            )
+            .properties(height=320),
+            use_container_width=True,
+        )
+    st.subheader("Reliability Figures")
+    left_diag, right_diag = st.columns(2)
+    with left_diag:
+        figure(FIGURES_DIR / "diagnostic_roc_curve.png", "Advanced model ROC curve")
+        figure(FIGURES_DIR / "diagnostic_precision_recall_curve.png", "Advanced model precision-recall curve")
+    with right_diag:
+        figure(FIGURES_DIR / "diagnostic_calibration_curve.png", "Probability calibration")
+        figure(FIGURES_DIR / "diagnostic_predicted_vs_actual.png", "Regression predicted vs actual")
+
+with tabs[3]:
+    st.subheader("SHAP Global Explanations")
+    st.caption("SHAP values describe factors associated with model predictions, not causal effects.")
+    left_shap, right_shap = st.columns(2)
+    with left_shap:
+        figure(FIGURES_DIR / "shap_summary_classification.png", "Classification SHAP summary")
+        st.dataframe(tables["shap_classification"].head(20), use_container_width=True, hide_index=True)
+    with right_shap:
+        figure(FIGURES_DIR / "shap_summary_regression.png", "Regression SHAP summary")
+        st.dataframe(tables["shap_regression"].head(20), use_container_width=True, hide_index=True)
+    st.subheader("Feature Family Scores")
+    family = tables["shap_family_classification"]
+    if not family.empty:
+        st.altair_chart(
+            alt.Chart(family)
+            .mark_bar()
+            .encode(
+                x=alt.X("mean_abs_shap:Q", title="Sum mean absolute SHAP"),
+                y=alt.Y("feature_family:N", sort="-x", title="Feature family"),
+                tooltip=["feature_family", "mean_abs_shap", "features"],
+            )
+            .properties(height=340),
+            use_container_width=True,
+        )
+    else:
+        st.info("Run diagnostics with `--include-shap` to populate interpretation artifacts.")
+
+with tabs[4]:
+    st.subheader("Risk Threshold Simulator")
+    thresholds = diagnostics["thresholds"]
+    if thresholds.empty:
+        st.info("Run diagnostics to populate threshold tradeoffs.")
+    else:
+        selected_threshold = st.slider("Adoption probability threshold", 0.05, 0.95, 0.50, 0.05)
+        selected = thresholds.iloc[(thresholds["threshold"] - selected_threshold).abs().argsort()[:1]]
+        if not selected.empty:
+            row = selected.iloc[0]
+            cols = st.columns(4)
+            cols[0].metric("Precision", f"{row['precision']:.3f}")
+            cols[1].metric("Recall", f"{row['recall']:.3f}")
+            cols[2].metric("F1", f"{row['f1']:.3f}")
+            cols[3].metric("Flagged share", f"{row['flagged_for_adoption_share']:.1%}")
+        st.altair_chart(
+            alt.Chart(thresholds)
+            .transform_fold(["precision", "recall", "f1"], as_=["metric", "value"])
+            .mark_line(point=True)
+            .encode(
+                x="threshold:Q",
+                y="value:Q",
+                color="metric:N",
+                tooltip=["threshold", "metric", "value"],
+            )
+            .properties(height=320),
+            use_container_width=True,
+        )
+
+    st.subheader("Placement Risk Quadrant")
+    risk = diagnostics["risk_quadrants"]
+    if not risk.empty:
+        st.dataframe(risk, use_container_width=True, hide_index=True)
+    predictions = diagnostics["predictions"]
+    if not predictions.empty:
+        st.altair_chart(
+            alt.Chart(predictions.sample(min(len(predictions), 2000), random_state=42))
+            .mark_circle(size=45, opacity=0.35)
+            .encode(
+                x=alt.X("predicted_adoption_probability:Q", title="Predicted adoption probability"),
+                y=alt.Y("predicted_days_to_outcome:Q", title="Predicted days to outcome"),
+                color="animal_type:N",
+                tooltip=["animal_type", "age_group", "intake_type", "predicted_adoption_probability", "predicted_days_to_outcome"],
+            )
+            .properties(height=360),
+            use_container_width=True,
+        )
+    st.subheader("Error Slice Explorer")
+    st.dataframe(diagnostics["classification_slices"].head(20), use_container_width=True, hide_index=True)
+    st.dataframe(diagnostics["regression_slices"].head(20), use_container_width=True, hide_index=True)
+
+with tabs[5]:
     h1_left, h1_right = st.columns(2)
     with h1_left:
         figure(FIGURES_DIR / "h1_intake_type_adoption_rate.png", "H1 adoption rate by intake type")
@@ -115,9 +289,39 @@ with tabs[2]:
     st.subheader("H5: COVID-period Dynamics")
     st.dataframe(tables["h5"], use_container_width=True, hide_index=True)
 
-with tabs[3]:
+with tabs[6]:
+    st.subheader("Campaign Candidate Finder")
+    st.caption("Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.")
+    predictions = diagnostics["predictions"]
+    if predictions.empty:
+        st.info("Run diagnostics to populate campaign cohorts.")
+    else:
+        filters = {}
+        cols = st.columns(4)
+        for col, field in zip(cols, ["animal_type", "age_group", "intake_type", "covid_period"]):
+            options = ["All"] + sorted(predictions[field].dropna().astype(str).unique().tolist())
+            filters[field] = col.selectbox(field.replace("_", " ").title(), options)
+        cohort = predictions.copy()
+        for field, value in filters.items():
+            if value != "All":
+                cohort = cohort[cohort[field].astype(str).eq(value)]
+        if cohort.empty:
+            st.warning("No records match this cohort.")
+        else:
+            cols = st.columns(4)
+            cols[0].metric("Cohort size", f"{len(cohort):,}")
+            cols[1].metric("Observed adoption", f"{cohort['classification_target'].mean() * 100:.1f}%")
+            cols[2].metric("Mean predicted adoption", f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
+            cols[3].metric("Median predicted days", f"{cohort['predicted_days_to_outcome'].median():.1f}")
+            st.write(
+                "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low "
+                "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
+            )
+            st.dataframe(cohort.head(100), use_container_width=True, hide_index=True)
+
+with tabs[7]:
     st.subheader("What-if Prediction")
-    st.caption("Uses the combined histogram gradient boosting classifier and regressor. This is a demo prediction, not a causal decision rule.")
+    st.caption("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.")
 
     left, right = st.columns(2)
     with left:
@@ -162,11 +366,39 @@ with tabs[3]:
             col1.metric("Predicted adoption probability", f"{probability_pct:.1f}%")
             col2.metric("Predicted days to outcome", f"{days:.1f}")
             st.dataframe(record, use_container_width=True, hide_index=True)
+            similar = similar_historical_cases(DATA_PATH, record)
+            if not similar.empty:
+                st.subheader("Similar Historical Cases")
+                st.dataframe(similar, use_container_width=True, hide_index=True)
         except FileNotFoundError as error:
             st.error(str(error))
-            st.info("Run `python scripts/train_boosting.py --data data/processed/modeling_dataset.csv` first.")
+            st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.")
 
-with tabs[4]:
+with tabs[8]:
+    st.subheader("Adoption Timeline")
+    milestones = tables["milestones"]
+    if milestones.empty:
+        st.info("Run diagnostics to generate adoption timeline milestones.")
+    else:
+        group = st.selectbox("Timeline group", sorted(milestones["group"].unique()))
+        view = milestones[milestones["group"].eq(group)].head(15)
+        st.altair_chart(
+            alt.Chart(view)
+            .transform_fold(["adopted_by_day_7_pct", "adopted_by_day_30_pct", "adopted_by_day_90_pct"], as_=["milestone", "share"])
+            .mark_bar()
+            .encode(
+                x=alt.X("value:N", sort="-y", title=group.replace("_", " ")),
+                y=alt.Y("share:Q", title="Share adopted (%)"),
+                color="milestone:N",
+                tooltip=["value", "adoptions", "milestone", "share"],
+            )
+            .properties(height=360),
+            use_container_width=True,
+        )
+        figure(FIGURES_DIR / "adoption_cumulative_curves.png", "Adoption timeline milestones")
+        st.dataframe(milestones, use_container_width=True, hide_index=True)
+
+with tabs[9]:
     st.subheader("Generated Artifacts")
     st.write("Core commands:")
     st.code(
@@ -176,7 +408,9 @@ with tabs[4]:
                 "python scripts/run_eda.py --data data/processed/modeling_dataset.csv",
                 "python scripts/train_baseline.py --data data/processed/modeling_dataset.csv",
                 "python scripts/train_boosting.py --data data/processed/modeling_dataset.csv",
+                "python scripts/train_advanced.py --data data/processed/modeling_dataset.csv",
                 "python scripts/run_analysis.py --data data/processed/modeling_dataset.csv",
+                "python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap",
                 "python scripts/generate_report_outputs.py",
             ]
         ),

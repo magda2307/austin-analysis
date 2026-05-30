@@ -25,12 +25,14 @@ def create_model_comparison_tables(
         [
             metrics / "classification_metrics.csv",
             metrics / "boosting_classification_metrics.csv",
+            metrics / "advanced_classification_metrics.csv",
         ]
     )
     regression = _read_existing(
         [
             metrics / "regression_metrics.csv",
             metrics / "boosting_regression_metrics.csv",
+            metrics / "advanced_regression_metrics.csv",
         ]
     )
 
@@ -65,4 +67,3 @@ def create_model_comparison_tables(
         regression.to_csv(tables / "model_comparison_regression.csv", index=False)
 
     return classification, regression
-
