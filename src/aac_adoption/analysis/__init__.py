@@ -1,0 +1,2 @@
+"""Thesis analysis table generation."""
+

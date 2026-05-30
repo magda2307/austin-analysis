@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Local data files
+data/raw/*
+data/interim/*
+data/processed/*
+!data/raw/.gitkeep
+!data/interim/.gitkeep
+!data/processed/.gitkeep
+
+# Reports generated from data
+reports/figures/*
+reports/tables/*
+reports/metrics/*
+!reports/figures/.gitkeep
+!reports/tables/.gitkeep
+!reports/metrics/.gitkeep
+
+# Generated model artifacts
+models/baseline/*
+models/boosting/*
+!models/baseline/.gitkeep
+!models/boosting/.gitkeep
