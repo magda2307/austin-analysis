@@ -56,6 +56,11 @@ def cached_tables() -> dict[str, pd.DataFrame]:
         "h1": load_table(TABLES_DIR, "h1"),
         "h3": load_table(TABLES_DIR, "h3"),
         "h5": load_table(TABLES_DIR, "h5"),
+        "animal_archetypes": load_table(TABLES_DIR, "animal_archetypes"),
+        "vulnerable_profiles": load_table(TABLES_DIR, "vulnerable_profiles"),
+        "profile_contrasts": load_table(TABLES_DIR, "profile_contrasts"),
+        "profile_model_error": load_table(TABLES_DIR, "profile_model_error"),
+        "health_behavior_profiles": load_table(TABLES_DIR, "health_behavior_profiles"),
         "shap_classification": load_optional_csv(TABLES_DIR, "shap_global_classification.csv"),
         "shap_regression": load_optional_csv(TABLES_DIR, "shap_global_regression.csv"),
         "shap_family_classification": load_optional_csv(TABLES_DIR, "shap_feature_families_classification.csv"),
@@ -111,6 +116,7 @@ tabs = st.tabs(
     [
         "Executive Overview",
         "Story Mode",
+        "Animal Stories",
         "Model Quality",
         "Interpretability",
         "Risk Explorer",
@@ -155,6 +161,62 @@ with tabs[1]:
         column.caption(card["question"])
 
 with tabs[2]:
+    st.subheader("Animal Journey Cards")
+    archetypes = tables["animal_archetypes"]
+    if archetypes.empty:
+        st.info("Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories.")
+    else:
+        labels = archetypes["profile_label"].head(250).tolist()
+        selected_label = st.selectbox("Animal profile", labels)
+        selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Similar records", f"{int(selected['records']):,}")
+        col2.metric("Adoption rate", f"{selected['adoption_rate_pct']:.1f}%")
+        col3.metric("Median wait", f"{selected['median_days_to_outcome']:.1f} days")
+        col4.metric("Visibility need", selected["visibility_need"])
+
+        st.write(
+            f"**Profile:** {selected['animal_type']} | {selected['age_group']} | "
+            f"{selected['intake_type']} / {selected['intake_condition']} | "
+            f"{selected.get('health_profile', 'unknown health')} | "
+            f"{selected.get('behavior_support_flag', 'unknown behavior signal')} | "
+            f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
+            f"{'named' if bool(selected['is_named']) else 'unnamed'}"
+        )
+        mix_cols = st.columns(3)
+        mix_cols[0].metric("Transfer rate", f"{selected.get('transfer_rate_pct', 0):.1f}%")
+        mix_cols[1].metric("Return-to-owner rate", f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
+        mix_cols[2].metric("Euthanasia rate", f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
+
+    st.subheader("Key Animal Contrasts")
+    contrasts = tables["profile_contrasts"]
+    if not contrasts.empty:
+        contrast_choice = st.selectbox("Contrast", sorted(contrasts["contrast"].unique()))
+        contrast_view = contrasts[contrasts["contrast"].eq(contrast_choice)]
+        st.altair_chart(
+            alt.Chart(contrast_view)
+            .mark_bar()
+            .encode(
+                x=alt.X("contrast_value:N", title="Animal group"),
+                y=alt.Y("adoption_rate_pct:Q", title="Adoption rate (%)"),
+                color="contrast_value:N",
+                tooltip=["contrast_value", "records", "adoption_rate_pct", "median_days_to_outcome", "euthanasia_rate_pct"],
+            )
+            .properties(height=320),
+            use_container_width=True,
+        )
+        st.dataframe(contrast_view, use_container_width=True, hide_index=True)
+    left_animal, right_animal = st.columns(2)
+    with left_animal:
+        figure(FIGURES_DIR / "animal_archetypes_top.png", "Largest animal archetypes")
+    with right_animal:
+        figure(FIGURES_DIR / "vulnerable_profiles.png", "Animal profiles needing visibility or support")
+    st.subheader("Vulnerable Profiles")
+    st.dataframe(tables["vulnerable_profiles"].head(30), use_container_width=True, hide_index=True)
+    st.subheader("Health and Behavior Support Profiles")
+    st.dataframe(tables["health_behavior_profiles"], use_container_width=True, hide_index=True)
+
+with tabs[3]:
     left, right = st.columns(2)
     with left:
         figure(FIGURES_DIR / "model_comparison_classification_roc_auc.png", "Classification ROC-AUC")
@@ -193,7 +255,7 @@ with tabs[2]:
         figure(FIGURES_DIR / "diagnostic_calibration_curve.png", "Probability calibration")
         figure(FIGURES_DIR / "diagnostic_predicted_vs_actual.png", "Regression predicted vs actual")
 
-with tabs[3]:
+with tabs[4]:
     st.subheader("SHAP Global Explanations")
     st.caption("SHAP values describe factors associated with model predictions, not causal effects.")
     left_shap, right_shap = st.columns(2)
@@ -220,7 +282,7 @@ with tabs[3]:
     else:
         st.info("Run diagnostics with `--include-shap` to populate interpretation artifacts.")
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("Risk Threshold Simulator")
     thresholds = diagnostics["thresholds"]
     if thresholds.empty:
@@ -271,7 +333,7 @@ with tabs[4]:
     st.dataframe(diagnostics["classification_slices"].head(20), use_container_width=True, hide_index=True)
     st.dataframe(diagnostics["regression_slices"].head(20), use_container_width=True, hide_index=True)
 
-with tabs[5]:
+with tabs[6]:
     h1_left, h1_right = st.columns(2)
     with h1_left:
         figure(FIGURES_DIR / "h1_intake_type_adoption_rate.png", "H1 adoption rate by intake type")
@@ -289,7 +351,7 @@ with tabs[5]:
     st.subheader("H5: COVID-period Dynamics")
     st.dataframe(tables["h5"], use_container_width=True, hide_index=True)
 
-with tabs[6]:
+with tabs[7]:
     st.subheader("Campaign Candidate Finder")
     st.caption("Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.")
     predictions = diagnostics["predictions"]
@@ -319,7 +381,7 @@ with tabs[6]:
             )
             st.dataframe(cohort.head(100), use_container_width=True, hide_index=True)
 
-with tabs[7]:
+with tabs[8]:
     st.subheader("What-if Prediction")
     st.caption("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.")
 
@@ -374,7 +436,7 @@ with tabs[7]:
             st.error(str(error))
             st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.")
 
-with tabs[8]:
+with tabs[9]:
     st.subheader("Adoption Timeline")
     milestones = tables["milestones"]
     if milestones.empty:
@@ -398,7 +460,7 @@ with tabs[8]:
         figure(FIGURES_DIR / "adoption_cumulative_curves.png", "Adoption timeline milestones")
         st.dataframe(milestones, use_container_width=True, hide_index=True)
 
-with tabs[9]:
+with tabs[10]:
     st.subheader("Generated Artifacts")
     st.write("Core commands:")
     st.code(
@@ -411,6 +473,7 @@ with tabs[9]:
                 "python scripts/train_advanced.py --data data/processed/modeling_dataset.csv",
                 "python scripts/run_analysis.py --data data/processed/modeling_dataset.csv",
                 "python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap",
+                "python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv",
                 "python scripts/generate_report_outputs.py",
             ]
         ),

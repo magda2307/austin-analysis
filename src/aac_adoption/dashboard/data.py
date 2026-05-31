@@ -29,6 +29,11 @@ TABLE_FILES = {
     "h1": "h1_intake_vs_appearance.csv",
     "h3": "h3_age_adoption_speed.csv",
     "h5": "h5_covid_period.csv",
+    "animal_archetypes": "animal_archetypes.csv",
+    "vulnerable_profiles": "vulnerable_profiles.csv",
+    "profile_contrasts": "profile_contrasts.csv",
+    "profile_model_error": "profile_model_error.csv",
+    "health_behavior_profiles": "health_behavior_profiles.csv",
 }
 
 DIAGNOSTIC_FILES = {

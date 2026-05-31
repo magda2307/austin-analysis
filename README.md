@@ -21,14 +21,18 @@ Implemented:
 - EDA tables and figures,
 - model comparison tables,
 - H1/H3/H5 support tables,
-- first-level interpretability outputs.
+- first-level interpretability outputs,
+- CatBoost advanced models,
+- calibration, threshold, residual, and risk diagnostics,
+- SHAP and feature-family summaries,
+- animal-centered profile research,
+- Streamlit thesis dashboard,
+- formal report-generation script.
 
 Not implemented yet:
 
-- Streamlit dashboard,
-- SHAP,
 - Docker/DVC/MLflow,
-- formal report-generation script.
+- survival models beyond descriptive adoption-timeline views.
 
 ## Project Scope
 
@@ -277,6 +281,29 @@ reports/figures/shap_summary_classification.png
 
 All interpretation outputs describe predictive association with the model, not causal effects.
 
+## Generate Animal-Centered Research
+
+After the modeling dataset exists, generate the animal story layer:
+
+```bash
+python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
+```
+
+Outputs include:
+
+```text
+reports/tables/animal_archetypes.csv
+reports/tables/vulnerable_profiles.csv
+reports/tables/profile_contrasts.csv
+reports/tables/profile_model_error.csv
+reports/tables/health_behavior_profiles.csv
+reports/figures/animal_archetypes_top.png
+reports/figures/vulnerable_profiles.png
+reports/figures/profile_contrasts_adoption_rate.png
+```
+
+This layer supports dog and cat profiles such as pit-bull-type vs other dogs, black/dark cats vs other cats, senior vs baby animals, named vs unnamed animals, and health or behavior-support proxy groups. Health and behavior fields are interpreted as shelter-record descriptors, not full personality measures.
+
 ## Generate Thesis Report Outputs
 
 After analysis tables exist, generate thesis-ready summary text and figures:
@@ -312,6 +339,7 @@ streamlit run streamlit_app.py
 The demo reads existing artifacts instead of retraining models. It includes:
 
 - story mode with workflow and approach-comparison visuals,
+- animal journey cards and animal-centered contrast views,
 - overview of current generated results,
 - model comparison figures and tables,
 - H1/H3/H5 hypothesis figures and tables,
@@ -324,12 +352,12 @@ Current full-data model comparison:
 
 - best classification model by ROC-AUC: `hist_gradient_boosting`,
 - combined classification ROC-AUC: about `0.840`,
-- dogs classification ROC-AUC: about `0.806`,
+- dogs classification ROC-AUC: about `0.813` with CatBoost,
 - cats classification ROC-AUC: about `0.865`,
-- best regression model by MAE: `hist_gradient_boosting`,
-- combined regression MAE: about `20.21` days,
-- dogs regression MAE: about `22.62` days,
-- cats regression MAE: about `18.28` days.
+- best regression model by MAE: `catboost`,
+- combined regression MAE: about `18.55` days,
+- dogs regression MAE: about `21.56` days,
+- cats regression MAE: about `15.79` days.
 
 Use these numbers as current pipeline outputs, not final thesis conclusions. Models show predictive association, not causality.
 
@@ -344,6 +372,7 @@ python scripts/train_boosting.py --data data/processed/modeling_dataset.csv
 python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
 python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
+python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
 python scripts/generate_report_outputs.py
 pytest
 ```

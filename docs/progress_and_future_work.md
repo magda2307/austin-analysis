@@ -782,3 +782,52 @@ For the project to feel thesis-ready, the following should be true:
 - limitations are explicit.
 
 The current repository is already past the fragile prototype stage. The most valuable next work is consolidation: make the existing results easier to regenerate, inspect, explain, and place directly into the thesis.
+
+## 13. 2026-05-31 Animal-Centered Story Upgrade
+
+The dashboard and analysis plan now include an animal-first layer designed to make the thesis demo feel grounded in shelter cases rather than generic model metrics.
+
+Implemented:
+
+- advanced CatBoost modeling and diagnostics story layer,
+- SHAP and feature-family summaries,
+- Streamlit tabs for story mode, model quality, interpretability, risk exploration, campaign finding, what-if prediction, and adoption timeline,
+- animal-centered exploratory research command,
+- Animal Stories dashboard tab,
+- Animal Journey Cards based on profile archetypes,
+- pit-bull-type vs other dog comparison,
+- black/dark cats vs other cats comparison,
+- domestic-cat labels vs other cat breed groups,
+- senior vs baby by species,
+- named vs unnamed by species,
+- health-profile and behavior-support proxy summaries.
+
+New command:
+
+```bash
+python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
+```
+
+New tables:
+
+- `reports/tables/animal_archetypes.csv`
+- `reports/tables/vulnerable_profiles.csv`
+- `reports/tables/profile_contrasts.csv`
+- `reports/tables/profile_model_error.csv`
+- `reports/tables/health_behavior_profiles.csv`
+
+New figures:
+
+- `reports/figures/animal_archetypes_top.png`
+- `reports/figures/vulnerable_profiles.png`
+- `reports/figures/profile_contrasts_adoption_rate.png`
+
+Interpretation guardrail:
+
+The data has condition, subtype, breed, color, age, name, and intake context, but it does not contain a complete personality profile. The implemented behavior/personality angle uses conservative proxy language: `behavior_support_signal` means the administrative record contains behavior-like or special-handling context. It does not mean the animal has a fixed temperament, and it should never be used as a moral label.
+
+Current verification snapshot:
+
+```text
+31 passed
+```
