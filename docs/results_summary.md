@@ -163,10 +163,12 @@ python scripts/generate_report_outputs.py
 pytest
 ```
 
-## Next Technical Step
+## Current Technical Focus
+
+The subgroup validation layer is now implemented in the evidence pack. Use `reports/tables/subgroup_reliability.csv`, `reports/tables/subgroup_metric_confidence_intervals.csv`, `reports/tables/model_failure_modes.csv`, and `reports/tables/subgroup_adoption_milestones.csv` to discuss where the model is more or less reliable for dogs, cats, age groups, intake/health profiles, appearance groups, and named vs unnamed animals.
 
 Recommended next step:
 
-1. keep thesis text aligned with generated evidence-pack outputs,
-2. deepen subgroup validation where the evidence pack shows high calibration gaps or MAE,
+1. keep thesis text aligned with the subgroup evidence-pack outputs,
+2. deepen selected cohort discussion where calibration gaps or MAE are high,
 3. treat survival-style analysis as descriptive unless a full time-to-event model is added.

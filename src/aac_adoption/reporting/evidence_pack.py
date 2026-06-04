@@ -44,6 +44,40 @@ LIMITATION_COLUMNS = [
 
 CI_COLUMNS = ["metric", "animal_subset", "lower", "estimate", "upper", "bootstrap_samples"]
 
+SUBGROUP_CI_COLUMNS = [
+    "cohort",
+    "value",
+    "metric",
+    "records",
+    "lower",
+    "estimate",
+    "upper",
+    "bootstrap_samples",
+    "status",
+]
+
+MILESTONE_COLUMNS = [
+    "cohort",
+    "value",
+    "records",
+    "adoptions",
+    "adoption_rate_pct",
+    "adopted_by_day_7_pct",
+    "adopted_by_day_30_pct",
+    "adopted_by_day_60_pct",
+    "adopted_by_day_90_pct",
+]
+
+FAILURE_MODE_COLUMNS = [
+    "failure_mode",
+    "cohort",
+    "value",
+    "records",
+    "metric",
+    "value_score",
+    "interpretation",
+]
+
 JOURNEY_COLUMNS = [
     "profile_label",
     "records",
@@ -220,6 +254,157 @@ def model_limitations_by_cohort(predictions: pd.DataFrame, min_records: int = 10
     return result.sort_values(["small_cohort_flag", "calibration_gap", "records"], ascending=[True, False, False])
 
 
+def subgroup_reliability(predictions: pd.DataFrame, min_records: int = 100) -> pd.DataFrame:
+    """Create the primary subgroup reliability table."""
+    return model_limitations_by_cohort(predictions, min_records=min_records)
+
+
+def subgroup_metric_intervals(
+    predictions: pd.DataFrame,
+    *,
+    n_bootstrap: int = 100,
+    min_records: int = 100,
+    random_state: int = RANDOM_STATE,
+) -> pd.DataFrame:
+    """Bootstrap metrics by subgroup when enough records and class variety exist."""
+    if predictions.empty:
+        return pd.DataFrame(columns=SUBGROUP_CI_COLUMNS)
+    frame = add_animal_descriptors(predictions)
+    candidate_columns = [
+        "animal_type",
+        "age_group",
+        "intake_type",
+        "health_profile",
+        "simplified_breed_group",
+        "simplified_color_group",
+        "is_named",
+    ]
+    rows: list[dict[str, Any]] = []
+    for column in [col for col in candidate_columns if col in frame.columns]:
+        for value, group in frame.groupby(column, dropna=False):
+            records = len(group)
+            if records < min_records:
+                rows.append(
+                    {
+                        "cohort": column,
+                        "value": value,
+                        "metric": "all",
+                        "records": records,
+                        "lower": np.nan,
+                        "estimate": np.nan,
+                        "upper": np.nan,
+                        "bootstrap_samples": 0,
+                        "status": "small_cohort",
+                    }
+                )
+                continue
+            intervals = bootstrap_metric_intervals(group, n_bootstrap=n_bootstrap, random_state=random_state)
+            if intervals.empty:
+                rows.append(
+                    {
+                        "cohort": column,
+                        "value": value,
+                        "metric": "all",
+                        "records": records,
+                        "lower": np.nan,
+                        "estimate": np.nan,
+                        "upper": np.nan,
+                        "bootstrap_samples": 0,
+                        "status": "insufficient_schema",
+                    }
+                )
+                continue
+            for _, interval in intervals.iterrows():
+                status = "ok"
+                if pd.isna(interval["estimate"]):
+                    status = "insufficient_class_variety"
+                rows.append(
+                    {
+                        "cohort": column,
+                        "value": value,
+                        "metric": interval["metric"],
+                        "records": records,
+                        "lower": interval["lower"],
+                        "estimate": interval["estimate"],
+                        "upper": interval["upper"],
+                        "bootstrap_samples": interval["bootstrap_samples"],
+                        "status": status,
+                    }
+                )
+    return pd.DataFrame(rows, columns=SUBGROUP_CI_COLUMNS)
+
+
+def subgroup_adoption_milestones(data_path: str | Path, min_records: int = 50) -> pd.DataFrame:
+    """Create descriptive adoption milestone table for key subgroup dimensions."""
+    path = Path(data_path)
+    if not path.exists():
+        return pd.DataFrame(columns=MILESTONE_COLUMNS)
+    df = pd.read_csv(path)
+    if df.empty or "classification_target" not in df.columns:
+        return pd.DataFrame(columns=MILESTONE_COLUMNS)
+    df = add_animal_descriptors(df)
+    days_column = "days_to_adoption" if "days_to_adoption" in df.columns else "days_to_outcome"
+    if days_column not in df.columns:
+        return pd.DataFrame(columns=MILESTONE_COLUMNS)
+    group_columns = ["animal_type", "age_group", "intake_type", "health_profile"]
+    rows: list[dict[str, Any]] = []
+    for column in [col for col in group_columns if col in df.columns]:
+        for value, group in df.groupby(column, dropna=False):
+            records = len(group)
+            adopted = group[group["classification_target"].eq(1)]
+            adoptions = len(adopted)
+            if records < min_records:
+                continue
+            rows.append(
+                {
+                    "cohort": column,
+                    "value": value,
+                    "records": records,
+                    "adoptions": adoptions,
+                    "adoption_rate_pct": float(group["classification_target"].mean() * 100),
+                    "adopted_by_day_7_pct": float((adopted[days_column] <= 7).mean() * 100) if adoptions else 0.0,
+                    "adopted_by_day_30_pct": float((adopted[days_column] <= 30).mean() * 100) if adoptions else 0.0,
+                    "adopted_by_day_60_pct": float((adopted[days_column] <= 60).mean() * 100) if adoptions else 0.0,
+                    "adopted_by_day_90_pct": float((adopted[days_column] <= 90).mean() * 100) if adoptions else 0.0,
+                }
+            )
+    if not rows:
+        return pd.DataFrame(columns=MILESTONE_COLUMNS)
+    return pd.DataFrame(rows, columns=MILESTONE_COLUMNS).sort_values(["cohort", "records"], ascending=[True, False])
+
+
+def model_failure_modes(reliability: pd.DataFrame, top_n: int = 8) -> pd.DataFrame:
+    """Extract top failure-mode rows from subgroup reliability."""
+    if reliability.empty:
+        return pd.DataFrame(columns=FAILURE_MODE_COLUMNS)
+    frame = reliability[~reliability["small_cohort_flag"].astype(bool)].copy()
+    if frame.empty:
+        return pd.DataFrame(columns=FAILURE_MODE_COLUMNS)
+    specs = [
+        ("calibration_gap", "calibration_gap", "Predicted probability differs from observed adoption rate."),
+        ("high_mae", "mae", "Days-to-outcome error is high for this cohort."),
+        ("false_negative_rate", "false_negative_rate", "Adopted animals are sometimes predicted below the default threshold."),
+        ("false_positive_rate", "false_positive_rate", "Non-adoption outcomes are sometimes predicted above the default threshold."),
+    ]
+    rows: list[dict[str, Any]] = []
+    for mode, metric, interpretation in specs:
+        if metric not in frame.columns:
+            continue
+        for _, row in frame.sort_values(metric, ascending=False).head(top_n).iterrows():
+            rows.append(
+                {
+                    "failure_mode": mode,
+                    "cohort": row["cohort"],
+                    "value": row["value"],
+                    "records": row["records"],
+                    "metric": metric,
+                    "value_score": row[metric],
+                    "interpretation": interpretation,
+                }
+            )
+    return pd.DataFrame(rows, columns=FAILURE_MODE_COLUMNS)
+
+
 def shap_family_evidence(shap_family_classification: pd.DataFrame, shap_family_regression: pd.DataFrame) -> pd.DataFrame:
     """Convert SHAP feature-family tables into evidence rows."""
     rows: list[dict[str, Any]] = []
@@ -330,6 +515,9 @@ def _summary_markdown(
     limitations: pd.DataFrame,
     intervals: pd.DataFrame,
     journeys: pd.DataFrame,
+    subgroup_intervals: pd.DataFrame | None = None,
+    subgroup_milestones: pd.DataFrame | None = None,
+    failure_modes: pd.DataFrame | None = None,
 ) -> str:
     lines = [
         "# Model Evidence Pack",
@@ -364,6 +552,28 @@ def _summary_markdown(
             lines.append(
                 f"- {row['cohort']}={row['value']}: {int(row['records'])} records, "
                 f"calibration gap {_fmt(row['calibration_gap'])}, MAE {_fmt(row['mae'], 2)}."
+            )
+
+    if failure_modes is not None and not failure_modes.empty:
+        lines.extend(["", "Top model failure modes:"])
+        for _, row in failure_modes.head(8).iterrows():
+            lines.append(
+                f"- {row['failure_mode']}: {row['cohort']}={row['value']} "
+                f"({int(row['records'])} records, {row['metric']} {_fmt(row['value_score'])})."
+            )
+
+    if subgroup_intervals is not None and not subgroup_intervals.empty:
+        ok = subgroup_intervals[subgroup_intervals["status"].eq("ok")]
+        if not ok.empty:
+            lines.extend(["", "Subgroup metric intervals are available for cohorts with enough records and class variety."])
+
+    if subgroup_milestones is not None and not subgroup_milestones.empty:
+        lines.extend(["", "## Time-to-Adoption Milestones", ""])
+        for _, row in subgroup_milestones.head(8).iterrows():
+            lines.append(
+                f"- {row['cohort']}={row['value']}: {int(row['adoptions'])} adoptions; "
+                f"{_fmt(row['adopted_by_day_30_pct'], 1)}% adopted by day 30 and "
+                f"{_fmt(row['adopted_by_day_90_pct'], 1)}% by day 90."
             )
 
     lines.extend(["", "## SHAP and Animal Stories", ""])
@@ -403,6 +613,7 @@ def create_evidence_pack(
     *,
     bootstrap_samples: int = 200,
     min_cohort_records: int = 100,
+    milestone_min_records: int = 50,
 ) -> dict[str, Path]:
     """Generate evidence pack CSV and Markdown artifacts."""
     tables = Path(tables_dir)
@@ -431,19 +642,46 @@ def create_evidence_pack(
     if evidence.empty:
         evidence = pd.DataFrame(columns=EVIDENCE_COLUMNS)
     limitations = model_limitations_by_cohort(predictions, min_records=min_cohort_records)
+    subgroup = subgroup_reliability(predictions, min_records=min_cohort_records)
     intervals = bootstrap_metric_intervals(predictions, n_bootstrap=bootstrap_samples)
+    subgroup_intervals = subgroup_metric_intervals(
+        predictions,
+        n_bootstrap=max(25, min(bootstrap_samples, 100)),
+        min_records=min_cohort_records,
+    )
+    milestones = subgroup_adoption_milestones(data_path, min_records=milestone_min_records)
+    failures = model_failure_modes(subgroup)
     journeys = animal_journey_examples(animal_archetypes, shap_global_classification, data_path, models_dir)
 
     paths = {
         "evidence": tables / "model_evidence_pack.csv",
         "limitations": tables / "model_limitations_by_cohort.csv",
         "intervals": tables / "metric_confidence_intervals.csv",
+        "subgroup_reliability": tables / "subgroup_reliability.csv",
+        "subgroup_intervals": tables / "subgroup_metric_confidence_intervals.csv",
+        "subgroup_milestones": tables / "subgroup_adoption_milestones.csv",
+        "failure_modes": tables / "model_failure_modes.csv",
         "journeys": tables / "animal_journey_examples.csv",
         "summary": summary / "model_evidence_pack.md",
+        "subgroup_summary": summary / "subgroup_reliability.md",
     }
     evidence.to_csv(paths["evidence"], index=False)
     limitations.to_csv(paths["limitations"], index=False)
     intervals.to_csv(paths["intervals"], index=False)
+    subgroup.to_csv(paths["subgroup_reliability"], index=False)
+    subgroup_intervals.to_csv(paths["subgroup_intervals"], index=False)
+    milestones.to_csv(paths["subgroup_milestones"], index=False)
+    failures.to_csv(paths["failure_modes"], index=False)
     journeys.to_csv(paths["journeys"], index=False)
-    paths["summary"].write_text(_summary_markdown(evidence, limitations, intervals, journeys), encoding="utf-8")
+    subgroup_text = _summary_markdown(
+        evidence,
+        subgroup,
+        intervals,
+        journeys,
+        subgroup_intervals=subgroup_intervals,
+        subgroup_milestones=milestones,
+        failure_modes=failures,
+    )
+    paths["summary"].write_text(subgroup_text, encoding="utf-8")
+    paths["subgroup_summary"].write_text(subgroup_text, encoding="utf-8")
     return paths

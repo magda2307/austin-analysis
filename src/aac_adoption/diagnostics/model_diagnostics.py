@@ -36,8 +36,10 @@ DIAGNOSTIC_COLUMNS = [
     "intake_condition",
     "age_group",
     "covid_period",
+    "simplified_breed_group",
     "simplified_color_group",
     "is_black_or_dark",
+    "is_named",
     "classification_target",
     "regression_target_days",
 ]

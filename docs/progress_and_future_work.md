@@ -886,3 +886,29 @@ New outputs:
 Interpretation guardrail:
 
 The evidence pack is designed for thesis defensibility. It should be used to discuss model choice, uncertainty, and limitations. It should not be used to claim that a feature causes adoption.
+
+## 16. 2026-06-04 Subgroup Reliability and Adoption Milestones
+
+The next ML-rigor layer is implemented. The evidence pack now includes animal-specific reliability evidence and descriptive time-to-adoption milestones.
+
+Implemented:
+
+- subgroup reliability outputs for species, age, intake type, health profile, breed group, color group, and named vs unnamed animals,
+- cohort-level observed adoption rate, mean predicted probability, calibration gap, false positive rate, false negative rate, MAE, record count, and small-cohort flag,
+- subgroup bootstrap confidence intervals where records and class variety are sufficient,
+- model failure-mode table ranking the largest calibration gaps and error rates,
+- descriptive adoption milestones at days 7, 30, 60, and 90,
+- Trust & Limits dashboard subgroup selector, calibration-gap chart, failure-mode table, interval table, and adoption milestone chart,
+- report/evidence summaries that frame subgroup evidence as reliability analysis, not causal inference.
+
+New outputs:
+
+- `reports/tables/subgroup_reliability.csv`
+- `reports/tables/subgroup_metric_confidence_intervals.csv`
+- `reports/tables/subgroup_adoption_milestones.csv`
+- `reports/tables/model_failure_modes.csv`
+- `reports/summary/subgroup_reliability.md`
+
+Interpretation guardrail:
+
+Subgroup reliability describes where the current model is more or less trustworthy. Adoption milestones describe historical timing patterns. Neither output proves that a breed, color, name, health descriptor, or intake circumstance causes adoption outcomes.

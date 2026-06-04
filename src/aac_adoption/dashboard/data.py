@@ -67,6 +67,10 @@ TABLE_FILES = {
     "model_evidence_pack": "model_evidence_pack.csv",
     "model_limitations_by_cohort": "model_limitations_by_cohort.csv",
     "metric_confidence_intervals": "metric_confidence_intervals.csv",
+    "subgroup_reliability": "subgroup_reliability.csv",
+    "subgroup_metric_confidence_intervals": "subgroup_metric_confidence_intervals.csv",
+    "subgroup_adoption_milestones": "subgroup_adoption_milestones.csv",
+    "model_failure_modes": "model_failure_modes.csv",
     "animal_journey_examples": "animal_journey_examples.csv",
 }
 

@@ -23,8 +23,39 @@ reports/tables/model_evidence_pack.csv
 reports/tables/model_limitations_by_cohort.csv
 reports/tables/metric_confidence_intervals.csv
 reports/tables/animal_journey_examples.csv
+reports/tables/subgroup_reliability.csv
+reports/tables/subgroup_metric_confidence_intervals.csv
+reports/tables/subgroup_adoption_milestones.csv
+reports/tables/model_failure_modes.csv
 reports/summary/model_evidence_pack.md
+reports/summary/subgroup_reliability.md
 ```
+
+Useful options:
+
+```bash
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv --bootstrap-samples 100 --milestone-min-records 50
+```
+
+## Subgroup Reliability
+
+The subgroup reliability layer makes model limits animal-specific. It evaluates available cohorts such as dogs, cats, age groups, intake types, health-profile groups, breed groups, color groups, and named vs unnamed animals.
+
+Key fields include:
+
+- `records`: number of diagnostic records in the cohort,
+- `observed_adoption_rate`: observed adoption share,
+- `mean_predicted_probability`: average predicted adoption probability,
+- `calibration_gap`: absolute difference between observed and predicted adoption rates,
+- `false_positive_rate` and `false_negative_rate`: threshold-sensitive classification errors,
+- `mae`: days-to-outcome regression error,
+- `small_cohort`: whether the group is too small for strong claims.
+
+`reports/tables/model_failure_modes.csv` ranks the largest calibration gaps, MAE values, false-negative rates, and false-positive rates. These rows are warning lights for thesis discussion, not proof that a group is intrinsically harder to place.
+
+## Adoption Milestones
+
+`reports/tables/subgroup_adoption_milestones.csv` reports descriptive adoption timing at days 7, 30, 60, and 90 by species, age group, intake type, and health profile. This is time-to-adoption evidence, but it is not a full survival model because censoring and competing events are not modeled rigorously.
 
 ## Interpretation Rules
 
@@ -42,6 +73,10 @@ The Streamlit `Trust & Limits` tab reads the evidence-pack artifacts and shows:
 
 - metric confidence intervals,
 - cohort reliability limits,
+- subgroup reliability selector and calibration-gap chart,
+- top model failure modes,
+- subgroup metric confidence intervals,
+- descriptive adoption milestone chart,
 - calibration/error-sensitive cohorts,
 - Animal Journey evidence examples.
 

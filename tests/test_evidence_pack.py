@@ -4,6 +4,10 @@ from aac_adoption.reporting.evidence_pack import (
     bootstrap_metric_intervals,
     create_evidence_pack,
     model_limitations_by_cohort,
+    model_failure_modes,
+    subgroup_adoption_milestones,
+    subgroup_metric_intervals,
+    subgroup_reliability,
 )
 
 
@@ -39,6 +43,40 @@ def test_model_limitations_flag_small_cohorts():
 
     assert {"cohort", "records", "small_cohort_flag", "calibration_gap", "mae"}.issubset(limitations.columns)
     assert limitations["small_cohort_flag"].any()
+
+
+def test_subgroup_outputs_have_expected_schema(tmp_path):
+    predictions = _predictions()
+    reliability = subgroup_reliability(predictions, min_records=2)
+    intervals = subgroup_metric_intervals(predictions, n_bootstrap=5, min_records=2, random_state=1)
+    failures = model_failure_modes(reliability, top_n=2)
+
+    assert {"cohort", "value", "records", "calibration_gap", "mae", "false_positive_rate", "false_negative_rate"}.issubset(reliability.columns)
+    assert {"cohort", "value", "metric", "records", "lower", "estimate", "upper", "status"}.issubset(intervals.columns)
+    assert {"ok", "insufficient_class_variety"} & set(intervals["status"])
+    assert {"failure_mode", "cohort", "metric", "value_score", "interpretation"}.issubset(failures.columns)
+
+
+def test_subgroup_adoption_milestones_include_day_60(tmp_path):
+    data = pd.DataFrame(
+        {
+            "animal_type": ["Dog", "Dog", "Cat", "Cat"],
+            "age_group": ["baby", "senior", "baby", "senior"],
+            "intake_type": ["Stray", "Stray", "Owner Surrender", "Owner Surrender"],
+            "intake_condition": ["Normal", "Sick", "Normal", "Normal"],
+            "outcome_subtype": ["Foster", "Medical", "Foster", "Foster"],
+            "classification_target": [1, 1, 0, 1],
+            "days_to_adoption": [5.0, 45.0, 0.0, 80.0],
+            "days_to_outcome": [5.0, 45.0, 10.0, 80.0],
+        }
+    )
+    data_path = tmp_path / "modeling.csv"
+    data.to_csv(data_path, index=False)
+
+    milestones = subgroup_adoption_milestones(data_path, min_records=1)
+
+    assert {"adopted_by_day_7_pct", "adopted_by_day_30_pct", "adopted_by_day_60_pct", "adopted_by_day_90_pct"}.issubset(milestones.columns)
+    assert "animal_type" in set(milestones["cohort"])
 
 
 def test_create_evidence_pack_writes_artifacts(tmp_path):
@@ -86,9 +124,21 @@ def test_create_evidence_pack_writes_artifacts(tmp_path):
         ]
     ).to_csv(tables / "animal_archetypes.csv", index=False)
     _predictions().to_csv(diagnostics / "diagnostic_predictions_sample.csv", index=False)
+    pd.DataFrame(
+        {
+            "animal_type": ["Dog", "Dog", "Cat"],
+            "age_group": ["senior", "baby", "baby"],
+            "intake_type": ["Stray", "Stray", "Owner Surrender"],
+            "intake_condition": ["Normal", "Normal", "Normal"],
+            "outcome_subtype": ["Foster", "Foster", "Foster"],
+            "classification_target": [1, 0, 1],
+            "days_to_adoption": [10.0, 0.0, 30.0],
+            "days_to_outcome": [10.0, 5.0, 30.0],
+        }
+    ).to_csv(tmp_path / "modeling.csv", index=False)
 
     paths = create_evidence_pack(
-        data_path=tmp_path / "missing.csv",
+        data_path=tmp_path / "modeling.csv",
         tables_dir=tables,
         diagnostics_dir=diagnostics,
         summary_dir=summary,
@@ -100,6 +150,11 @@ def test_create_evidence_pack_writes_artifacts(tmp_path):
     assert paths["evidence"].exists()
     assert paths["limitations"].exists()
     assert paths["intervals"].exists()
+    assert paths["subgroup_reliability"].exists()
+    assert paths["subgroup_intervals"].exists()
+    assert paths["subgroup_milestones"].exists()
+    assert paths["failure_modes"].exists()
     assert paths["journeys"].exists()
     assert paths["summary"].exists()
+    assert paths["subgroup_summary"].exists()
     assert "associated with model behavior" in paths["summary"].read_text(encoding="utf-8")

@@ -23,6 +23,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--models-dir", default="models/advanced")
     parser.add_argument("--bootstrap-samples", type=int, default=200)
     parser.add_argument("--min-cohort-records", type=int, default=100)
+    parser.add_argument("--milestone-min-records", type=int, default=50)
     return parser.parse_args()
 
 
@@ -36,6 +37,7 @@ def main() -> None:
         models_dir=args.models_dir,
         bootstrap_samples=args.bootstrap_samples,
         min_cohort_records=args.min_cohort_records,
+        milestone_min_records=args.milestone_min_records,
     )
     print(f"Wrote evidence pack table to {paths['evidence']}")
     print(f"Wrote evidence summary to {paths['summary']}")

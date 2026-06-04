@@ -27,6 +27,7 @@ Implemented:
 - SHAP and feature-family summaries,
 - animal-centered profile research,
 - model evidence pack with confidence intervals and cohort limitations,
+- subgroup reliability and descriptive time-to-adoption evidence,
 - Streamlit thesis dashboard,
 - formal report-generation script.
 
@@ -321,10 +322,21 @@ reports/tables/model_evidence_pack.csv
 reports/tables/model_limitations_by_cohort.csv
 reports/tables/metric_confidence_intervals.csv
 reports/tables/animal_journey_examples.csv
+reports/tables/subgroup_reliability.csv
+reports/tables/subgroup_metric_confidence_intervals.csv
+reports/tables/subgroup_adoption_milestones.csv
+reports/tables/model_failure_modes.csv
 reports/summary/model_evidence_pack.md
+reports/summary/subgroup_reliability.md
 ```
 
-The evidence pack is the main ML-rigor layer. It summarizes model choice, PR-AUC, bootstrap metric intervals, calibration and error limits by cohort, SHAP feature-family evidence, and selected Animal Journey examples. It uses association language, not causal language.
+The evidence pack is the main ML-rigor layer. It summarizes model choice, PR-AUC, bootstrap metric intervals, calibration and error limits by cohort, SHAP feature-family evidence, selected Animal Journey examples, subgroup reliability, model failure modes, and descriptive adoption milestones at days 7, 30, 60, and 90. It uses association language, not causal language.
+
+Useful development options:
+
+```bash
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv --bootstrap-samples 100 --milestone-min-records 50
+```
 
 ## Generate Thesis Report Outputs
 
@@ -366,7 +378,7 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - model comparison figures and tables,
 - H1/H3/H5 hypothesis figures and tables,
 - reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
-- Trust & Limits evidence-pack view,
+- Trust & Limits evidence-pack view with subgroup selector, calibration-gap chart, confidence intervals, model-struggle table, and adoption milestone chart,
 - a simple what-if prediction form using combined CatBoost artifacts.
 
 ## Current Results Snapshot

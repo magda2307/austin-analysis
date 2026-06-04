@@ -68,6 +68,10 @@ def cached_tables() -> dict[str, pd.DataFrame]:
         "model_evidence_pack": load_table(TABLES_DIR, "model_evidence_pack"),
         "model_limitations_by_cohort": load_table(TABLES_DIR, "model_limitations_by_cohort"),
         "metric_confidence_intervals": load_table(TABLES_DIR, "metric_confidence_intervals"),
+        "subgroup_reliability": load_table(TABLES_DIR, "subgroup_reliability"),
+        "subgroup_metric_confidence_intervals": load_table(TABLES_DIR, "subgroup_metric_confidence_intervals"),
+        "subgroup_adoption_milestones": load_table(TABLES_DIR, "subgroup_adoption_milestones"),
+        "model_failure_modes": load_table(TABLES_DIR, "model_failure_modes"),
         "animal_journey_examples": load_table(TABLES_DIR, "animal_journey_examples"),
         "shap_classification": load_optional_csv(TABLES_DIR, "shap_global_classification.csv"),
         "shap_regression": load_optional_csv(TABLES_DIR, "shap_global_regression.csv"),
@@ -314,6 +318,10 @@ with tabs[4]:
     evidence = tables["model_evidence_pack"]
     intervals = tables["metric_confidence_intervals"]
     limitations = tables["model_limitations_by_cohort"]
+    subgroup_reliability_table = tables["subgroup_reliability"]
+    subgroup_intervals = tables["subgroup_metric_confidence_intervals"]
+    subgroup_milestones = tables["subgroup_adoption_milestones"]
+    failure_modes = tables["model_failure_modes"]
     journey_examples = tables["animal_journey_examples"]
     evidence_summary = load_summary(SUMMARY_DIR).split("## Model Evidence Pack", maxsplit=1)
     if evidence.empty and intervals.empty and limitations.empty:
@@ -353,6 +361,61 @@ with tabs[4]:
                 .properties(height=360),
                 use_container_width=True,
             )
+        if not subgroup_reliability_table.empty:
+            st.subheader("Subgroup Explorer")
+            subgroup_options = sorted(subgroup_reliability_table["cohort"].dropna().astype(str).unique().tolist())
+            subgroup_choice = st.selectbox("Reliability subgroup", subgroup_options)
+            subgroup_view = subgroup_reliability_table[subgroup_reliability_table["cohort"].astype(str).eq(subgroup_choice)]
+            stable_view = subgroup_view[~subgroup_view["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in subgroup_view.columns else subgroup_view
+            st.dataframe(stable_view, use_container_width=True, hide_index=True)
+            st.altair_chart(
+                alt.Chart(stable_view)
+                .mark_bar()
+                .encode(
+                    x=alt.X("calibration_gap:Q", title="Calibration gap"),
+                    y=alt.Y("value:N", sort="-x", title=subgroup_choice.replace("_", " ")),
+                    tooltip=["value", "records", "observed_adoption_rate", "mean_predicted_adoption_probability", "calibration_gap", "mae"],
+                )
+                .properties(height=320),
+                use_container_width=True,
+            )
+        if not failure_modes.empty:
+            st.subheader("Where the Model Struggles")
+            st.dataframe(failure_modes.head(40), use_container_width=True, hide_index=True)
+        if not subgroup_intervals.empty:
+            st.subheader("Subgroup Metric Intervals")
+            interval_view = subgroup_intervals[subgroup_intervals["status"].eq("ok")] if "status" in subgroup_intervals.columns else subgroup_intervals
+            st.dataframe(interval_view.head(50), use_container_width=True, hide_index=True)
+        if not subgroup_milestones.empty:
+            st.subheader("Time-to-Adoption Milestones")
+            milestone_group = st.selectbox("Milestone subgroup", sorted(subgroup_milestones["cohort"].dropna().astype(str).unique().tolist()))
+            milestone_view = subgroup_milestones[subgroup_milestones["cohort"].astype(str).eq(milestone_group)].head(20)
+            milestone_chart = milestone_view.melt(
+                id_vars=["value", "records", "adoptions", "adoption_rate_pct"],
+                value_vars=["adopted_by_day_7_pct", "adopted_by_day_30_pct", "adopted_by_day_60_pct", "adopted_by_day_90_pct"],
+                var_name="milestone",
+                value_name="share",
+            )
+            st.altair_chart(
+                alt.Chart(milestone_chart)
+                .mark_bar()
+                .encode(
+                    x=alt.X("value:N", sort="-y", title=milestone_group.replace("_", " ")),
+                    y=alt.Y("share:Q", title="Adopted animals (%)"),
+                    color=alt.Color("milestone:N", title="Milestone"),
+                    tooltip=[
+                        alt.Tooltip("value:N", title="Value"),
+                        alt.Tooltip("records:Q", title="Records"),
+                        alt.Tooltip("adoptions:Q", title="Adoptions"),
+                        alt.Tooltip("adoption_rate_pct:Q", title="Adoption rate"),
+                        alt.Tooltip("milestone:N", title="Milestone"),
+                        alt.Tooltip("share:Q", title="Adopted by day"),
+                    ],
+                )
+                .properties(height=340),
+                use_container_width=True,
+            )
+            st.dataframe(milestone_view, use_container_width=True, hide_index=True)
         if not journey_examples.empty:
             st.subheader("Animal Journey Evidence Examples")
             st.dataframe(journey_examples, use_container_width=True, hide_index=True)
@@ -399,15 +462,24 @@ with tabs[6]:
             cols[1].metric("Recall", f"{row['recall']:.3f}")
             cols[2].metric("F1", f"{row['f1']:.3f}")
             cols[3].metric("Flagged share", f"{row['flagged_for_adoption_share']:.1%}")
+        threshold_chart = thresholds.melt(
+            id_vars=["threshold"],
+            value_vars=["precision", "recall", "f1"],
+            var_name="metric",
+            value_name="value",
+        )
         st.altair_chart(
-            alt.Chart(thresholds)
-            .transform_fold(["precision", "recall", "f1"], as_=["metric", "value"])
+            alt.Chart(threshold_chart)
             .mark_line(point=True)
             .encode(
-                x="threshold:Q",
-                y="value:Q",
-                color="metric:N",
-                tooltip=["threshold", "metric", "value"],
+                x=alt.X("threshold:Q", title="Threshold"),
+                y=alt.Y("value:Q", title="Metric value"),
+                color=alt.Color("metric:N", title="Metric"),
+                tooltip=[
+                    alt.Tooltip("threshold:Q", title="Threshold"),
+                    alt.Tooltip("metric:N", title="Metric"),
+                    alt.Tooltip("value:Q", title="Value"),
+                ],
             )
             .properties(height=320),
             use_container_width=True,
@@ -546,15 +618,25 @@ with tabs[10]:
     else:
         group = st.selectbox("Timeline group", sorted(milestones["group"].unique()))
         view = milestones[milestones["group"].eq(group)].head(15)
+        timeline_chart = view.melt(
+            id_vars=["value", "adoptions"],
+            value_vars=["adopted_by_day_7_pct", "adopted_by_day_30_pct", "adopted_by_day_90_pct"],
+            var_name="milestone",
+            value_name="share",
+        )
         st.altair_chart(
-            alt.Chart(view)
-            .transform_fold(["adopted_by_day_7_pct", "adopted_by_day_30_pct", "adopted_by_day_90_pct"], as_=["milestone", "share"])
+            alt.Chart(timeline_chart)
             .mark_bar()
             .encode(
                 x=alt.X("value:N", sort="-y", title=group.replace("_", " ")),
                 y=alt.Y("share:Q", title="Share adopted (%)"),
-                color="milestone:N",
-                tooltip=["value", "adoptions", "milestone", "share"],
+                color=alt.Color("milestone:N", title="Milestone"),
+                tooltip=[
+                    alt.Tooltip("value:N", title="Value"),
+                    alt.Tooltip("adoptions:Q", title="Adoptions"),
+                    alt.Tooltip("milestone:N", title="Milestone"),
+                    alt.Tooltip("share:Q", title="Adopted by day"),
+                ],
             )
             .properties(height=360),
             use_container_width=True,
