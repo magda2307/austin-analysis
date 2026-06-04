@@ -83,14 +83,16 @@ Completed:
 - saved metrics and model artifacts,
 - first-level interpretability outputs,
 - H1/H3/H5 support tables.
+- CatBoost advanced models,
+- SHAP and feature-family outputs,
+- diagnostics and model evidence pack,
+- Streamlit thesis dashboard,
+- report-generation script and model comparison plots.
 
 Not yet implemented:
 
-- Streamlit prototype,
-- SHAP,
 - Docker/DVC/MLflow,
-- formal report-generation script,
-- model comparison plots.
+- production deployment.
 
 ## Milestones
 
@@ -119,22 +121,27 @@ Milestone 2: EDA and baseline models. Completed.
 Milestone 3: stronger models and interpretation. Mostly completed.
 
 - gradient boosting,
+- CatBoost,
 - feature importance,
 - permutation importance,
 - tables for H1/H3/H5.
-- SHAP later if feasible.
+- SHAP global and feature-family explanations,
+- local SHAP for representative Animal Journey Cards,
+- model evidence pack.
 
 Remaining work for Milestone 3:
 
-- model comparison plots,
-- Markdown/CSV report summaries for thesis writing,
-- optional SHAP after current outputs are stable.
+- deepen confidence intervals and subgroup validation,
+- keep thesis text aligned with generated evidence,
+- extend selected dog/cat SHAP outputs if runtime remains acceptable.
 
-Milestone 4: Streamlit prototype.
+Milestone 4: Streamlit prototype. Completed as thesis demo.
 
 - prediction page,
 - what-if page,
 - feature importance page,
+- Animal Stories,
+- Trust & Limits,
 - thesis demo only, not production system.
 
 ## Current Rule

@@ -159,6 +159,7 @@ def _summary_lines(
     thresholds: pd.DataFrame,
     risk: pd.DataFrame,
     shap_classification: pd.DataFrame,
+    evidence_summary: str = "",
 ) -> list[str]:
     lines = [
         "# Generated Current Results Summary",
@@ -272,6 +273,24 @@ def _summary_lines(
             "",
         ]
     )
+    if evidence_summary:
+        lines.extend(
+            [
+                "## Model Evidence Pack",
+                "",
+                "A separate evidence pack has been generated for model choice, uncertainty, cohort limits, SHAP interpretation, and animal journey examples.",
+                "",
+            ]
+        )
+        evidence_lines = [
+            line
+            for line in evidence_summary.splitlines()
+            if not line.startswith("# Model Evidence Pack")
+        ]
+        while evidence_lines and not evidence_lines[0].strip():
+            evidence_lines.pop(0)
+        lines.extend(evidence_lines[:100])
+        lines.append("")
     return lines
 
 
@@ -296,6 +315,8 @@ def create_report_outputs(
     thresholds = _read_table(diagnostics / "classification_thresholds.csv")
     risk = _read_table(diagnostics / "placement_risk_quadrants.csv")
     shap_classification = _read_table(tables / "shap_global_classification.csv")
+    evidence_summary_path = summary / "model_evidence_pack.md"
+    evidence_summary = evidence_summary_path.read_text(encoding="utf-8") if evidence_summary_path.exists() else ""
 
     _save_grouped_metric_plot(
         classification,
@@ -392,6 +413,7 @@ def create_report_outputs(
                 thresholds,
                 risk,
                 shap_classification,
+                evidence_summary,
             )
         ),
         encoding="utf-8",

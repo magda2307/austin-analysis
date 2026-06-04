@@ -26,6 +26,7 @@ Implemented:
 - calibration, threshold, residual, and risk diagnostics,
 - SHAP and feature-family summaries,
 - animal-centered profile research,
+- model evidence pack with confidence intervals and cohort limitations,
 - Streamlit thesis dashboard,
 - formal report-generation script.
 
@@ -64,7 +65,6 @@ The code should first support robust dataset construction, baseline modeling, an
 
 Not in current scope:
 
-- Streamlit dashboard,
 - complex MLOps,
 - advanced hypothesis testing,
 - production deployment.
@@ -306,6 +306,26 @@ This layer supports dog and cat profiles such as pit-bull-type vs other dogs, bl
 
 The Streamlit Animal Stories tab also builds representative Animal Journey Cards from these profiles. When advanced model artifacts are available, each card adds CatBoost adoption probability, predicted wait, a prediction-derived visibility label, similar historical cases with outcome mix, and local SHAP reasons for the representative record.
 
+## Generate Model Evidence Pack
+
+After diagnostics and animal research artifacts exist, generate the model evidence pack:
+
+```bash
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
+```
+
+Outputs include:
+
+```text
+reports/tables/model_evidence_pack.csv
+reports/tables/model_limitations_by_cohort.csv
+reports/tables/metric_confidence_intervals.csv
+reports/tables/animal_journey_examples.csv
+reports/summary/model_evidence_pack.md
+```
+
+The evidence pack is the main ML-rigor layer. It summarizes model choice, PR-AUC, bootstrap metric intervals, calibration and error limits by cohort, SHAP feature-family evidence, and selected Animal Journey examples. It uses association language, not causal language.
+
 ## Generate Thesis Report Outputs
 
 After analysis tables exist, generate thesis-ready summary text and figures:
@@ -346,7 +366,8 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - model comparison figures and tables,
 - H1/H3/H5 hypothesis figures and tables,
 - reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
-- a simple what-if prediction form using combined histogram gradient boosting artifacts.
+- Trust & Limits evidence-pack view,
+- a simple what-if prediction form using combined CatBoost artifacts.
 
 ## Current Results Snapshot
 
@@ -375,6 +396,7 @@ python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
 python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
 python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
 python scripts/generate_report_outputs.py
 pytest
 ```

@@ -2,6 +2,7 @@ import pandas as pd
 
 from aac_adoption.diagnostics.feature_families import feature_family
 from aac_adoption.diagnostics.model_diagnostics import calibration_table, error_slices, placement_risk_table, threshold_table
+from aac_adoption.models.evaluate import classification_metrics
 
 
 def _prediction_frame() -> pd.DataFrame:
@@ -45,3 +46,14 @@ def test_feature_family_mapping():
     assert feature_family("intake_type") == "intake_circumstances"
     assert feature_family("simplified_color_group") == "color"
     assert feature_family("surprise_column") == "other"
+
+
+def test_classification_metrics_include_pr_auc():
+    metrics = classification_metrics(
+        [0, 0, 1, 1],
+        [0, 1, 1, 1],
+        [0.1, 0.6, 0.7, 0.9],
+    )
+
+    assert "pr_auc" in metrics
+    assert metrics["pr_auc"] is not None

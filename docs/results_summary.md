@@ -132,6 +132,10 @@ reports/tables/logistic_regression_coefficients.csv
 reports/tables/random_forest_feature_importance.csv
 reports/tables/permutation_importance_classification.csv
 reports/tables/permutation_importance_regression.csv
+reports/tables/shap_global_classification.csv
+reports/tables/shap_global_regression.csv
+reports/tables/shap_feature_families_classification.csv
+reports/tables/shap_feature_families_regression.csv
 ```
 
 Use these to discuss predictive importance, not causality.
@@ -150,7 +154,12 @@ python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/r
 python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
 python scripts/train_boosting.py --data data/processed/modeling_dataset.csv
+python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
+python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
+python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
+python scripts/generate_report_outputs.py
 pytest
 ```
 
@@ -158,7 +167,6 @@ pytest
 
 Recommended next step:
 
-1. add a small report-generation script that creates Markdown summaries from metrics and hypothesis tables,
-2. add plots for model comparison and H1/H3/H5 tables,
-3. then start Streamlit prototype only after thesis tables and plots are stable.
-
+1. keep thesis text aligned with generated evidence-pack outputs,
+2. deepen subgroup validation where the evidence pack shows high calibration gaps or MAE,
+3. treat survival-style analysis as descriptive unless a full time-to-event model is added.

@@ -473,23 +473,23 @@ Recommended figures:
 - H3: adoption rate and median days to outcome by age group,
 - H5: adoption rate and median days to outcome by COVID period.
 
-### 7.4 SHAP Is Not Implemented
+### 7.4 Historical Note: SHAP Was Not Implemented At This Review Point
 
-The thesis draft mentions SHAP, but the code currently provides logistic coefficients, random forest feature importance, and permutation importance. That is already useful, but it is not SHAP.
+Superseded by later work. The thesis draft mentioned SHAP before the repository had SHAP artifacts. The current system now includes sampled CatBoost SHAP global outputs, feature-family SHAP summaries, and local SHAP explanations for representative Animal Journey Cards.
 
-Options:
+Historical options at that time were:
 
 - implement SHAP if time allows and the dependency/runtime burden is acceptable,
 - revise thesis wording to say "permutation importance and model-specific importance" instead of promising SHAP,
 - keep SHAP as optional future work.
 
-The safest path is to stabilize the existing interpretation outputs first, then add SHAP only if it provides clear additional value.
+Current rule: SHAP is implemented; keep SHAP language as predictive association with model behavior, not causal effect.
 
-### 7.5 Streamlit Is Not Implemented
+### 7.5 Historical Note: Streamlit Was Not Implemented At This Review Point
 
-The thesis draft describes a Streamlit dashboard/prototype, but the repository does not yet include it.
+Superseded by later work. The repository now includes an artifact-driven Streamlit dashboard with model quality, interpretability, risk exploration, animal stories, what-if prediction, adoption timeline, and trust/limits views.
 
-This is not urgent until the report artifacts are stable. The dashboard should consume stable CSVs and model artifacts rather than becoming a parallel analysis path.
+Current rule: the dashboard should continue consuming stable CSVs and model artifacts rather than becoming a parallel analysis path.
 
 ### 7.6 Formal MLOps Is Not Implemented
 
@@ -507,9 +507,9 @@ This is acceptable for now. Adding them too early would create overhead. The the
 
 This should be fixed before the thesis text becomes central. The code pipeline can continue, but thesis documentation quality will suffer unless the encoding problem is corrected from the original source or converted carefully.
 
-### 7.8 Git Baseline Is Missing
+### 7.8 Historical Note: Git Baseline Was Missing At This Review Point
 
-There are no commits yet. Before larger future work, the current state should be committed as a baseline. This will make it safer to add report generation, plots, SHAP, or Streamlit without losing the current stable pipeline.
+Superseded by later work. The repository now has a baseline commit and several feature commits for reporting, diagnostics, dashboard, animal stories, and Journey Cards.
 
 ## 8. Recommended Future Work
 
@@ -620,38 +620,29 @@ Acceptance criteria:
 - figures are thesis-ready without manual spreadsheet editing,
 - small groups are either flagged or filtered to avoid misleading bars.
 
-### Phase 5: Decide on SHAP
+### Phase 5: Historical Note: Decide on SHAP
 
-Priority: medium.
+Superseded by later work. SHAP is now implemented for sampled CatBoost outputs, feature families, and representative Animal Journey Cards.
 
-Decision point:
-
-- Add SHAP only if the current model pipelines can support it without excessive complexity.
-
-Recommended approach:
+The implemented approach is:
 
 - start with a sampled dataset,
 - focus on the best combined classification model first,
 - generate global SHAP summary only before attempting local explanations,
 - document runtime constraints.
 
-Acceptance criteria if implemented:
+Current acceptance criteria:
 
 - SHAP output is reproducible,
 - sample size is documented,
 - SHAP figures are saved as report artifacts,
 - thesis text clearly explains the difference between SHAP explanations and causal effects.
 
-Fallback if not implemented:
+### Phase 6: Historical Note: Build Streamlit Prototype
 
-- remove or soften SHAP promises from thesis text,
-- present permutation importance as the main model-agnostic interpretation method.
+Superseded by later work. The Streamlit prototype exists and remains artifact-driven.
 
-### Phase 6: Build Streamlit Prototype
-
-Priority: medium, after reporting is stable.
-
-Recommended pages:
+Implemented pages include:
 
 - overview page with dataset and model summary,
 - model comparison page,
@@ -860,3 +851,38 @@ Browser smoke confirmed that Animal Stories renders:
 - Predicted adoption chance,
 - Similar Historical Cases,
 - Top SHAP Reasons.
+
+## 15. 2026-06-04 Model Evidence Pack
+
+The next ML-rigor layer is implemented as an artifact-driven evidence pack.
+
+Implemented:
+
+- PR-AUC as a first-class classification metric,
+- `scripts/generate_evidence_pack.py`,
+- model evidence summary table,
+- bootstrap confidence intervals for ROC-AUC, PR-AUC, F1 at 0.50, and MAE,
+- cohort limitation table with calibration gap, MAE, false positive rate, and false negative rate,
+- Animal Journey evidence export,
+- evidence-pack Markdown summary,
+- Trust & Limits dashboard tab,
+- report summary integration,
+- dedicated documentation in `docs/model_evidence_pack.md`.
+
+New command:
+
+```bash
+python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
+```
+
+New outputs:
+
+- `reports/tables/model_evidence_pack.csv`
+- `reports/tables/model_limitations_by_cohort.csv`
+- `reports/tables/metric_confidence_intervals.csv`
+- `reports/tables/animal_journey_examples.csv`
+- `reports/summary/model_evidence_pack.md`
+
+Interpretation guardrail:
+
+The evidence pack is designed for thesis defensibility. It should be used to discuss model choice, uncertainty, and limitations. It should not be used to claim that a feature causes adoption.

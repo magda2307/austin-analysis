@@ -64,6 +64,10 @@ TABLE_FILES = {
     "profile_contrasts": "profile_contrasts.csv",
     "profile_model_error": "profile_model_error.csv",
     "health_behavior_profiles": "health_behavior_profiles.csv",
+    "model_evidence_pack": "model_evidence_pack.csv",
+    "model_limitations_by_cohort": "model_limitations_by_cohort.csv",
+    "metric_confidence_intervals": "metric_confidence_intervals.csv",
+    "animal_journey_examples": "animal_journey_examples.csv",
 }
 
 DIAGNOSTIC_FILES = {

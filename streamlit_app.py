@@ -65,6 +65,10 @@ def cached_tables() -> dict[str, pd.DataFrame]:
         "profile_contrasts": load_table(TABLES_DIR, "profile_contrasts"),
         "profile_model_error": load_table(TABLES_DIR, "profile_model_error"),
         "health_behavior_profiles": load_table(TABLES_DIR, "health_behavior_profiles"),
+        "model_evidence_pack": load_table(TABLES_DIR, "model_evidence_pack"),
+        "model_limitations_by_cohort": load_table(TABLES_DIR, "model_limitations_by_cohort"),
+        "metric_confidence_intervals": load_table(TABLES_DIR, "metric_confidence_intervals"),
+        "animal_journey_examples": load_table(TABLES_DIR, "animal_journey_examples"),
         "shap_classification": load_optional_csv(TABLES_DIR, "shap_global_classification.csv"),
         "shap_regression": load_optional_csv(TABLES_DIR, "shap_global_regression.csv"),
         "shap_family_classification": load_optional_csv(TABLES_DIR, "shap_feature_families_classification.csv"),
@@ -122,6 +126,7 @@ tabs = st.tabs(
         "Story Mode",
         "Animal Stories",
         "Model Quality",
+        "Trust & Limits",
         "Interpretability",
         "Risk Explorer",
         "Hypothesis Lab",
@@ -305,6 +310,54 @@ with tabs[3]:
         figure(FIGURES_DIR / "diagnostic_predicted_vs_actual.png", "Regression predicted vs actual")
 
 with tabs[4]:
+    st.subheader("Model Evidence Pack")
+    evidence = tables["model_evidence_pack"]
+    intervals = tables["metric_confidence_intervals"]
+    limitations = tables["model_limitations_by_cohort"]
+    journey_examples = tables["animal_journey_examples"]
+    evidence_summary = load_summary(SUMMARY_DIR).split("## Model Evidence Pack", maxsplit=1)
+    if evidence.empty and intervals.empty and limitations.empty:
+        st.info("Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts.")
+    else:
+        if len(evidence_summary) > 1:
+            st.markdown("## Model Evidence Pack" + evidence_summary[1])
+        if not intervals.empty:
+            st.subheader("Metric Confidence Intervals")
+            st.dataframe(intervals, use_container_width=True, hide_index=True)
+            st.altair_chart(
+                alt.Chart(intervals)
+                .mark_rule(size=4)
+                .encode(
+                    y=alt.Y("metric:N", sort=None, title="Metric"),
+                    x=alt.X("lower:Q", title="Bootstrap interval"),
+                    x2="upper:Q",
+                    color="animal_subset:N",
+                    tooltip=["metric", "animal_subset", "lower", "estimate", "upper", "bootstrap_samples"],
+                )
+                .properties(height=260),
+                use_container_width=True,
+            )
+        if not limitations.empty:
+            st.subheader("Cohort Reliability Limits")
+            reliable = limitations[~limitations["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in limitations.columns else limitations
+            st.dataframe(reliable.head(30), use_container_width=True, hide_index=True)
+            st.altair_chart(
+                alt.Chart(reliable.head(30))
+                .mark_bar()
+                .encode(
+                    x=alt.X("calibration_gap:Q", title="Calibration gap"),
+                    y=alt.Y("value:N", sort="-x", title="Cohort value"),
+                    color="cohort:N",
+                    tooltip=["cohort", "value", "records", "calibration_gap", "mae", "false_negative_rate"],
+                )
+                .properties(height=360),
+                use_container_width=True,
+            )
+        if not journey_examples.empty:
+            st.subheader("Animal Journey Evidence Examples")
+            st.dataframe(journey_examples, use_container_width=True, hide_index=True)
+
+with tabs[5]:
     st.subheader("SHAP Global Explanations")
     st.caption("SHAP values describe factors associated with model predictions, not causal effects.")
     left_shap, right_shap = st.columns(2)
@@ -331,7 +384,7 @@ with tabs[4]:
     else:
         st.info("Run diagnostics with `--include-shap` to populate interpretation artifacts.")
 
-with tabs[5]:
+with tabs[6]:
     st.subheader("Risk Threshold Simulator")
     thresholds = diagnostics["thresholds"]
     if thresholds.empty:
@@ -382,7 +435,7 @@ with tabs[5]:
     st.dataframe(diagnostics["classification_slices"].head(20), use_container_width=True, hide_index=True)
     st.dataframe(diagnostics["regression_slices"].head(20), use_container_width=True, hide_index=True)
 
-with tabs[6]:
+with tabs[7]:
     h1_left, h1_right = st.columns(2)
     with h1_left:
         figure(FIGURES_DIR / "h1_intake_type_adoption_rate.png", "H1 adoption rate by intake type")
@@ -400,7 +453,7 @@ with tabs[6]:
     st.subheader("H5: COVID-period Dynamics")
     st.dataframe(tables["h5"], use_container_width=True, hide_index=True)
 
-with tabs[7]:
+with tabs[8]:
     st.subheader("Campaign Candidate Finder")
     st.caption("Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.")
     predictions = diagnostics["predictions"]
@@ -430,7 +483,7 @@ with tabs[7]:
             )
             st.dataframe(cohort.head(100), use_container_width=True, hide_index=True)
 
-with tabs[8]:
+with tabs[9]:
     st.subheader("What-if Prediction")
     st.caption("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.")
 
@@ -485,7 +538,7 @@ with tabs[8]:
             st.error(str(error))
             st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.")
 
-with tabs[9]:
+with tabs[10]:
     st.subheader("Adoption Timeline")
     milestones = tables["milestones"]
     if milestones.empty:
@@ -509,7 +562,7 @@ with tabs[9]:
         figure(FIGURES_DIR / "adoption_cumulative_curves.png", "Adoption timeline milestones")
         st.dataframe(milestones, use_container_width=True, hide_index=True)
 
-with tabs[10]:
+with tabs[11]:
     st.subheader("Generated Artifacts")
     st.write("Core commands:")
     st.code(
@@ -523,6 +576,7 @@ with tabs[10]:
                 "python scripts/run_analysis.py --data data/processed/modeling_dataset.csv",
                 "python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap",
                 "python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv",
+                "python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv",
                 "python scripts/generate_report_outputs.py",
             ]
         ),
