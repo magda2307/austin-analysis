@@ -17,13 +17,17 @@ if str(SRC_DIR) not in sys.path:
 
 from aac_adoption.dashboard.data import (  # noqa: E402
     best_model_rows,
+    build_profile_prediction_record,
     build_prediction_record,
     load_diagnostic,
     load_optional_csv,
     load_summary,
     load_table,
+    local_shap_explanations,
     predict_from_record,
+    profile_global_shap_reasons,
     similar_historical_cases,
+    visibility_need_from_prediction,
 )
 from aac_adoption.dashboard.story import (  # noqa: E402
     approach_comparison_rows,
@@ -169,6 +173,14 @@ with tabs[2]:
         labels = archetypes["profile_label"].head(250).tolist()
         selected_label = st.selectbox("Animal profile", labels)
         selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
+        profile_record = build_profile_prediction_record(selected)
+        profile_prediction: dict[str, float] | None = None
+        profile_similarity = similar_historical_cases(DATA_PATH, profile_record)
+        try:
+            profile_prediction = predict_from_record(profile_record, MODELS_DIR)
+        except FileNotFoundError:
+            profile_prediction = None
+
         col1, col2, col3, col4 = st.columns(4)
         col1.metric("Similar records", f"{int(selected['records']):,}")
         col2.metric("Adoption rate", f"{selected['adoption_rate_pct']:.1f}%")
@@ -187,6 +199,43 @@ with tabs[2]:
         mix_cols[0].metric("Transfer rate", f"{selected.get('transfer_rate_pct', 0):.1f}%")
         mix_cols[1].metric("Return-to-owner rate", f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
         mix_cols[2].metric("Euthanasia rate", f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
+
+        st.subheader("Model View for This Journey")
+        if profile_prediction is None:
+            st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.")
+        else:
+            predicted_probability = profile_prediction["adoption_probability"]
+            predicted_days = profile_prediction["predicted_days_to_outcome"]
+            model_cols = st.columns(3)
+            model_cols[0].metric("Predicted adoption chance", f"{predicted_probability * 100:.1f}%")
+            model_cols[1].metric("Predicted wait", f"{predicted_days:.1f} days")
+            model_cols[2].metric("Model visibility label", visibility_need_from_prediction(predicted_probability, predicted_days))
+            with st.expander("Representative model record"):
+                st.dataframe(profile_record, use_container_width=True, hide_index=True)
+
+        st.subheader("Similar Historical Cases")
+        if profile_similarity.empty:
+            st.info("No similar historical cases found for this representative card.")
+        else:
+            st.dataframe(profile_similarity, use_container_width=True, hide_index=True)
+
+        st.subheader("Top SHAP Reasons")
+        shap_view = pd.DataFrame()
+        if profile_prediction is not None:
+            try:
+                shap_view = local_shap_explanations(profile_record, MODELS_DIR, task="classification", top_n=8)
+            except FileNotFoundError:
+                shap_view = pd.DataFrame()
+        if shap_view.empty:
+            shap_view = profile_global_shap_reasons(selected, tables["shap_classification"], top_n=8)
+            if shap_view.empty:
+                st.info("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons.")
+            else:
+                st.caption("Model-wide SHAP signals mapped onto this animal profile; associations, not causes.")
+                st.dataframe(shap_view, use_container_width=True, hide_index=True)
+        else:
+            st.caption("Local CatBoost SHAP values for the representative journey record; associations, not causes.")
+            st.dataframe(shap_view, use_container_width=True, hide_index=True)
 
     st.subheader("Key Animal Contrasts")
     contrasts = tables["profile_contrasts"]

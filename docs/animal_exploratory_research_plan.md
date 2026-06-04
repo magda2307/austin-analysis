@@ -84,9 +84,26 @@ Add `Animal Stories` tab with:
 
 - archetype selector,
 - journey card,
+- representative CatBoost prediction for the selected card,
+- local CatBoost SHAP reasons when model artifacts are available,
+- model-wide SHAP fallback reasons when only generated SHAP tables are available,
+- similar historical cases with outcome mix,
 - key contrast cards,
 - vulnerable profiles table,
 - health and behavior-support profile table.
+
+## Journey Cards v2 Implementation
+
+The implemented v2 card converts each selected archetype into a representative intake-time model record. That record is used to show:
+
+- predicted adoption probability,
+- predicted days to outcome,
+- prediction-derived visibility label,
+- exact/coarse similar historical cases,
+- adoption, transfer, return-to-owner, and euthanasia mix for similar cases,
+- local CatBoost SHAP features for the representative record.
+
+If model artifacts or SHAP dependencies are unavailable, the dashboard falls back to artifact-driven explanation tables and clear setup messages.
 
 ## Current Implemented Command
 

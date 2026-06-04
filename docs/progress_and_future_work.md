@@ -831,3 +831,32 @@ Current verification snapshot:
 ```text
 31 passed
 ```
+
+## 14. 2026-06-04 Journey Cards v2
+
+The next dashboard improvement is now implemented: Animal Journey Cards can move from descriptive archetypes to a prediction-backed demo card.
+
+Implemented:
+
+- representative model record builder for an animal archetype,
+- CatBoost prediction display inside Animal Stories,
+- prediction-derived visibility label,
+- richer similar historical cases with exact/coarse fallback levels,
+- similar-case outcome mix for adoption, transfer, return-to-owner, and euthanasia,
+- local CatBoost SHAP explanations for the representative card,
+- model-wide SHAP fallback reasons when local SHAP cannot run,
+- tests for representative records, similar-case summaries, SHAP fallback reasons, and visibility labels.
+
+Verification:
+
+```text
+35 passed
+```
+
+Browser smoke confirmed that Animal Stories renders:
+
+- Animal Journey Cards,
+- Model View for This Journey,
+- Predicted adoption chance,
+- Similar Historical Cases,
+- Top SHAP Reasons.

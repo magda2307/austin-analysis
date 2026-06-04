@@ -304,6 +304,8 @@ reports/figures/profile_contrasts_adoption_rate.png
 
 This layer supports dog and cat profiles such as pit-bull-type vs other dogs, black/dark cats vs other cats, senior vs baby animals, named vs unnamed animals, and health or behavior-support proxy groups. Health and behavior fields are interpreted as shelter-record descriptors, not full personality measures.
 
+The Streamlit Animal Stories tab also builds representative Animal Journey Cards from these profiles. When advanced model artifacts are available, each card adds CatBoost adoption probability, predicted wait, a prediction-derived visibility label, similar historical cases with outcome mix, and local SHAP reasons for the representative record.
+
 ## Generate Thesis Report Outputs
 
 After analysis tables exist, generate thesis-ready summary text and figures:
