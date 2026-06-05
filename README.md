@@ -88,6 +88,7 @@ tests/                              regression tests for data, features, models,
 Important local structure changes from recent multi-agent work:
 
 - `scripts/run_full_pipeline.py`, `scripts/run_full_pipeline.ps1`, and `scripts/run_full_pipeline.sh` orchestrate the end-to-end workflow.
+- `scripts/backfill_pr_auc.py` backfills PR-AUC into older metric files when existing artifacts predate the metric.
 - `scripts/generate_artifact_manifest.py` records generated thesis deliverables and whether they exist on disk.
 - `scripts/generate_data_audit.py`, `scripts/generate_leakage_audit.py`, `scripts/generate_matching_examples.py`, `scripts/generate_environment_snapshot.py`, and `scripts/generate_feature_quality_audit.py` create reproducibility and methodology artifacts.
 - `src/aac_adoption/analysis/` now contains dedicated modules for hypothesis evidence, final model selection, threshold analysis, calibration summaries, and reliability red flags.
@@ -392,12 +393,17 @@ reports/tables/hypothesis_evidence_matrix.csv
 reports/summary/hypothesis_evidence_matrix.md
 ```
 
-CLI Options:
+CLI options:
+
 - `--h1-ablation`: Run the slow feature-family ablation study training.
 - `--models-dir`: Custom path to model artifacts directory (default: `models`).
 - `--skip-survival`: Skip Kaplan-Meier descriptive survival curve generation.
 
 H1, H3, and H5 remain the central thesis hypotheses. H2 and H4 are generated as supporting descriptive checks.
+
+## Generate Model Diagnostics and Interpretability
+
+After advanced model artifacts exist, generate reliability diagnostics, error slices, placement-risk quadrants, adoption timeline tables, and optional SHAP outputs:
 
 ```bash
 python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
@@ -419,6 +425,21 @@ reports/figures/shap_summary_classification.png
 ```
 
 All interpretation outputs describe predictive association with the model, not causal effects.
+
+To regenerate standalone feature-family importance summaries from SHAP tables:
+
+```bash
+python scripts/generate_feature_family_importance.py
+```
+
+Outputs:
+
+```text
+reports/tables/feature_family_importance_classification.csv
+reports/tables/feature_family_importance_regression.csv
+reports/figures/feature_family_importance_classification.png
+reports/figures/feature_family_importance_regression.png
+```
 
 ## Generate Animal-Centered Research
 
