@@ -95,6 +95,331 @@ Important local structure changes from recent multi-agent work:
 - `streamlit_app.py` now presents generated artifacts, methodology reports, trust/limits evidence, animal stories, risk exploration, campaign candidates, and a model sensitivity demo.
 - `reports/artifact_manifest.csv` is a lightweight tracked manifest of generated thesis artifacts; large raw data, processed data, and model binaries remain local/generated assets.
 
+## Technical Architecture
+
+The repository follows an artifact-first architecture. Scripts create stable CSV, Markdown, PNG, and model artifacts; the Streamlit app reads those artifacts and does not retrain models interactively.
+
+```text
+Austin Open Data / local CSVs
+        |
+        v
+data loading and standardization
+        |
+        v
+clean intakes/outcomes -> match each intake to nearest valid future outcome
+        |
+        v
+feature engineering -> leakage-safe feature registry -> target creation
+        |
+        v
+time-aware train/validation/test split
+        |
+        v
+baseline, boosting, and CatBoost model training
+        |
+        v
+metrics, diagnostics, SHAP, hypothesis evidence, audits, reports
+        |
+        v
+artifact manifest + Streamlit thesis dashboard
+```
+
+Core technical principles:
+
+- **Artifact-first:** every important analysis output is written to `reports/` and can be inspected without rerunning the app.
+- **Leakage-safe:** configured model features come only from intake-time data and prior context windows.
+- **Date-aware:** intakes are matched to future outcomes only, and the default split is chronological.
+- **Model-comparison oriented:** dummy, linear, random forest, histogram boosting, and CatBoost models are kept for methodological comparison.
+- **Thesis-ready language:** generated evidence uses predictive/descriptive wording, not causal claims.
+- **Dashboard as reader:** Streamlit consumes artifacts and saved models; it is a presentation layer.
+
+## Data Flow and Contracts
+
+Raw inputs:
+
+- `data/raw/intakes.csv`
+- `data/raw/outcomes.csv`
+- optional `data/raw/context/austin_weather_daily.csv`
+- optional `data/raw/context/austin_311_animal_requests.csv`
+
+Column normalization:
+
+- raw AAC column names are converted to snake_case in `src/aac_adoption/data/load_data.py`;
+- `DateTime` becomes `intake_datetime` for intakes and `outcome_datetime` for outcomes;
+- raw files are never modified.
+
+Cleaning contract:
+
+- required intake columns: `animal_id`, `animal_type`, `intake_datetime`;
+- required outcome columns: `animal_id`, `animal_type`, `outcome_datetime`, `outcome_type`;
+- only cats and dogs are kept;
+- exact duplicate rows are removed;
+- mixed AAC datetime formats are parsed without shifting local shelter clock time.
+
+Episode matching contract:
+
+- each intake is matched to the nearest unused future outcome for the same `animal_id`;
+- outcome rows are not reused for the same animal;
+- unmatched intakes are counted and excluded from the modeling frame;
+- negative `days_to_outcome` values are rejected.
+
+Processed outputs:
+
+- `data/processed/modeling_dataset.csv`
+- `data/processed/feature_columns.json`
+- `data/processed/target_columns.json`
+- optional `data/processed/context_feature_columns.json`
+
+## Feature and Target Contract
+
+Configured base intake-time features live in `src/aac_adoption/features/feature_sets.py`.
+
+Feature families:
+
+- identity and intake: `animal_type`, `intake_type`, `intake_condition`, `sex_upon_intake`;
+- age: raw age string plus `age_days`, `age_months`, `age_years`, `age_group`;
+- breed: raw breed, `primary_breed`, `is_mixed_breed`, `simplified_breed_group`;
+- color: raw color, `primary_color`, `simplified_color_group`, `is_black_or_dark`;
+- name: `has_name`, `is_named`;
+- time: `intake_year`, `intake_month`, `intake_quarter`, `intake_season`, `covid_period`;
+- found location: `found_location_kind`, `found_location_area`, and location flags;
+- optional context: weather, rainy/heat flags, prior 311 animal requests, prior shelter intake volume.
+
+Found Location taxonomy:
+
+- raw `Found Location` is preserved in raw data but not used directly as a model feature;
+- derived fields are deterministic, reproducible, and geocoder-free;
+- categories include `austin_city`, `county_or_region`, `outside_jurisdiction`, `intersection`, `address_like`, and `other`;
+- flags include Austin, outside jurisdiction, intersection, address-like, and airport markers.
+
+Targets and metadata:
+
+- classification target: `classification_target` / `target_adopted` / `adopted`;
+- regression target: `regression_target_days`, equivalent to `days_to_outcome` / `length_of_stay`;
+- adopted-only timing support: `days_to_adoption` is populated only for adopted records;
+- metadata columns such as `outcome_type`, `outcome_datetime`, `sex_upon_outcome`, and `age_upon_outcome` are not predictors.
+
+Leakage rules:
+
+- `validate_no_leakage()` rejects outcome-derived feature columns;
+- columns containing future-window naming such as `next_` or `_next_` are rejected;
+- `animal_id` and `intake_datetime` may exist as metadata but are not ordinary model predictors;
+- context windows use prior dates only.
+
+Schema compatibility rules:
+
+- some generated report tables intentionally include alias columns for acceptance and dashboard compatibility;
+- examples include `subset` alongside `animal_subset`, `threshold_name` alongside `threshold_label`, and `subgroup_field` / `subgroup_value` alongside `cohort` / `value`;
+- H3 adopted-only timing output includes `age_group` and `records` aliases for `group_value` and `all_records`;
+- leakage audit output keeps detailed internal columns and adds user-facing aliases such as `allowed_as_feature`, `leakage_risk`, and `notes`.
+
+## Modeling Stack
+
+Model families:
+
+- dummy baselines for sanity checks;
+- logistic regression and ridge regression for interpretable linear baselines;
+- random forest baseline models with feature importance;
+- scikit-learn `HistGradientBoostingClassifier` and `HistGradientBoostingRegressor`;
+- CatBoost classifier/regressor for categorical-heavy shelter features.
+
+Animal subsets:
+
+- `combined`;
+- `dogs`;
+- `cats`.
+
+Default split:
+
+```text
+train:      2013-2021
+validation: 2022-2023
+test:       2024-2025
+```
+
+If these years are unavailable, training falls back to deterministic random splits.
+
+Primary model metrics:
+
+- classification: ROC-AUC, PR-AUC, F1, precision, recall, accuracy;
+- regression: MAE, RMSE, R2 and median absolute error where available;
+- calibration and threshold artifacts are generated separately for operational interpretation.
+
+Saved model artifacts:
+
+- baseline models: `models/baseline/`;
+- histogram boosting models: `models/boosting/`;
+- CatBoost models: `models/advanced/`;
+- artifact metadata includes feature lists and categorical feature lists.
+
+## Analysis and Evidence Layers
+
+Hypothesis layers:
+
+- H1: intake circumstances vs appearance/breed/color, supported by descriptive tables, feature-family importance, and optional ablation;
+- H2: seasonality, supporting descriptive check;
+- H3: age, adoption likelihood, length of stay, adopted-only timing, and SHAP evidence;
+- H4: dark coat color / black dog-cat syndrome, supporting descriptive check;
+- H5: COVID-period population and outcome-pattern shift, descriptive and predictive evidence.
+
+Model rigor layers:
+
+- final model selection summary;
+- classification threshold analysis;
+- confusion matrix at selected threshold;
+- calibration summary by subset;
+- reliability red flags;
+- error slices and placement-risk quadrants;
+- subgroup reliability and bootstrap intervals;
+- model failure modes;
+- descriptive adoption milestones at 7, 30, 60, and 90 days.
+
+Interpretability layers:
+
+- logistic regression coefficients;
+- random forest importance;
+- permutation importance;
+- SHAP global feature tables;
+- SHAP feature-family summaries;
+- local SHAP explanations for representative animal journey cards;
+- standalone feature-family importance plots.
+
+Audit and reproducibility layers:
+
+- data attrition audit;
+- leakage audit;
+- matching examples;
+- target definitions documentation;
+- feature quality audit;
+- environment snapshot;
+- artifact manifest.
+
+## Script Catalog
+
+Data and context:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/download_raw_data.py` | Download historical or current AAC intake/outcome CSV exports. |
+| `scripts/download_context_data.py` | Download Austin weather and 311 animal-service context data. |
+| `scripts/build_dataset.py` | Build processed modeling dataset and feature/target metadata. |
+| `scripts/build_modeling_dataset.py` | Compatibility entrypoint for dataset building. |
+| `scripts/compare_context_models.py` | Compare base vs context-enriched model metrics. |
+
+Training:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/train_baseline.py` | Train dummy, linear, and random forest baselines. |
+| `scripts/train_baselines.py` | Compatibility wrapper for baseline training. |
+| `scripts/train_boosting.py` | Train histogram gradient boosting models and permutation importance. |
+| `scripts/train_advanced.py` | Train CatBoost classifier/regressor artifacts. |
+| `scripts/backfill_pr_auc.py` | Backfill PR-AUC values into older metric files. |
+
+Analysis, diagnostics, and reports:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/run_eda.py` / `scripts/make_eda_outputs.py` | Generate initial EDA tables and figures. |
+| `scripts/run_analysis.py` | Generate model comparison, hypotheses, model selection, thresholds, calibration, and evidence matrix outputs. |
+| `scripts/generate_diagnostics.py` | Generate calibration, error slices, risk quadrants, SHAP, and adoption milestones. |
+| `scripts/generate_animal_research.py` | Generate animal archetypes, vulnerability profiles, contrasts, and profile error summaries. |
+| `scripts/generate_evidence_pack.py` | Generate ML-rigor evidence pack, subgroup reliability, intervals, milestones, and journey examples. |
+| `scripts/generate_report_outputs.py` | Generate thesis-ready summary Markdown and key report figures. |
+| `scripts/generate_feature_family_importance.py` | Create standalone feature-family SHAP importance summaries and plots. |
+
+Audits and reproducibility:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/generate_data_audit.py` | Create data attrition and dataset audit artifacts. |
+| `scripts/generate_leakage_audit.py` | Create leakage-control report from configured feature/target metadata. |
+| `scripts/generate_matching_examples.py` | Create human-readable examples of intake/outcome matching. |
+| `scripts/generate_environment_snapshot.py` | Save library/runtime version snapshot. |
+| `scripts/generate_feature_quality_audit.py` | Audit feature presence, missingness, and quality. |
+| `scripts/generate_artifact_manifest.py` | Inventory generated thesis artifacts and disk presence. |
+
+Orchestration:
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/run_full_pipeline.py` | Python end-to-end pipeline runner with step selection and skip flags. |
+| `scripts/run_full_pipeline.ps1` | PowerShell wrapper for Windows. |
+| `scripts/run_full_pipeline.sh` | Shell wrapper for Unix-like environments. |
+
+## Artifact Layout
+
+Core generated directories:
+
+```text
+reports/metrics/       model metric CSVs
+reports/tables/        model comparison, hypothesis, audit, reliability, and evidence tables
+reports/figures/       EDA, hypothesis, diagnostic, SHAP, and report figures
+reports/diagnostics/   prediction samples, calibration bins, error slices, risk quadrants
+reports/summary/       thesis-ready Markdown summaries and audit narratives
+models/                trained model artifacts and metadata
+data/processed/        processed modeling datasets and feature/target metadata
+logs/                  optional full-pipeline run logs
+```
+
+Artifact manifest:
+
+- `reports/artifact_manifest.csv` is tracked as a lightweight index;
+- `reports/summary/artifact_manifest.md` is generated for human review;
+- status values are ASCII `present` / `missing`;
+- required thesis artifacts are tested for existence when manifest files are available.
+
+## Test Suite Map
+
+The test suite is configured by `pyproject.toml`:
+
+```text
+pythonpath = ["src"]
+testpaths = ["tests"]
+```
+
+Coverage areas:
+
+- data loading, cleaning, matching, dataset build;
+- feature engineering and feature-set leakage checks;
+- split logic and model artifact helpers;
+- baseline, boosting, and CatBoost output contracts;
+- EDA, analysis, diagnostics, and report outputs;
+- evidence pack and subgroup reliability functions;
+- data audit, leakage audit, target definitions, and artifact manifest;
+- dashboard data helpers and story content;
+- acceptance/schema aliases for generated artifacts.
+
+Current expected verification:
+
+```bash
+pytest
+```
+
+Known warning:
+
+- pandas may emit a `FutureWarning` from evidence-pack concatenation when synthetic tests use empty/all-NA frames; this does not currently fail the suite.
+
+## Documentation Map
+
+Key docs:
+
+| Document | Purpose |
+|----------|---------|
+| `docs/target_definitions.md` | Formal target definitions and leakage-safe target framing. |
+| `docs/methodology_notes.md` | Regression, causal language, and methodology caveats. |
+| `docs/results_summary.md` | Current result interpretation and reporting notes. |
+| `docs/model_diagnostics.md` | Diagnostics and model reliability guide. |
+| `docs/model_evidence_pack.md` | Evidence-pack design and interpretation. |
+| `docs/progress_and_future_work.md` | Roadmap, implemented layers, and remaining work. |
+| `docs/technical_architecture_plan.md` | Architecture decisions and system plan. |
+| `docs/thesis_technical_guide.md` | Living technical guide for thesis implementation. |
+| `docs/found_location_plan.md` | Found Location taxonomy and implementation notes. |
+| `docs/implementation_plan_p3_p4.md` | Later-priority implementation plan for hypothesis/evidence work. |
+| `docs/interactive_story_plan.md` | Dashboard/storytelling plan. |
+| `docs/animal_exploratory_research_plan.md` | Animal-centered research planning. |
+| `docs/thesis.md` | Thesis draft text. |
+
 ## Project Scope
 
 Current scope:
@@ -371,8 +696,10 @@ reports/figures/h2_adoption_rate_by_season.png
 reports/figures/h2_median_los_by_season.png
 reports/summary/h2_interpretation.md
 reports/tables/h3_age_evidence_matrix.csv
+reports/tables/h3_adopted_only_age_speed.csv
 reports/figures/h3_age_adoption_rate.png
 reports/figures/h3_age_adopted_only_median_days.png
+reports/figures/h3_adopted_only_median_days_to_adoption.png
 reports/figures/h3_age_shap_summary.png
 reports/summary/h3_interpretation.md
 reports/tables/h4_dark_color_summary.csv
@@ -596,7 +923,7 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - generated artifact manifest and thesis/methodology report reader,
 - a simple model sensitivity form using combined CatBoost artifacts.
 
-The dashboard uses model sensitivity language instead of causal "what-if" claims. Changing form inputs shows how the trained model responds to different records; it does not prove that changing a real animal's characteristic would change the outcome.
+The dashboard uses model sensitivity language instead of causal counterfactual claims. Changing form inputs shows how the trained model responds to different records; it does not prove that changing a real animal's characteristic would change the outcome.
 
 ## Recommended Local Reproduction Order
 
