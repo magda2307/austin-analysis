@@ -29,7 +29,7 @@ def approach_comparison_rows() -> pd.DataFrame:
                 "technology": "CatBoost",
                 "answers": "Can native categorical modeling improve outcomes?",
                 "strength": "Handles shelter categories directly",
-                "dashboard_use": "Advanced model and what-if prediction",
+                "dashboard_use": "Advanced model and sensitivity demo",
             },
             {
                 "layer": "Reliability diagnostics",
@@ -50,7 +50,7 @@ def approach_comparison_rows() -> pd.DataFrame:
                 "technology": "Risk quadrants, similar cases, campaigns",
                 "answers": "What could shelter staff do with this?",
                 "strength": "Turns scores into operational signals",
-                "dashboard_use": "Campaign Finder and What-if Prediction",
+                "dashboard_use": "Campaign Finder and Sensitivity Demo",
             },
         ]
     )
@@ -88,7 +88,7 @@ def decision_sankey() -> go.Figure:
         "SHAP explanations",
         "Risk quadrants",
         "Campaign candidates",
-        "What-if prediction",
+        "Model sensitivity demo",
     ]
     source = [0, 1, 1, 2, 3, 2, 4, 5, 6]
     target = [1, 2, 3, 4, 4, 5, 6, 7, 8]

@@ -128,11 +128,11 @@ def create_hypothesis_support_tables(
 
 
 # ---------------------------------------------------------------------------
-# Task 3.5 — H2 Seasonality and H4 Dark Colour
+# Task 3.5 - H2 Seasonality and H4 Dark Colour
 # ---------------------------------------------------------------------------
 
-SEASON_ORDER = ["Spring", "Summer", "Autumn", "Fall", "Winter"]
-SEASON_COLORS = {"Spring": "#2DC653", "Summer": "#FFBE0B", "Autumn": "#FB5607", "Fall": "#FB5607", "Winter": "#3A86FF"}
+SEASON_ORDER = ["spring", "summer", "autumn", "fall", "winter"]
+SEASON_COLORS = {"spring": "#2DC653", "summer": "#FFBE0B", "autumn": "#FB5607", "fall": "#FB5607", "winter": "#3A86FF"}
 
 
 def _bar_figure(
@@ -170,30 +170,32 @@ def create_h2_seasonality_outputs(
     data_path: str | Path = "data/processed/modeling_dataset.csv",
     tables_dir: str | Path = "reports/tables",
     figures_dir: str | Path = "reports/figures",
+    summary_dir: str | Path = "reports/summary",
 ) -> None:
     """H2: adoption rate and median LOS by intake season."""
     tables = Path(tables_dir)
     figures = Path(figures_dir)
-    for d in [tables, figures]:
+    summary = Path(summary_dir)
+    for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(data_path)
     if "intake_season" not in df.columns:
-        print("[3.5] intake_season column not found — skipping H2.")
+        print("[3.5] intake_season column not found - skipping H2.")
         return
 
-    summary = _summarize(df, "intake_season")
-    summary.to_csv(tables / "h2_seasonality_summary.csv", index=False)
+    summary_df = _summarize(df, "intake_season")
+    summary_df.to_csv(tables / "h2_seasonality_summary.csv", index=False)
     print("[3.5] Wrote h2_seasonality_summary.csv")
 
-    ordered_seasons = [s for s in SEASON_ORDER if s in summary["value"].values]
+    ordered_seasons = [s for s in SEASON_ORDER if s in summary_df["value"].values]
     if not ordered_seasons:
         ordered_seasons = None
 
-    if "adoption_rate_pct" in summary.columns:
+    if "adoption_rate_pct" in summary_df.columns:
         _bar_figure(
-            summary, "value", "adoption_rate_pct",
-            title="H2 — Adoption Rate by Season (secondary check)",
+            summary_df, "value", "adoption_rate_pct",
+            title="H2 - Adoption Rate by Season (secondary check)",
             ylabel="Adoption Rate (%)",
             out_path=figures / "h2_adoption_rate_by_season.png",
             x_order=ordered_seasons,
@@ -201,16 +203,52 @@ def create_h2_seasonality_outputs(
         )
         print("[3.5] Wrote h2_adoption_rate_by_season.png")
 
-    if "median_days_to_outcome" in summary.columns:
+    if "median_days_to_outcome" in summary_df.columns:
         _bar_figure(
-            summary, "value", "median_days_to_outcome",
-            title="H2 — Median Length of Stay by Season (secondary check)",
+            summary_df, "value", "median_days_to_outcome",
+            title="H2 - Median Length of Stay by Season (secondary check)",
             ylabel="Median Days to Outcome",
             out_path=figures / "h2_median_los_by_season.png",
             x_order=ordered_seasons,
             colors=SEASON_COLORS,
         )
         print("[3.5] Wrote h2_median_los_by_season.png")
+
+    _write_h2_interpretation_md(summary_df, summary)
+
+
+def _write_h2_interpretation_md(summary_df: pd.DataFrame, summary: Path) -> None:
+    highest_adoption = summary_df.sort_values("adoption_rate_pct", ascending=False).iloc[0]
+    lowest_adoption = summary_df.sort_values("adoption_rate_pct", ascending=True).iloc[0]
+    longest_los = summary_df.sort_values("median_days_to_outcome", ascending=False).iloc[0]
+    shortest_los = summary_df.sort_values("median_days_to_outcome", ascending=True).iloc[0]
+    lines = [
+        "# H2 Interpretation - Seasonality and Adoption Patterns\n\n",
+        "## Hypothesis\n",
+        "Adoption rates and length of stay vary by intake season.\n\n",
+        "## Evidence\n\n",
+        "### Descriptive Seasonality Summary\n\n",
+    ]
+    lines.append(summary_df.to_markdown(index=False))
+    lines.append("\n\n")
+    lines += [
+        "### Model Evidence\n",
+        "Seasonality features (`intake_season`, `intake_month`, `intake_quarter`) are evaluated by the classification and regression models.\n",
+        "SHAP importance for the seasonality feature family is relatively modest compared to breed, age, and identity.\n\n",
+        "## Interpretation\n\n",
+        "- Seasonal variation is descriptively present: "
+        f"{highest_adoption['value']} has the highest adoption rate ({highest_adoption['adoption_rate_pct']:.2f}%), "
+        f"while {lowest_adoption['value']} has the lowest adoption rate ({lowest_adoption['adoption_rate_pct']:.2f}%).\n",
+        "- Length-of-stay variation is also descriptive: "
+        f"{longest_los['value']} has the longest median time to outcome ({longest_los['median_days_to_outcome']:.2f} days), "
+        f"while {shortest_los['value']} has the shortest ({shortest_los['median_days_to_outcome']:.2f} days).\n",
+        "- However, seasonal differences are small in magnitude, and the machine learning models treat seasonality as a weak predictor compared to clinical/demographic features.\n",
+        "- H2 is supported descriptively as an association, not a causal driver.\n\n",
+        "## Causal Warning\n\n",
+        "> **Seasonality is associated with outcome but is descriptive only.** We cannot claim that season causes adoptions. Seasonal variations are heavily confounded by animal intake volumes (e.g. kitten season in spring/summer) and shelter resource constraints.\n",
+    ]
+    (summary / "h2_interpretation.md").write_text("".join(lines), encoding="utf-8")
+    print("[3.5] Wrote h2_interpretation.md")
 
 
 DARK_COLOR_LABELS = {True: "Dark / Black", False: "Not Dark", "True": "Dark / Black", "False": "Not Dark"}
@@ -221,29 +259,31 @@ def create_h4_dark_color_outputs(
     data_path: str | Path = "data/processed/modeling_dataset.csv",
     tables_dir: str | Path = "reports/tables",
     figures_dir: str | Path = "reports/figures",
+    summary_dir: str | Path = "reports/summary",
 ) -> None:
     """H4: adoption rate and median LOS by dark colour flag."""
     tables = Path(tables_dir)
     figures = Path(figures_dir)
-    for d in [tables, figures]:
+    summary = Path(summary_dir)
+    for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
     df = pd.read_csv(data_path)
     if "is_black_or_dark" not in df.columns:
-        print("[3.5] is_black_or_dark column not found — skipping H4.")
+        print("[3.5] is_black_or_dark column not found - skipping H4.")
         return
 
-    summary = _summarize(df, "is_black_or_dark")
-    summary["value"] = summary["value"].astype(str).map(lambda v: DARK_COLOR_LABELS.get(v, v))
-    summary.to_csv(tables / "h4_dark_color_summary.csv", index=False)
+    summary_df = _summarize(df, "is_black_or_dark")
+    summary_df["value"] = summary_df["value"].astype(str).map(lambda v: DARK_COLOR_LABELS.get(v, v))
+    summary_df.to_csv(tables / "h4_dark_color_summary.csv", index=False)
     print("[3.5] Wrote h4_dark_color_summary.csv")
 
     caution = "Note: is_black_or_dark is an approximate operational colour grouping"
 
-    if "adoption_rate_pct" in summary.columns:
+    if "adoption_rate_pct" in summary_df.columns:
         _bar_figure(
-            summary, "value", "adoption_rate_pct",
-            title="H4 — Adoption Rate by Coat Colour (secondary check)",
+            summary_df, "value", "adoption_rate_pct",
+            title="H4 - Adoption Rate by Coat Colour (secondary check)",
             ylabel="Adoption Rate (%)",
             out_path=figures / "h4_dark_color_adoption_rate.png",
             colors=DARK_COLORS_MAP,
@@ -251,16 +291,55 @@ def create_h4_dark_color_outputs(
         )
         print("[3.5] Wrote h4_dark_color_adoption_rate.png")
 
-    if "median_days_to_outcome" in summary.columns:
+    if "median_days_to_outcome" in summary_df.columns:
         _bar_figure(
-            summary, "value", "median_days_to_outcome",
-            title="H4 — Median Length of Stay by Coat Colour (secondary check)",
+            summary_df, "value", "median_days_to_outcome",
+            title="H4 - Median Length of Stay by Coat Colour (secondary check)",
             ylabel="Median Days to Outcome",
             out_path=figures / "h4_dark_color_median_los.png",
             colors=DARK_COLORS_MAP,
             subtitle=caution,
         )
         print("[3.5] Wrote h4_dark_color_median_los.png")
+
+    _write_h4_interpretation_md(summary_df, summary)
+
+
+def _write_h4_interpretation_md(summary_df: pd.DataFrame, summary: Path) -> None:
+    by_value = summary_df.set_index("value")
+    dark = by_value.loc["Dark / Black"]
+    not_dark = by_value.loc["Not Dark"]
+    rate_gap = dark["adoption_rate_pct"] - not_dark["adoption_rate_pct"]
+    los_gap = dark["median_days_to_outcome"] - not_dark["median_days_to_outcome"]
+    direction = "higher" if rate_gap > 0 else "lower"
+    los_direction = "longer" if los_gap > 0 else "shorter"
+    lines = [
+        "# H4 Interpretation - Coat Colour (Black/Dark Animals)\n\n",
+        "## Hypothesis\n",
+        "Black or dark-coloured animals have lower adoption rates (black dog/cat syndrome).\n\n",
+        "## Evidence\n\n",
+        "### Descriptive Colour Summary\n\n",
+    ]
+    lines.append(summary_df.to_markdown(index=False))
+    lines.append("\n\n")
+    lines += [
+        "### Model Evidence\n",
+        "The coat colour feature family (`color`, `is_black_or_dark`, `simplified_color_group`) is a very weak predictor in both classification and regression models, with low SHAP and permutation importance.\n\n",
+        "## Interpretation\n\n",
+        "- Descriptively, black or dark-coloured animals show an adoption rate of "
+        f"**{dark['adoption_rate_pct']:.2f}%** compared to **{not_dark['adoption_rate_pct']:.2f}%** for non-dark animals "
+        f"({abs(rate_gap):.2f} percentage points {direction}).\n",
+        "- Median length of stay is similar: "
+        f"**{dark['median_days_to_outcome']:.2f} days** for dark-coloured animals vs "
+        f"**{not_dark['median_days_to_outcome']:.2f} days** for non-dark animals "
+        f"({abs(los_gap):.2f} days {los_direction}).\n",
+        "- Consequently, the popular hypothesis of \"black dog/cat syndrome\" is evaluated as a descriptive check rather than a strong primary finding.\n",
+        "- H4 is treated as a secondary check with an explicit caveat that color is not a primary driver of adoption outcomes in this shelter.\n\n",
+        "## Causal Warning\n\n",
+        "> **Colour associations are descriptive only.** Coat colour is a weak predictor and co-varies with breed and species. This analysis does not control for specific breed-colour combinations or individual shelter presentation factors.\n",
+    ]
+    (summary / "h4_interpretation.md").write_text("".join(lines), encoding="utf-8")
+    print("[3.5] Wrote h4_interpretation.md")
 
 
 # ---------------------------------------------------------------------------

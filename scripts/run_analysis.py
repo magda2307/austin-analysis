@@ -16,6 +16,8 @@ from aac_adoption.analysis.hypothesis_tables import (
     create_adopted_only_timing_tables,
     create_hypothesis_support_tables,
     create_survival_descriptive,
+    create_h2_seasonality_outputs,
+    create_h4_dark_color_outputs,
 )
 from aac_adoption.analysis.model_comparison import create_model_comparison_tables
 from aac_adoption.visualization.plots import create_eda_outputs
@@ -68,6 +70,10 @@ def main() -> None:
     # 2. Primary H1/H3/H5 tables
     print("Generating primary hypothesis support tables...")
     create_hypothesis_support_tables(args.data, args.tables_dir)
+    print("Generating H2 seasonality outputs...")
+    create_h2_seasonality_outputs(args.data, args.tables_dir, args.figures_dir, args.summary_dir)
+    print("Generating H4 dark colour outputs...")
+    create_h4_dark_color_outputs(args.data, args.tables_dir, args.figures_dir, args.summary_dir)
 
     # 3. Adopted-only timing tables for H3 descriptive speed analysis
     print("Generating adopted-only timing tables...")

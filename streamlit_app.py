@@ -38,14 +38,14 @@ from aac_adoption.dashboard.story import (  # noqa: E402
 from aac_adoption.dashboard.trust_page import render_trust_and_limits  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Methodological language constants — used consistently across all SHAP views
+# Methodological language constants - used consistently across all SHAP views
 # ---------------------------------------------------------------------------
 SHAP_DISCLAIMER = (
     "SHAP values explain how features contributed to this model's prediction. "
     "They do not prove that changing a feature would causally change adoption probability."
 )
 CAUSAL_WARNING = (
-    "⚠️ **Methodological note:** Changing fields in this form shows how the trained model "
+    "**Methodological note:** Changing fields in this form shows how the trained model "
     "reacts to different input records. It does not prove that changing a real animal's "
     "characteristic would change its adoption outcome."
 )
@@ -62,6 +62,29 @@ DIAGNOSTICS_DIR = PROJECT_ROOT / "reports" / "diagnostics"
 MODELS_DIR = PROJECT_ROOT / "models" / "advanced"
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_dataset.csv"
 
+THESIS_REPORT_OPTIONS = {
+    "docs/target_definitions.md": "Target Definitions & Outcome Mappings",
+    "reports/summary/external_validity_limitations.md": "External Causal Validity & Generalisation Limits",
+    "reports/summary/breed_color_justification.md": "Breed and Coat Colour Feature Engineering Justification",
+    "reports/summary/descriptive_baseline_comparison.md": "Machine Learning vs. Descriptive Non-ML Baselines",
+    "reports/summary/h1_interpretation.md": "H1 - Intake Profile & Causal Context",
+    "reports/summary/h2_interpretation.md": "H2 - Seasonality & Intake Dynamics",
+    "reports/summary/h3_interpretation.md": "H3 - Age and Time-to-Outcome Timing",
+    "reports/summary/h4_interpretation.md": "H4 - Coat Colour (Black/Dark Animal Syndrome Check)",
+    "reports/summary/h5_interpretation.md": "H5 - COVID-Period Population Shift and Volume Impact",
+    "reports/summary/hypothesis_evidence_matrix.md": "Hypothesis Evidence Matrix Summary",
+    "reports/summary/leakage_audit.md": "Data Leakage Audit & Control Log",
+    "reports/summary/matching_logic_examples.md": "Propensity Score Matching Validation Examples",
+    "reports/summary/model_evidence_pack.md": "Narrative Model Evidence & Key Findings Pack",
+    "reports/summary/subgroup_reliability.md": "Subgroup Reliability & Underrepresented Cohorts",
+    "reports/summary/final_model_selection.md": "Final Model Architecture Selection",
+    "reports/summary/threshold_selection.md": "Optimal Classification Threshold & Utility Analysis",
+    "reports/summary/calibration_interpretation.md": "Model Probability Calibration Interpretation",
+    "reports/summary/model_reliability_red_flags.md": "Operational Risk & Model Reliability Red Flags",
+    "reports/summary/data_audit.md": "Data Pipeline Audit & Attrition Logging",
+    "reports/summary/environment_snapshot.md": "Reproducibility Snapshot & Environment Info",
+}
+
 LANGUAGES = {
     "English": "en",
     "Polski": "pl",
@@ -69,7 +92,7 @@ LANGUAGES = {
 
 PL = {
     "AAC Adoption Thesis Demo": "Demo pracy dyplomowej: adopcje AAC",
-    "Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions.": "Dashboard oparty na artefaktach: wyniki modeli, sygnały hipotez i predykcje what-if.",
+    "Artifact-driven dashboard for model results, hypothesis signals, and model sensitivity checks.": "Dashboard oparty na artefaktach: wyniki modeli, sygnaly hipotez i testy wrazliwosci modelu.",
     "Language": "Język",
     "Executive Overview": "Przegląd",
     "Story Mode": "Narracja",
@@ -80,7 +103,6 @@ PL = {
     "Risk Explorer": "Eksplorator ryzyka",
     "Hypothesis Lab": "Laboratorium hipotez",
     "Campaign Finder": "Wyszukiwarka kampanii",
-    "What-if Prediction": "Predykcja what-if",
     "Adoption Timeline": "Oś czasu adopcji",
     "Artifacts": "Artefakty",
     "Context Data": "Dane kontekstowe",
@@ -264,6 +286,36 @@ PL = {
     "unknown behavior signal": "nieznany sygnał behawioralny",
     "📖 Thesis Guide": "Przewodnik po pracy",
     "Model Sensitivity Demo": "Demo wrażliwości modelu",
+    "Generated Artifacts": "Wygenerowane artefakty",
+    "Filter by Required for Thesis": "Filtruj: tylko wymagane do pracy",
+    "Select Report to View": "Wybierz raport do wyświetlenia",
+    "Viewing Report:": "Wyświetlany raport:",
+    "Report file not found on disk.": "Plik raportu nie został znaleziony na dysku.",
+    "Target Definitions & Outcome Mappings": "Definicje celów i mapowania wyników",
+    "External Causal Validity & Generalisation Limits": "Zewnętrzna wiarygodność przyczynowa i granice generalizacji",
+    "Breed and Coat Colour Feature Engineering Justification": "Uzasadnienie inżynierii cech rasy i maści",
+    "Machine Learning vs. Descriptive Non-ML Baselines": "Uczenie maszynowe kontra opisowe linie bazowe bez ML",
+    "H1 — Intake Profile & Causal Context": "H1 — Profil przyjęcia i kontekst przyczynowy",
+    "H2 — Seasonality & Intake Dynamics": "H2 — Sezonowość i dynamika przyjęć",
+    "H3 — Age and Time-to-Outcome Timing": "H3 — Wiek i czas do zakończenia pobytu",
+    "H4 — Coat Colour (Black/Dark Animal Syndrome Check)": "H4 — Maść (Syndrom czarnego psa/kota)",
+    "H5 — COVID-Period Population Shift and Volume Impact": "H5 — Zmiana populacji w okresie COVID i wpływ liczby przyjęć",
+    "H1 - Intake Profile & Causal Context": "H1 - Profil przyjecia i kontekst przyczynowy",
+    "H2 - Seasonality & Intake Dynamics": "H2 - Sezonowosc i dynamika przyjec",
+    "H3 - Age and Time-to-Outcome Timing": "H3 - Wiek i czas do zakonczenia pobytu",
+    "H4 - Coat Colour (Black/Dark Animal Syndrome Check)": "H4 - Masc (Syndrom czarnego psa/kota)",
+    "H5 - COVID-Period Population Shift and Volume Impact": "H5 - Zmiana populacji w okresie COVID i wplyw liczby przyjec",
+    "Hypothesis Evidence Matrix Summary": "Podsumowanie macierzy dowodów hipotez",
+    "Data Leakage Audit & Control Log": "Audyt wycieku danych i dziennik kontroli",
+    "Propensity Score Matching Validation Examples": "Przykłady walidacji dopasowania wskaźnika skłonności (PSM)",
+    "Narrative Model Evidence & Key Findings Pack": "Pakiet opisowych dowodów modelu i kluczowych wniosków",
+    "Subgroup Reliability & Underrepresented Cohorts": "Niezawodność w podgrupach i niedoreprezentowane kohorty",
+    "Final Model Architecture Selection": "Wybór ostatecznej architektury modelu",
+    "Optimal Classification Threshold & Utility Analysis": "Optymalny próg klasyfikacji i analiza użyteczności",
+    "Model Probability Calibration Interpretation": "Interpretacja kalibracji prawdopodobieństwa modelu",
+    "Operational Risk & Model Reliability Red Flags": "Ryzyko operacyjne i czerwone flagi niezawodności modelu",
+    "Data Pipeline Audit & Attrition Logging": "Audyt potoku danych i logowanie atrycji",
+    "Reproducibility Snapshot & Environment Info": "Migawka odtwarzalności i informacje o środowisku",
 }
 
 
@@ -396,7 +448,7 @@ selected_language = st.sidebar.selectbox(
 st.session_state["language"] = LANGUAGES[selected_language]
 
 st.title(t("AAC Adoption Thesis Demo"))
-st.caption(t("Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions."))
+st.caption(t("Artifact-driven dashboard for model results, hypothesis signals, and model sensitivity checks."))
 
 tabs = st.tabs(
     [
@@ -937,6 +989,65 @@ with tabs[10]:
 
 with tabs[11]:
     st.subheader(t("Generated Artifacts"))
+
+    # Manifest Explorer
+    manifest_path = PROJECT_ROOT / "reports" / "artifact_manifest.csv"
+    if manifest_path.exists():
+        st.markdown(f"### {t('Artifact Manifest')}")
+        st.write(t("All generated thesis deliverables, target definitions, and validation reports are listed below."))
+        
+        try:
+            manifest_df = pd.read_csv(manifest_path)
+            required_columns = {"artifact_path", "artifact_type", "required_for_thesis", "chapter", "notes", "source_script", "exists_on_disk"}
+            missing_columns = sorted(required_columns - set(manifest_df.columns))
+            if missing_columns:
+                st.warning(f"Artifact manifest missing columns: {', '.join(missing_columns)}")
+                manifest_df = pd.DataFrame(columns=sorted(required_columns))
+            show_required_only = st.checkbox(t("Filter by Required for Thesis"), value=False)
+            if show_required_only:
+                manifest_df = manifest_df[manifest_df["required_for_thesis"].astype(str).isin(["True", "true", "1"])]
+            
+            # Map columns to localized versions
+            display_df = manifest_df.copy()
+            column_mapping = {
+                "artifact_path": t("Artifact Path"),
+                "artifact_type": t("Artifact Type"),
+                "required_for_thesis": t("Required"),
+                "chapter": t("Chapter"),
+                "notes": t("Notes"),
+                "source_script": t("Source Script"),
+                "exists_on_disk": t("Exists"),
+            }
+            display_df = display_df.rename(columns=column_mapping)
+            cols_to_show = [c for c in column_mapping.values() if c in display_df.columns]
+            st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
+        except Exception as e:
+            st.error(f"Error loading artifact manifest: {e}")
+            
+    # Report Reader
+    st.markdown(f"### {t('Read Thesis & Methodology Reports')}")
+    report_options = THESIS_REPORT_OPTIONS
+    
+    selected_report_path = st.selectbox(
+        t("Select Report to View"),
+        options=list(report_options.keys()),
+        format_func=lambda x: t(report_options[x]),
+    )
+    
+    if selected_report_path:
+        report_file = PROJECT_ROOT / selected_report_path
+        if report_file.exists():
+            try:
+                content = report_file.read_text(encoding="utf-8")
+                st.markdown("---")
+                st.markdown(f"#### {t('Viewing Report:')} `{selected_report_path}`")
+                st.markdown(content)
+            except Exception as e:
+                st.error(f"Error loading report: {e}")
+        else:
+            st.warning(t("Report file not found on disk."))
+
+    st.markdown("---")
     st.write(t("Core commands:"))
     st.code(
         "\n".join(
@@ -1023,6 +1134,6 @@ with tabs[13]:
             "6. **Step 6: Animal Stories** (Go to **Animal Stories** tab)\n"
             "   - *What to look for:* Representative animal journey cards displaying global/local SHAP feature contributions and similar historical cases.\n"
             "7. **Step 7: Model Sensitivity Demo** (Go to **Model Sensitivity Demo** tab)\n"
-            "   - *What to look for:* Interactive what-if predictions showing how changing input parameters affects predicted adoption probability and stay duration."
+            "   - *What to look for:* Model sensitivity checks showing how different input records affect predicted adoption probability and stay duration."
         )
     )

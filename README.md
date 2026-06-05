@@ -442,7 +442,7 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - H1/H3/H5 hypothesis figures and tables,
 - reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
 - Trust & Limits evidence-pack view with subgroup selector, calibration-gap chart, confidence intervals, model-struggle table, and adoption milestone chart,
-- a simple what-if prediction form using combined CatBoost artifacts.
+- a simple model sensitivity form using combined CatBoost artifacts.
 python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/raw/outcomes.csv --output data/processed/modeling_dataset.csv
 python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv

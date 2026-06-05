@@ -1,4 +1,5 @@
 artifact_path,artifact_type,created_at,source_script,required_for_thesis,chapter,notes,exists_on_disk
+reports/artifact_manifest.csv,manifest,2026-06-05T19:16:01.938519+00:00,scripts/generate_artifact_manifest.py,False,Appendix,Self-referential manifest entry,True
 reports/diagnostics/classification_calibration.csv,table,2026-06-04T21:24:01.959267+00:00,,False,Chapter 4 — Model Evaluation,,True
 reports/diagnostics/classification_error_slices.csv,table,2026-06-04T21:24:01.960269+00:00,,False,Chapter 4 — Model Evaluation,,True
 reports/diagnostics/classification_precision_recall_curve.csv,table,2026-06-04T21:24:01.956767+00:00,,False,Chapter 4 — Model Evaluation,,True
@@ -9,10 +10,10 @@ reports/diagnostics/placement_risk_quadrants.csv,table,2026-06-04T21:24:01.96276
 reports/diagnostics/regression_error_slices.csv,table,2026-06-04T21:24:01.961769+00:00,,False,Chapter 4 — Model Evaluation,,True
 reports/diagnostics/regression_residuals_sample.csv,table,2026-06-04T21:24:01.992268+00:00,,False,Chapter 4 — Model Evaluation,,True
 reports/figures/adoption_cumulative_curves.png,figure,2026-06-04T21:24:04.121266+00:00,,False,Unknown — see notes,,True
-reports/figures/adoptions_by_year.png,figure,2026-06-05T18:36:40.482176+00:00,,False,Unknown — see notes,,True
+reports/figures/adoptions_by_year.png,figure,2026-06-05T19:15:34.347997+00:00,,False,Unknown — see notes,,True
 reports/figures/animal_archetypes_top.png,figure,2026-06-05T17:48:30.620024+00:00,,False,Unknown — see notes,,True
 reports/figures/animal_stories_smoke.png,figure,2026-05-31T00:27:06.874634+00:00,,False,Unknown — see notes,,True
-reports/figures/context_model_delta.png,figure,2026-06-05T18:36:31.039175+00:00,,False,Unknown — see notes,,True
+reports/figures/context_model_delta.png,figure,2026-06-05T19:15:51.897186+00:00,,False,Unknown — see notes,,True
 reports/figures/diagnostic_calibration_curve.png,figure,2026-06-04T21:24:02.361265+00:00,,False,Unknown — see notes,,True
 reports/figures/diagnostic_classification_error_slices.png,figure,2026-06-04T21:24:02.793765+00:00,,False,Unknown — see notes,,True
 reports/figures/diagnostic_precision_recall_curve.png,figure,2026-06-04T21:24:02.271266+00:00,,False,Unknown — see notes,,True
@@ -22,31 +23,35 @@ reports/figures/diagnostic_regression_residuals.png,figure,2026-06-04T21:24:02.4
 reports/figures/diagnostic_roc_curve.png,figure,2026-06-04T21:24:02.128765+00:00,,False,Unknown — see notes,,True
 reports/figures/feature_family_importance_classification.png,figure,2026-06-05T18:38:06.273677+00:00,scripts/generate_feature_family_importance.py,True,Chapter 5 — Interpretation,Feature family bar chart — classification,True
 reports/figures/feature_family_importance_regression.png,figure,2026-06-05T18:38:06.710176+00:00,scripts/generate_feature_family_importance.py,True,Chapter 5 — Interpretation,Feature family bar chart — regression,True
-reports/figures/final_confusion_matrix.png,figure,2026-06-05T18:36:52.395174+00:00,,False,Unknown — see notes,,True
-reports/figures/h1_feature_family_importance.png,figure,2026-06-05T18:36:52.569175+00:00,,False,Unknown — see notes,,True
-reports/figures/h1_intake_condition_adoption_rate.png,figure,2026-06-05T18:36:31.370674+00:00,,False,Unknown — see notes,,True
-reports/figures/h1_intake_type_adoption_rate.png,figure,2026-06-05T18:36:31.258174+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_adopted_only_median_days_to_adoption.png,figure,2026-06-05T18:36:43.878675+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_age_adopted_only_median_days.png,figure,2026-06-05T18:36:28.651175+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_age_adoption_rate.png,figure,2026-06-05T18:36:28.408180+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_age_group_adoption_rate.png,figure,2026-06-05T18:36:31.462679+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_age_group_median_days.png,figure,2026-06-05T18:36:31.559179+00:00,,False,Unknown — see notes,,True
-reports/figures/h3_age_shap_summary.png,figure,2026-06-05T18:36:28.835176+00:00,,False,Unknown — see notes,,True
-reports/figures/h5_covid_adoption_rate.png,figure,2026-06-05T18:36:30.259675+00:00,,False,Unknown — see notes,,True
-reports/figures/h5_covid_intake_volume.png,figure,2026-06-05T18:36:30.457676+00:00,,False,Unknown — see notes,,True
-reports/figures/h5_covid_median_los.png,figure,2026-06-05T18:36:30.361178+00:00,,False,Unknown — see notes,,True
-reports/figures/h5_covid_period_adoption_rate.png,figure,2026-06-05T18:36:31.647680+00:00,,False,Unknown — see notes,,True
-reports/figures/h5_covid_period_median_days.png,figure,2026-06-05T18:36:31.731175+00:00,,False,Unknown — see notes,,True
-reports/figures/intakes_by_year.png,figure,2026-06-05T18:36:40.342676+00:00,,False,Unknown — see notes,,True
-reports/figures/km_adoption_by_age_group.png,figure,2026-06-05T18:36:46.396176+00:00,,False,Unknown — see notes,,True
-reports/figures/km_adoption_by_animal_type.png,figure,2026-06-05T18:36:46.130674+00:00,,False,Unknown — see notes,,True
-reports/figures/km_adoption_by_covid_period.png,figure,2026-06-05T18:36:46.630675+00:00,,False,Unknown — see notes,,True
-reports/figures/km_adoption_by_intake_type.png,figure,2026-06-05T18:36:46.886674+00:00,,False,Unknown — see notes,,True
-reports/figures/model_comparison_classification_f1.png,figure,2026-06-05T18:36:30.776675+00:00,,False,Unknown — see notes,,True
-reports/figures/model_comparison_classification_pr_auc.png,figure,2026-06-05T18:36:40.930675+00:00,,False,Unknown — see notes,,True
-reports/figures/model_comparison_classification_roc_auc.png,figure,2026-06-05T18:36:30.646175+00:00,,False,Unknown — see notes,,True
-reports/figures/model_comparison_regression_mae.png,figure,2026-06-05T18:36:30.894675+00:00,,False,Unknown — see notes,,True
-reports/figures/model_comparison_regression_rmse.png,figure,2026-06-05T18:36:31.155675+00:00,,False,Unknown — see notes,,True
+reports/figures/final_confusion_matrix.png,figure,2026-06-05T19:15:47.731186+00:00,,False,Unknown — see notes,,True
+reports/figures/h1_feature_family_importance.png,figure,2026-06-05T19:15:47.888187+00:00,,False,Unknown — see notes,,True
+reports/figures/h1_intake_condition_adoption_rate.png,figure,2026-06-05T19:15:52.235187+00:00,,False,Unknown — see notes,,True
+reports/figures/h1_intake_type_adoption_rate.png,figure,2026-06-05T19:15:52.125185+00:00,,False,Unknown — see notes,,True
+reports/figures/h2_adoption_rate_by_season.png,figure,2026-06-05T19:15:36.745994+00:00,,False,Unknown — see notes,,True
+reports/figures/h2_median_los_by_season.png,figure,2026-06-05T19:15:36.882493+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_adopted_only_median_days_to_adoption.png,figure,2026-06-05T19:15:39.760495+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_age_adopted_only_median_days.png,figure,2026-06-05T19:15:49.597188+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_age_adoption_rate.png,figure,2026-06-05T19:15:49.370185+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_age_group_adoption_rate.png,figure,2026-06-05T19:15:52.322688+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_age_group_median_days.png,figure,2026-06-05T19:15:52.417185+00:00,,False,Unknown — see notes,,True
+reports/figures/h3_age_shap_summary.png,figure,2026-06-05T19:15:49.775222+00:00,,False,Unknown — see notes,,True
+reports/figures/h4_dark_color_adoption_rate.png,figure,2026-06-05T19:15:37.795994+00:00,,False,Unknown — see notes,,True
+reports/figures/h4_dark_color_median_los.png,figure,2026-06-05T19:15:37.900494+00:00,,False,Unknown — see notes,,True
+reports/figures/h5_covid_adoption_rate.png,figure,2026-06-05T19:15:51.135185+00:00,,False,Unknown — see notes,,True
+reports/figures/h5_covid_intake_volume.png,figure,2026-06-05T19:15:51.328185+00:00,,False,Unknown — see notes,,True
+reports/figures/h5_covid_median_los.png,figure,2026-06-05T19:15:51.234687+00:00,,False,Unknown — see notes,,True
+reports/figures/h5_covid_period_adoption_rate.png,figure,2026-06-05T19:15:52.499685+00:00,,False,Unknown — see notes,,True
+reports/figures/h5_covid_period_median_days.png,figure,2026-06-05T19:15:52.660186+00:00,,False,Unknown — see notes,,True
+reports/figures/intakes_by_year.png,figure,2026-06-05T19:15:34.212494+00:00,,False,Unknown — see notes,,True
+reports/figures/km_adoption_by_age_group.png,figure,2026-06-05T19:15:42.192996+00:00,,False,Unknown — see notes,,True
+reports/figures/km_adoption_by_animal_type.png,figure,2026-06-05T19:15:41.949497+00:00,,False,Unknown — see notes,,True
+reports/figures/km_adoption_by_covid_period.png,figure,2026-06-05T19:15:42.422994+00:00,,False,Unknown — see notes,,True
+reports/figures/km_adoption_by_intake_type.png,figure,2026-06-05T19:15:42.661997+00:00,,False,Unknown — see notes,,True
+reports/figures/model_comparison_classification_f1.png,figure,2026-06-05T19:15:51.635685+00:00,,False,Unknown — see notes,,True
+reports/figures/model_comparison_classification_pr_auc.png,figure,2026-06-05T19:15:34.782995+00:00,,False,Unknown — see notes,,True
+reports/figures/model_comparison_classification_roc_auc.png,figure,2026-06-05T19:15:51.507187+00:00,,False,Unknown — see notes,,True
+reports/figures/model_comparison_regression_mae.png,figure,2026-06-05T19:15:51.752685+00:00,,False,Unknown — see notes,,True
+reports/figures/model_comparison_regression_rmse.png,figure,2026-06-05T19:15:52.022186+00:00,,False,Unknown — see notes,,True
 reports/figures/profile_contrasts_adoption_rate.png,figure,2026-06-05T17:48:30.953024+00:00,,False,Unknown — see notes,,True
 reports/figures/shap_feature_families_classification.png,figure,2026-06-04T21:24:07.710765+00:00,,False,Unknown — see notes,,True
 reports/figures/shap_feature_families_regression.png,figure,2026-06-04T21:24:09.240769+00:00,,False,Unknown — see notes,,True
@@ -98,41 +103,47 @@ reports/metrics_smoke_context/boosting_metrics.csv,table,2026-06-05T15:21:34.338
 reports/metrics_smoke_context/boosting_regression_metrics.csv,table,2026-06-05T15:21:34.330267+00:00,,False,Unknown,,True
 reports/metrics_smoke_context/classification_metrics.csv,table,2026-06-05T15:20:42.549765+00:00,,False,Unknown,,True
 reports/metrics_smoke_context/regression_metrics.csv,table,2026-06-05T15:20:42.556767+00:00,,False,Unknown,,True
-reports/summary/calibration_interpretation.md,report,2026-06-05T18:36:30.476177+00:00,,False,Unknown — see notes,,True
-reports/summary/current_results.md,report,2026-06-05T18:36:31.743175+00:00,,False,Unknown — see notes,,True
+reports/summary/artifact_manifest.md,report,2026-06-05T19:16:01.951016+00:00,,False,Unknown — see notes,,True
+reports/summary/breed_color_justification.md,report,2026-06-05T18:51:04.513019+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,Breed and coat colour engineering justification report,True
+reports/summary/calibration_interpretation.md,report,2026-06-05T19:15:51.347186+00:00,,False,Unknown — see notes,,True
+reports/summary/current_results.md,report,2026-06-05T19:15:52.672185+00:00,,False,Unknown — see notes,,True
 reports/summary/data_audit.md,report,2026-06-05T18:37:16.607676+00:00,,False,Unknown — see notes,,True
+reports/summary/descriptive_baseline_comparison.md,report,2026-06-05T18:51:09.262220+00:00,scripts/run_analysis.py,True,Chapter 4 — Model Evaluation,Non-ML descriptive baseline vs ML model comparison report,True
 reports/summary/environment_snapshot.md,report,2026-06-05T18:38:09.839180+00:00,scripts/generate_environment_snapshot.py,True,Appendix,Human-readable environment snapshot for appendix inclusion,True
+reports/summary/external_validity_limitations.md,report,2026-06-05T18:51:00.491312+00:00,scripts/run_analysis.py,True,Chapter 5 — Interpretation,External validity and causal limitations report,True
 reports/summary/feature_quality_audit.md,report,2026-06-05T18:32:25.949223+00:00,,False,Unknown — see notes,,True
-reports/summary/final_model_selection.md,report,2026-06-05T18:36:46.944676+00:00,,False,Unknown — see notes,,True
-reports/summary/h1_interpretation.md,report,2026-06-05T18:36:26.800675+00:00,,False,Unknown — see notes,,True
-reports/summary/h3_interpretation.md,report,2026-06-05T18:36:28.850676+00:00,,False,Unknown — see notes,,True
-reports/summary/h5_interpretation.md,report,2026-06-05T18:36:30.460176+00:00,,False,Unknown — see notes,,True
-reports/summary/hypothesis_evidence_matrix.md,report,2026-06-05T18:36:30.500677+00:00,,False,Unknown — see notes,,True
+reports/summary/final_model_selection.md,report,2026-06-05T19:15:42.710996+00:00,,False,Unknown — see notes,,True
+reports/summary/h1_interpretation.md,report,2026-06-05T19:15:47.896187+00:00,,False,Unknown — see notes,,True
+reports/summary/h2_interpretation.md,report,2026-06-05T19:15:36.908494+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H2 evidence seasonality summary report,True
+reports/summary/h3_interpretation.md,report,2026-06-05T19:15:49.780185+00:00,,False,Unknown — see notes,,True
+reports/summary/h4_interpretation.md,report,2026-06-05T19:15:37.902494+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H4 evidence coat colour summary report,True
+reports/summary/h5_interpretation.md,report,2026-06-05T19:15:51.330185+00:00,,False,Unknown — see notes,,True
+reports/summary/hypothesis_evidence_matrix.md,report,2026-06-05T19:15:51.372184+00:00,,False,Unknown — see notes,,True
 reports/summary/leakage_audit.md,report,2026-06-05T18:32:03.907726+00:00,,False,Unknown — see notes,,True
 reports/summary/matching_logic_examples.md,report,2026-06-05T18:35:40.828177+00:00,,False,Unknown — see notes,,True
 reports/summary/model_evidence_pack.md,report,2026-06-05T18:37:57.864680+00:00,scripts/generate_evidence_pack.py,True,Chapter 4 — Model Evaluation,Narrative model evidence summary,True
-reports/summary/model_reliability_red_flags.md,report,2026-06-05T18:36:30.486679+00:00,,False,Unknown — see notes,,True
+reports/summary/model_reliability_red_flags.md,report,2026-06-05T19:15:51.357185+00:00,,False,Unknown — see notes,,True
 reports/summary/subgroup_reliability.md,report,2026-06-04T21:24:50.561918+00:00,scripts/generate_evidence_pack.py,True,Chapter 4 — Model Evaluation,Subgroup reliability narrative summary,True
-reports/summary/survival_descriptive_note.md,report,2026-06-05T18:36:46.889674+00:00,,False,Unknown — see notes,,True
-reports/summary/threshold_selection.md,report,2026-06-05T18:36:52.397676+00:00,,False,Unknown — see notes,,True
+reports/summary/survival_descriptive_note.md,report,2026-06-05T19:15:42.665495+00:00,,False,Unknown — see notes,,True
+reports/summary/threshold_selection.md,report,2026-06-05T19:15:47.733186+00:00,,False,Unknown — see notes,,True
 reports/tables/adoption_by_day_milestones.csv,table,2026-06-04T21:24:04.006766+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_age_group.csv,table,2026-06-05T18:36:40.721175+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_covid_period.csv,table,2026-06-05T18:36:40.745678+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_intake_condition.csv,table,2026-06-05T18:36:40.648674+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_intake_season.csv,table,2026-06-05T18:36:40.769175+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_intake_type.csv,table,2026-06-05T18:36:40.623174+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_is_black_or_dark.csv,table,2026-06-05T18:36:40.783175+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_simplified_breed_group.csv,table,2026-06-05T18:36:40.673677+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_los_by_simplified_color_group.csv,table,2026-06-05T18:36:40.698174+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_rate_by_age_group.csv,table,2026-06-05T18:36:40.547674+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_rate_by_animal_type.csv,table,2026-06-05T18:36:40.520676+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_rate_by_color_group.csv,table,2026-06-05T18:36:40.582175+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_rate_by_covid_period.csv,table,2026-06-05T18:36:40.598676+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_rate_by_intake_type.csv,table,2026-06-05T18:36:40.564676+00:00,,False,Unknown — see notes,,True
-reports/tables/adoption_survival_curves.csv,table,2026-06-05T18:36:46.889674+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_age_group.csv,table,2026-06-05T19:15:34.578495+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_covid_period.csv,table,2026-06-05T19:15:34.601496+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_intake_condition.csv,table,2026-06-05T19:15:34.506494+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_intake_season.csv,table,2026-06-05T19:15:34.623994+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_intake_type.csv,table,2026-06-05T19:15:34.482997+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_is_black_or_dark.csv,table,2026-06-05T19:15:34.636994+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_simplified_breed_group.csv,table,2026-06-05T19:15:34.530999+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_los_by_simplified_color_group.csv,table,2026-06-05T19:15:34.555494+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_rate_by_age_group.csv,table,2026-06-05T19:15:34.409994+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_rate_by_animal_type.csv,table,2026-06-05T19:15:34.384995+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_rate_by_color_group.csv,table,2026-06-05T19:15:34.442994+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_rate_by_covid_period.csv,table,2026-06-05T19:15:34.458997+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_rate_by_intake_type.csv,table,2026-06-05T19:15:34.425996+00:00,,False,Unknown — see notes,,True
+reports/tables/adoption_survival_curves.csv,table,2026-06-05T19:15:42.664997+00:00,,False,Unknown — see notes,,True
 reports/tables/animal_archetypes.csv,table,2026-06-05T17:48:30.353024+00:00,scripts/generate_animal_research.py,True,Chapter 5 — Interpretation,Animal profile archetypes with adoption statistics,True
 reports/tables/animal_journey_examples.csv,table,2026-06-04T21:24:50.552418+00:00,,False,Unknown — see notes,,True
-reports/tables/calibration_summary_by_subset.csv,table,2026-06-05T18:36:30.474175+00:00,,False,Unknown — see notes,,True
+reports/tables/calibration_summary_by_subset.csv,table,2026-06-05T19:15:51.345186+00:00,,False,Unknown — see notes,,True
 reports/tables/category_cardinality.csv,table,2026-06-05T18:32:25.943737+00:00,,False,Unknown — see notes,,True
 reports/tables/context_model_comparison.csv,table,2026-06-05T15:43:08.569762+00:00,,False,Unknown — see notes,,True
 reports/tables/data_audit_attrition.csv,table,2026-06-05T18:37:16.606177+00:00,,False,Unknown — see notes,,True
@@ -140,32 +151,35 @@ reports/tables/environment_snapshot.csv,table,2026-06-05T18:38:09.838179+00:00,s
 reports/tables/feature_family_importance_classification.csv,table,2026-06-05T18:38:04.734677+00:00,scripts/generate_feature_family_importance.py,True,Chapter 5 — Interpretation,Extended family importance with sum/mean/n_features,True
 reports/tables/feature_family_importance_regression.csv,table,2026-06-05T18:38:06.320176+00:00,scripts/generate_feature_family_importance.py,True,Chapter 5 — Interpretation,Extended family importance with sum/mean/n_features — regression,True
 reports/tables/feature_missingness.csv,table,2026-06-05T18:32:25.725236+00:00,,False,Unknown — see notes,,True
-reports/tables/final_classifier_thresholds.csv,table,2026-06-05T18:36:52.200674+00:00,,False,Unknown — see notes,,True
-reports/tables/final_model_selection.csv,table,2026-06-05T18:36:46.932676+00:00,,False,Unknown — see notes,,True
-reports/tables/h1_feature_family_importance.csv,table,2026-06-05T18:36:52.435676+00:00,,False,Unknown — see notes,,True
-reports/tables/h1_intake_vs_appearance.csv,table,2026-06-05T18:36:41.855179+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H1 evidence: intake type and condition vs appearance,True
-reports/tables/h3_adopted_only_age_speed.csv,table,2026-06-05T18:36:43.670676+00:00,,False,Unknown — see notes,,True
+reports/tables/final_classifier_thresholds.csv,table,2026-06-05T19:15:47.513685+00:00,,False,Unknown — see notes,,True
+reports/tables/final_model_selection.csv,table,2026-06-05T19:15:42.705994+00:00,,False,Unknown — see notes,,True
+reports/tables/h1_feature_family_ablation.csv,table,2026-06-05T18:38:29.912677+00:00,,False,Unknown — see notes,,True
+reports/tables/h1_feature_family_importance.csv,table,2026-06-05T19:15:47.768685+00:00,,False,Unknown — see notes,,True
+reports/tables/h1_intake_vs_appearance.csv,table,2026-06-05T19:15:35.746994+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H1 evidence: intake type and condition vs appearance,True
+reports/tables/h2_seasonality_summary.csv,table,2026-06-05T19:15:36.632999+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H2 evidence: seasonality summary table,True
+reports/tables/h3_adopted_only_age_speed.csv,table,2026-06-05T19:15:39.598995+00:00,,False,Unknown — see notes,,True
 reports/tables/h3_age_adoption_speed.csv,table,2026-05-30T23:45:40.646179+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H3 evidence: age and adoption speed,True
-reports/tables/h3_age_evidence_matrix.csv,table,2026-06-05T18:36:28.137675+00:00,,False,Unknown — see notes,,True
-reports/tables/h3_age_length_of_stay.csv,table,2026-06-05T18:36:41.891179+00:00,,False,Unknown — see notes,,True
-reports/tables/h5_covid_evidence_matrix.csv,table,2026-06-05T18:36:29.989176+00:00,,False,Unknown — see notes,,True
-reports/tables/h5_covid_period.csv,table,2026-06-05T18:36:41.927233+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H5 evidence: COVID period adoption dynamics,True
-reports/tables/h5_covid_population_mix.csv,table,2026-06-05T18:36:30.157675+00:00,,False,Unknown — see notes,,True
+reports/tables/h3_age_evidence_matrix.csv,table,2026-06-05T19:15:49.167686+00:00,,False,Unknown — see notes,,True
+reports/tables/h3_age_length_of_stay.csv,table,2026-06-05T19:15:35.782494+00:00,,False,Unknown — see notes,,True
+reports/tables/h4_dark_color_summary.csv,table,2026-06-05T19:15:37.695994+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H4 evidence: dark coat colour summary table,True
+reports/tables/h5_covid_evidence_matrix.csv,table,2026-06-05T19:15:50.870685+00:00,,False,Unknown — see notes,,True
+reports/tables/h5_covid_period.csv,table,2026-06-05T19:15:35.817494+00:00,scripts/run_analysis.py,True,Chapter 3 — Hypotheses,H5 evidence: COVID period adoption dynamics,True
+reports/tables/h5_covid_population_mix.csv,table,2026-06-05T19:15:51.035185+00:00,,False,Unknown — see notes,,True
 reports/tables/health_behavior_profiles.csv,table,2026-06-05T17:48:30.377527+00:00,,False,Unknown — see notes,,True
-reports/tables/hypothesis_evidence_matrix.csv,table,2026-06-05T18:36:30.499177+00:00,,False,Unknown — see notes,,True
-reports/tables/intakes_by_year.csv,table,2026-06-05T18:36:40.213176+00:00,,False,Unknown — see notes,,True
+reports/tables/hypothesis_evidence_matrix.csv,table,2026-06-05T19:15:51.370184+00:00,,False,Unknown — see notes,,True
+reports/tables/intakes_by_year.csv,table,2026-06-05T19:15:34.087496+00:00,,False,Unknown — see notes,,True
 reports/tables/leakage_audit.csv,table,2026-06-05T18:32:03.905726+00:00,,False,Unknown — see notes,,True
 reports/tables/logistic_regression_coefficients.csv,table,2026-05-30T23:17:24.759829+00:00,,False,Unknown — see notes,,True
 reports/tables/matching_examples.csv,table,2026-06-05T18:35:40.827176+00:00,,False,Unknown — see notes,,True
-reports/tables/median_los_by_animal_type.csv,table,2026-06-05T18:36:40.530674+00:00,,False,Unknown — see notes,,True
+reports/tables/median_los_by_animal_type.csv,table,2026-06-05T19:15:34.394493+00:00,,False,Unknown — see notes,,True
 reports/tables/metric_confidence_intervals.csv,table,2026-06-04T21:24:50.545918+00:00,scripts/generate_evidence_pack.py,True,Chapter 4 — Model Evaluation,Bootstrap confidence intervals for key metrics,True
-reports/tables/model_comparison_classification.csv,table,2026-06-05T18:36:40.806175+00:00,scripts/run_analysis.py,True,Chapter 4 — Model Evaluation,Primary classification leaderboard,True
-reports/tables/model_comparison_regression.csv,table,2026-06-05T18:36:40.934677+00:00,scripts/run_analysis.py,True,Chapter 4 — Model Evaluation,Primary regression leaderboard,True
+reports/tables/model_comparison_classification.csv,table,2026-06-05T19:15:34.658998+00:00,scripts/run_analysis.py,True,Chapter 4 — Model Evaluation,Primary classification leaderboard,True
+reports/tables/model_comparison_regression.csv,table,2026-06-05T19:15:34.786496+00:00,scripts/run_analysis.py,True,Chapter 4 — Model Evaluation,Primary regression leaderboard,True
 reports/tables/model_evidence_pack.csv,table,2026-06-04T21:24:50.543918+00:00,scripts/generate_evidence_pack.py,True,Chapter 4 — Model Evaluation,Summary evidence pack for model trustworthiness,True
 reports/tables/model_failure_modes.csv,table,2026-06-04T21:24:50.551418+00:00,,False,Unknown — see notes,,True
 reports/tables/model_limitations_by_cohort.csv,table,2026-06-04T21:24:50.544918+00:00,,False,Unknown — see notes,,True
-reports/tables/model_reliability_red_flags.csv,table,2026-06-05T18:36:30.482175+00:00,,False,Unknown — see notes,,True
-reports/tables/outcomes_adoptions_by_year.csv,table,2026-06-05T18:36:40.383175+00:00,,False,Unknown — see notes,,True
+reports/tables/model_reliability_red_flags.csv,table,2026-06-05T19:15:51.352685+00:00,,False,Unknown — see notes,,True
+reports/tables/outcomes_adoptions_by_year.csv,table,2026-06-05T19:15:34.251494+00:00,,False,Unknown — see notes,,True
 reports/tables/permutation_importance_classification.csv,table,2026-05-30T23:18:54.655797+00:00,,False,Unknown — see notes,,True
 reports/tables/permutation_importance_regression.csv,table,2026-05-30T23:19:12.037297+00:00,,False,Unknown — see notes,,True
 reports/tables/profile_contrasts.csv,table,2026-06-05T17:48:30.356524+00:00,,False,Unknown — see notes,,True
@@ -197,17 +211,16 @@ reports/tables_smoke_context/permutation_importance_classification.csv,table,202
 reports/tables_smoke_context/permutation_importance_regression.csv,table,2026-06-05T15:21:34.320266+00:00,,False,Unknown — see notes,,True
 reports/tables_smoke_context/random_forest_feature_importance.csv,table,2026-06-05T15:20:38.112264+00:00,,False,Unknown — see notes,,True
 reports/tables_smoke_context_compare/context_model_comparison.csv,table,2026-06-05T15:21:46.845766+00:00,,False,Unknown — see notes,,True
-docs/animal_exploratory_research_plan.md,report,2026-06-04T20:37:23.399647+00:00,,False,Unknown,,True
-docs/found_location_plan.md,report,2026-06-05T18:02:51.153250+00:00,,False,Unknown,,True
-docs/implementation_plan_p3_p4.md,report,2026-06-05T18:19:59.810628+00:00,,False,Unknown,,True
-docs/interactive_story_plan.md,report,2026-06-04T20:32:47.986227+00:00,,False,Unknown,,True
-docs/methodology_notes.md,report,2026-06-05T18:21:54.818827+00:00,,False,Unknown,,True
-docs/model_diagnostics.md,report,2026-06-05T18:37:53.765177+00:00,,False,Chapter 4 — Model Evaluation,,True
-docs/model_evidence_pack.md,report,2026-06-04T21:26:53.876673+00:00,,False,Unknown,,True
-docs/progress_and_future_work.md,report,2026-06-05T18:03:21.632656+00:00,,False,Unknown,,True
-docs/results_summary.md,report,2026-06-05T18:38:00.146177+00:00,,False,Unknown — see notes,,True
-docs/target_definitions.md,report,2026-06-05T18:20:54.934723+00:00,,False,Unknown,,True
-docs/technical_architecture_plan.md,report,2026-06-04T21:01:49.278565+00:00,,False,Unknown,,True
-docs/thesis.md,report,2026-06-05T18:23:31.511914+00:00,,False,Unknown,,True
-docs/thesis_technical_guide.md,report,2026-06-05T14:05:51.070912+00:00,,False,Unknown,,True
-reports/artifact_manifest.csv,manifest,,scripts/generate_artifact_manifest.py,False,Appendix,Self-referential manifest entry,False
+docs/animal_exploratory_research_plan.md,report,2026-06-05T18:45:29.029458+00:00,,False,Unknown,,True
+docs/found_location_plan.md,report,2026-06-05T18:45:29.029957+00:00,,False,Unknown,,True
+docs/implementation_plan_p3_p4.md,report,2026-06-05T18:45:29.030958+00:00,,False,Unknown,,True
+docs/interactive_story_plan.md,report,2026-06-05T18:45:29.031458+00:00,,False,Unknown,,True
+docs/methodology_notes.md,report,2026-06-05T18:45:29.031958+00:00,,False,Unknown,,True
+docs/model_diagnostics.md,report,2026-06-05T18:45:29.032458+00:00,,False,Chapter 4 — Model Evaluation,,True
+docs/model_evidence_pack.md,report,2026-06-05T18:45:29.032958+00:00,,False,Unknown,,True
+docs/progress_and_future_work.md,report,2026-06-05T19:15:04.742064+00:00,,False,Unknown,,True
+docs/results_summary.md,report,2026-06-05T18:45:29.034957+00:00,,False,Unknown — see notes,,True
+docs/target_definitions.md,report,2026-06-05T18:45:29.035958+00:00,,False,Unknown,,True
+docs/technical_architecture_plan.md,report,2026-06-05T18:45:29.036458+00:00,,False,Unknown,,True
+docs/thesis.md,report,2026-06-05T18:45:29.037458+00:00,,False,Unknown,,True
+docs/thesis_technical_guide.md,report,2026-06-05T18:45:29.038958+00:00,,False,Unknown,,True

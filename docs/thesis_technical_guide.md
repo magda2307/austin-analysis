@@ -256,7 +256,7 @@ Streamlit is used to build the thesis demo dashboard. It is suitable because it 
 - tables,
 - charts,
 - interactive selectors,
-- what-if prediction forms,
+- model sensitivity forms,
 - narrative research views.
 
 ### 5.7 Altair and Plotly
@@ -470,7 +470,7 @@ It provides:
 - interpretability display,
 - risk and campaign exploration,
 - hypothesis lab,
-- what-if prediction,
+- model sensitivity demo,
 - adoption timeline,
 - generated artifact browsing.
 
@@ -1512,7 +1512,7 @@ Runtime behavior:
 
 - reads generated artifacts,
 - does not retrain models,
-- shows metrics, tables, figures, SHAP, reliability, and what-if prediction views.
+- shows metrics, tables, figures, SHAP, reliability, and model sensitivity views.
 
 Technical decisions:
 
@@ -2103,7 +2103,7 @@ Role:
 - thesis demo UI,
 - artifact browsing,
 - story presentation,
-- what-if interface.
+- model sensitivity interface.
 
 Tradeoff:
 
@@ -3572,7 +3572,7 @@ The dashboard manually builds a record using the same feature logic as training.
 Why:
 
 - avoids hidden mismatch between training and inference,
-- keeps the what-if prediction aligned with the real feature contract.
+- keeps the model sensitivity demo aligned with the real feature contract.
 
 ### 51.6 Explicit `random_state`
 

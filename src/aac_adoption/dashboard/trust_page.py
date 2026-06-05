@@ -36,7 +36,7 @@ def render_trust_and_limits(tables: dict[str, pd.DataFrame]) -> None:
         st.markdown(
             "- **Individual Animal Fate:** The model provides statistical probabilities and "
             "expected timelines based on historical averages, not individual guarantees.\n"
-            "- **Causal Intervention Impact:** Changing a feature in the What-if demo (e.g. changing "
+            "- **Causal Intervention Impact:** Changing a feature in the Model Sensitivity Demo (e.g. changing "
             "an animal's name or reproductive status) does not prove that the real-world outcome "
             "would change accordingly.\n"
             "- **Out-of-Jurisdiction Generalisation:** The model is trained exclusively on "

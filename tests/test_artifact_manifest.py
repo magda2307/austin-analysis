@@ -23,7 +23,7 @@ REQUIRED_COLUMNS = [
 
 @pytest.mark.skipif(
     not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated — run scripts/generate_artifact_manifest.py",
+    reason="artifact_manifest.csv not yet generated - run scripts/generate_artifact_manifest.py",
 )
 def test_manifest_csv_exists_and_has_columns() -> None:
     df = pd.read_csv(MANIFEST_CSV)
@@ -62,3 +62,13 @@ def test_manifest_md_exists() -> None:
     content = MANIFEST_MD.read_text(encoding="utf-8")
     assert "# Thesis Artifact Manifest" in content
     assert "Chapter" in content
+
+
+@pytest.mark.skipif(
+    not MANIFEST_MD.exists(),
+    reason="artifact_manifest.md not yet generated",
+)
+def test_manifest_md_has_no_mojibake_markers() -> None:
+    content = MANIFEST_MD.read_text(encoding="utf-8")
+    assert "â" not in content
+    assert "Status legend: present = present on disk | missing = not yet generated" in content

@@ -379,7 +379,7 @@ def profile_global_shap_reasons(profile: pd.Series | dict[str, Any], shap_global
 
 
 def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_rows: int = 50000) -> pd.DataFrame:
-    """Find exact/coarse historical matches for a what-if record."""
+    """Find exact/coarse historical matches for a model-sensitivity record."""
     path = Path(data_path)
     if not path.exists():
         return pd.DataFrame()

@@ -138,7 +138,7 @@ Remaining work for Milestone 3:
 Milestone 4: Streamlit prototype. Completed as thesis demo.
 
 - prediction page,
-- what-if page,
+- model sensitivity page,
 - feature importance page,
 - Animal Stories,
 - Trust & Limits,

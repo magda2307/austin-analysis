@@ -50,4 +50,4 @@ The Streamlit app uses generated artifacts and does not retrain models at runtim
 - Risk Explorer,
 - Campaign Finder,
 - Adoption Timeline,
-- What-if Prediction with similar historical cases.
+- Model Sensitivity Demo with similar historical cases.

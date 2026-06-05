@@ -106,6 +106,13 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "chapter": "Chapter 3 — Hypotheses",
         "notes": "H1 evidence: intake type and condition vs appearance",
     },
+    "reports/tables/h2_seasonality_summary.csv": {
+        "artifact_type": "table",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 — Hypotheses",
+        "notes": "H2 evidence: seasonality summary table",
+    },
     "reports/tables/h3_age_adoption_speed.csv": {
         "artifact_type": "table",
         "source_script": "scripts/run_analysis.py",
@@ -113,12 +120,54 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "chapter": "Chapter 3 — Hypotheses",
         "notes": "H3 evidence: age and adoption speed",
     },
+    "reports/tables/h4_dark_color_summary.csv": {
+        "artifact_type": "table",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 — Hypotheses",
+        "notes": "H4 evidence: dark coat colour summary table",
+    },
     "reports/tables/h5_covid_period.csv": {
         "artifact_type": "table",
         "source_script": "scripts/run_analysis.py",
         "required_for_thesis": True,
         "chapter": "Chapter 3 — Hypotheses",
         "notes": "H5 evidence: COVID period adoption dynamics",
+    },
+    "reports/summary/h2_interpretation.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 — Hypotheses",
+        "notes": "H2 evidence seasonality summary report",
+    },
+    "reports/summary/h4_interpretation.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 — Hypotheses",
+        "notes": "H4 evidence coat colour summary report",
+    },
+    "reports/summary/external_validity_limitations.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 5 — Interpretation",
+        "notes": "External validity and causal limitations report",
+    },
+    "reports/summary/breed_color_justification.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 — Hypotheses",
+        "notes": "Breed and coat colour engineering justification report",
+    },
+    "reports/summary/descriptive_baseline_comparison.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 4 — Model Evaluation",
+        "notes": "Non-ML descriptive baseline vs ML model comparison report",
     },
     # Reliability
     "reports/tables/model_evidence_pack.csv": {
@@ -262,6 +311,11 @@ def collect_artifacts() -> list[dict]:
     return rows
 
 
+def markdown_cell(value: object) -> str:
+    """Return ASCII-safe manifest Markdown cell text."""
+    return str(value).replace("—", "-").replace("|", "\\|")
+
+
 def build_markdown(df: pd.DataFrame) -> str:
     chapters = sorted(df["chapter"].dropna().unique())
     lines = [
@@ -269,20 +323,20 @@ def build_markdown(df: pd.DataFrame) -> str:
         "",
         f"Generated: {datetime.now(tz=timezone.utc).isoformat()}",
         "",
-        "Status legend: ✅ present on disk | ❌ missing (not yet generated)",
+        "Status legend: present = present on disk | missing = not yet generated",
         "",
     ]
     for chapter in chapters:
         chapter_df = df[df["chapter"] == chapter].sort_values("artifact_path")
-        lines.append(f"## {chapter}")
+        lines.append(f"## {markdown_cell(chapter)}")
         lines.append("")
         lines.append("| Status | Artifact | Type | Source Script | Notes |")
         lines.append("|--------|----------|------|---------------|-------|")
         for _, row in chapter_df.iterrows():
-            status = "✅" if row["exists_on_disk"] else "❌"
+            status = "present" if row["exists_on_disk"] else "missing"
             lines.append(
-                f"| {status} | `{row['artifact_path']}` | {row['artifact_type']} "
-                f"| `{row['source_script']}` | {row['notes']} |"
+                f"| {status} | `{markdown_cell(row['artifact_path'])}` | {markdown_cell(row['artifact_type'])} "
+                f"| `{markdown_cell(row['source_script'])}` | {markdown_cell(row['notes'])} |"
             )
         lines.append("")
     return "\n".join(lines)
