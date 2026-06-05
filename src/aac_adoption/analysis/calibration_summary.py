@@ -47,6 +47,8 @@ def create_calibration_summary(
 
         row = {
             "animal_subset": subset,
+            "subset": subset,
+            "records": int(sub["records"].sum()) if "records" in sub.columns else pd.NA,
             "mean_calibration_gap": round(mean_gap, 4),
             "worst_cohort": worst_cohort,
             "worst_calibration_gap": round(worst_gap, 4),

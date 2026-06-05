@@ -81,6 +81,19 @@ def test_hypothesis_markdown_reports_exist() -> None:
             assert "causal" in content.lower()
 
 
+@pytest.mark.skipif(
+    not (TABLES_DIR / "hypothesis_evidence_matrix.csv").exists(),
+    reason="hypothesis_evidence_matrix.csv not yet generated",
+)
+def test_h3_hypothesis_uses_adopted_only_timing_wording() -> None:
+    df = pd.read_csv(TABLES_DIR / "hypothesis_evidence_matrix.csv")
+    h3 = df[df["hypothesis"] == "H3"]
+    assert not h3.empty
+    text = str(h3.iloc[0]["hypothesis_text"]).lower()
+    assert "adoption timing among adopted animals" in text
+    assert "adoption speed" not in text
+
+
 def test_methodological_reports_exist_and_contain_content() -> None:
     summary_dir = ROOT / "reports" / "summary"
     

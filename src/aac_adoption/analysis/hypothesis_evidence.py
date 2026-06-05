@@ -119,7 +119,7 @@ def _h3_row(tables_dir: Path, figures_dir: Path, summary_dir: Path) -> dict:
     shap_age = _mean_shap(tables_dir, "classification", ["age"])
     return {
         "hypothesis": "H3",
-        "hypothesis_text": "Age at intake is associated with both adoption likelihood and adoption speed among adopted animals.",
+        "hypothesis_text": "Age at intake is associated with both adoption likelihood and adoption timing among adopted animals.",
         "status": "supported_descriptively" if shap_age and shap_age > 0.1 else "partially_supported",
         "primary_evidence": f"Age-family SHAP mean={shap_age:.4f}; adoption rate and median adopted-only days by age group." if shap_age else "Adoption rate and adopted-only median days by age group.",
         "descriptive_evidence_file": evidence_matrix or desc_file,

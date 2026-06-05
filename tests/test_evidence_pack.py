@@ -155,6 +155,27 @@ def test_create_evidence_pack_writes_artifacts(tmp_path):
     assert paths["subgroup_milestones"].exists()
     assert paths["failure_modes"].exists()
     assert paths["journeys"].exists()
+    assert paths["local_explanations"].exists()
     assert paths["summary"].exists()
     assert paths["subgroup_summary"].exists()
+    assert paths["local_explanation_summary"].exists()
     assert "associated with model behavior" in paths["summary"].read_text(encoding="utf-8")
+
+    local_examples = pd.read_csv(paths["local_explanations"])
+    assert not local_examples.empty
+    assert {
+        "explanation_type",
+        "profile_label",
+        "similar_historical_cases",
+        "shap_model_reasons",
+        "limitation_note",
+    }.issubset(local_examples.columns)
+    assert local_examples["similar_historical_cases"].str.contains("cases").any()
+    assert local_examples["shap_model_reasons"].str.len().gt(0).all()
+    assert local_examples["limitation_note"].str.contains("non-causal", case=False).all()
+
+    local_summary = paths["local_explanation_summary"].read_text(encoding="utf-8")
+    assert "illustrative and non-causal" in local_summary
+    assert "similar historical cases" in local_summary
+    assert "SHAP/model reasons" in local_summary
+    assert "Limitations" in local_summary

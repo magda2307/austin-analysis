@@ -70,7 +70,7 @@ The repository already documents that the thesis hypotheses should not all recei
 Central hypotheses:
 
 - **H1:** intake circumstances vs breed/color/appearance,
-- **H3:** age and adoption speed,
+- **H3:** age and adoption timing among adopted animals,
 - **H5:** COVID-period adoption dynamics.
 
 Secondary descriptive hypotheses:

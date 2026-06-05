@@ -230,9 +230,9 @@ def create_h3_age_evidence(
 
 def _write_h3_interpretation_md(tables: Path, summary: Path) -> None:
     lines = [
-        "# H3 Interpretation — Age and Adoption Speed\n\n",
+        "# H3 Interpretation — Age and Adopted-Only Timing\n\n",
         "## Hypothesis\n",
-        "Age at intake is associated with both adoption likelihood and adoption speed among adopted animals.\n\n",
+        "Age at intake is associated with both adoption likelihood and adoption timing among adopted animals.\n\n",
         "## Three Levels of Evidence\n\n",
         "### Level 1 — Adoption Probability by Age Group\n",
         "Computed from `classification_target` across all animals (adopted + not-adopted).\n",
@@ -248,7 +248,7 @@ def _write_h3_interpretation_md(tables: Path, summary: Path) -> None:
     lines += [
         "### Level 2 — Adopted-Only Median Days to Adoption\n",
         "Filters to animals that were adopted. Uses `days_to_adoption` or `days_to_outcome` as available.\n",
-        "This separates the question of *whether* an animal is adopted from *how quickly* it is adopted.\n\n",
+        "This separates the question of *whether* an animal is adopted from descriptive adopted-only timing.\n\n",
         "### Level 3 — SHAP Age-Feature Importance\n",
         "Age features (age_days, age_group, age_months) are among the top contributors in both "
         "the classification and regression models. See `h3_age_shap_summary.png`.\n\n",

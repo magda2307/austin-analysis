@@ -59,7 +59,7 @@ Add `--h1-ablation` flag that triggers the ablation path.
 
 ---
 
-#### Task 3.3 — H3: Age and Adoption Speed
+#### Task 3.3 — H3: Age and Adopted-Only Timing
 
 **New module + three-level evidence figures.**
 

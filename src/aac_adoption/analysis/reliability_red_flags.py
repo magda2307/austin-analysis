@@ -89,6 +89,15 @@ def create_reliability_red_flags(
     out = rel.copy()
     out["risk_level"] = out.apply(_risk_level, axis=1)
     out["interpretation"] = out.apply(_interpretation, axis=1)
+    if "cohort" in out.columns and "subgroup_field" not in out.columns:
+        out["subgroup_field"] = out["cohort"]
+    if "value" in out.columns and "subgroup_value" not in out.columns:
+        out["subgroup_value"] = out["value"]
+    if (
+        "mean_predicted_adoption_probability" in out.columns
+        and "mean_predicted_probability" not in out.columns
+    ):
+        out["mean_predicted_probability"] = out["mean_predicted_adoption_probability"]
 
     # Rename mae to regression_mae for clarity
     if "mae" in out.columns:
@@ -97,7 +106,9 @@ def create_reliability_red_flags(
     # Reorder columns to match spec
     ordered_cols = [
         "cohort", "value", "records",
+        "subgroup_field", "subgroup_value",
         "observed_adoption_rate", "mean_predicted_adoption_probability",
+        "mean_predicted_probability",
         "calibration_gap", "false_positive_rate", "false_negative_rate",
         "regression_mae", "small_cohort_flag",
         "risk_level", "interpretation",

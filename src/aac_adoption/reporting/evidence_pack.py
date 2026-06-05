@@ -91,6 +91,19 @@ JOURNEY_COLUMNS = [
     "caveat",
 ]
 
+LOCAL_EXPLANATION_COLUMNS = [
+    "example_id",
+    "explanation_type",
+    "profile_label",
+    "records",
+    "observed_adoption_rate_pct",
+    "predicted_adoption_probability",
+    "predicted_days_to_outcome",
+    "similar_historical_cases",
+    "shap_model_reasons",
+    "limitation_note",
+]
+
 
 def _read_table(path: Path) -> pd.DataFrame:
     if not path.exists():
@@ -510,6 +523,61 @@ def animal_journey_examples(
     return pd.DataFrame(rows, columns=JOURNEY_COLUMNS)
 
 
+def local_explanation_examples(journeys: pd.DataFrame) -> pd.DataFrame:
+    """Create acceptance-facing local explanation examples from journey cards."""
+    if journeys.empty:
+        return pd.DataFrame(columns=LOCAL_EXPLANATION_COLUMNS)
+    rows = []
+    for example_id, (_, row) in enumerate(journeys.iterrows(), start=1):
+        rows.append(
+            {
+                "example_id": example_id,
+                "explanation_type": "profile-level SHAP and similar historical cases",
+                "profile_label": row.get("profile_label", "animal profile"),
+                "records": row.get("records", np.nan),
+                "observed_adoption_rate_pct": row.get("observed_adoption_rate_pct", np.nan),
+                "predicted_adoption_probability": row.get("predicted_adoption_probability", np.nan),
+                "predicted_days_to_outcome": row.get("predicted_days_to_outcome", np.nan),
+                "similar_historical_cases": row.get("similar_case_summary", "not available"),
+                "shap_model_reasons": row.get("top_shap_reasons", "not available"),
+                "limitation_note": (
+                    "Illustrative, non-causal example. Similar historical cases and SHAP/model reasons "
+                    "describe model behavior and cohort history, not causal effects or individual certainty."
+                ),
+            }
+        )
+    return pd.DataFrame(rows, columns=LOCAL_EXPLANATION_COLUMNS)
+
+
+def _local_explanation_markdown(local_examples: pd.DataFrame) -> str:
+    lines = [
+        "# Local Explanation Examples",
+        "",
+        "These examples are illustrative and non-causal. They combine similar historical cases with local SHAP/model reasons to show how the trained model behaves for representative animal profiles.",
+        "",
+    ]
+    if local_examples.empty:
+        lines.append("- No local explanation examples are available until animal profile evidence is generated.")
+    else:
+        for _, row in local_examples.head(5).iterrows():
+            lines.append(
+                f"- {row['profile_label']}: {row['similar_historical_cases']}; "
+                f"model reasons: {row['shap_model_reasons']}."
+            )
+    lines.extend(
+        [
+            "",
+            "## Limitations",
+            "",
+            "- Similar historical cases summarize past cohorts and may not match a future animal exactly.",
+            "- SHAP/model reasons explain associations learned by the model, not causal drivers of adoption.",
+            "- Predictions are decision-support evidence and should be reviewed with shelter context before action.",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
 def _summary_markdown(
     evidence: pd.DataFrame,
     limitations: pd.DataFrame,
@@ -652,6 +720,7 @@ def create_evidence_pack(
     milestones = subgroup_adoption_milestones(data_path, min_records=milestone_min_records)
     failures = model_failure_modes(subgroup)
     journeys = animal_journey_examples(animal_archetypes, shap_global_classification, data_path, models_dir)
+    local_examples = local_explanation_examples(journeys)
 
     paths = {
         "evidence": tables / "model_evidence_pack.csv",
@@ -662,8 +731,10 @@ def create_evidence_pack(
         "subgroup_milestones": tables / "subgroup_adoption_milestones.csv",
         "failure_modes": tables / "model_failure_modes.csv",
         "journeys": tables / "animal_journey_examples.csv",
+        "local_explanations": tables / "local_explanation_examples.csv",
         "summary": summary / "model_evidence_pack.md",
         "subgroup_summary": summary / "subgroup_reliability.md",
+        "local_explanation_summary": summary / "local_explanation_examples.md",
     }
     evidence.to_csv(paths["evidence"], index=False)
     limitations.to_csv(paths["limitations"], index=False)
@@ -673,6 +744,7 @@ def create_evidence_pack(
     milestones.to_csv(paths["subgroup_milestones"], index=False)
     failures.to_csv(paths["failure_modes"], index=False)
     journeys.to_csv(paths["journeys"], index=False)
+    local_examples.to_csv(paths["local_explanations"], index=False)
     subgroup_text = _summary_markdown(
         evidence,
         subgroup,
@@ -684,4 +756,5 @@ def create_evidence_pack(
     )
     paths["summary"].write_text(subgroup_text, encoding="utf-8")
     paths["subgroup_summary"].write_text(subgroup_text, encoding="utf-8")
+    paths["local_explanation_summary"].write_text(_local_explanation_markdown(local_examples), encoding="utf-8")
     return paths

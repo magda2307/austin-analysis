@@ -118,7 +118,7 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "source_script": "scripts/run_analysis.py",
         "required_for_thesis": True,
         "chapter": "Chapter 3 — Hypotheses",
-        "notes": "H3 evidence: age and adoption speed",
+        "notes": "H3 evidence: age and adoption timing among adopted animals",
     },
     "reports/tables/h4_dark_color_summary.csv": {
         "artifact_type": "table",
@@ -190,6 +190,20 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "required_for_thesis": True,
         "chapter": "Chapter 4 — Model Evaluation",
         "notes": "Bootstrap confidence intervals for key metrics",
+    },
+    "reports/tables/local_explanation_examples.csv": {
+        "artifact_type": "table",
+        "source_script": "scripts/generate_evidence_pack.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 5 â€” Interpretation",
+        "notes": "Local explanation examples combining animal journeys, nearest neighbours, and model reasons",
+    },
+    "reports/summary/local_explanation_examples.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/generate_evidence_pack.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 5 â€” Interpretation",
+        "notes": "Narrative summary of local explanation examples with causal limitations",
     },
     # Animal research
     "reports/tables/animal_archetypes.csv": {

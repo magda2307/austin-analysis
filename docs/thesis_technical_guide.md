@@ -40,7 +40,7 @@ The thesis uses two prediction tasks:
 The project intentionally prioritizes three thesis threads:
 
 - **H1**: intake circumstances versus appearance features,
-- **H3**: age and adoption speed,
+- **H3**: age and adoption timing among adopted animals,
 - **H5**: COVID-period adoption dynamics.
 
 These are the strongest and cleanest analytical threads in the current implementation.
@@ -500,7 +500,7 @@ This artifact-driven design is important because it separates computation from p
 Explain:
 
 - the shelter adoption problem,
-- why adoption speed matters,
+- why adoption timing among adopted animals matters,
 - why Austin Animal Center is a useful case study,
 - why data science is relevant,
 - the research goals,
@@ -2763,7 +2763,7 @@ What it measures:
 Why this matters:
 
 - it gives a time-to-adoption view without requiring a full survival model,
-- it is useful for describing adoption speed at a glance.
+- it is useful for describing descriptive adopted-only timing at a glance.
 
 Important caveat:
 

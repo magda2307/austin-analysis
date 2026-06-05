@@ -72,3 +72,35 @@ def test_manifest_md_has_no_mojibake_markers() -> None:
     content = MANIFEST_MD.read_text(encoding="utf-8")
     assert "â" not in content
     assert "Status legend: present = present on disk | missing = not yet generated" in content
+
+
+@pytest.mark.skipif(
+    not MANIFEST_CSV.exists(),
+    reason="artifact_manifest.csv not yet generated",
+)
+def test_manifest_includes_local_explanation_artifacts() -> None:
+    df = pd.read_csv(MANIFEST_CSV)
+    by_path = df.set_index("artifact_path")
+    expected = {
+        "reports/tables/local_explanation_examples.csv": "table",
+        "reports/summary/local_explanation_examples.md": "report",
+    }
+    for path, artifact_type in expected.items():
+        assert path in by_path.index, f"Missing manifest entry: {path}"
+        row = by_path.loc[path]
+        assert row["artifact_type"] == artifact_type
+        assert row["source_script"] == "scripts/generate_evidence_pack.py"
+        assert str(row["notes"]).strip(), f"Missing notes for {path}"
+
+
+@pytest.mark.skipif(
+    not MANIFEST_CSV.exists(),
+    reason="artifact_manifest.csv not yet generated",
+)
+def test_manifest_h3_uses_adopted_only_timing_wording() -> None:
+    df = pd.read_csv(MANIFEST_CSV)
+    h3 = df[df["artifact_path"] == "reports/tables/h3_age_adoption_speed.csv"]
+    assert not h3.empty
+    notes = str(h3.iloc[0]["notes"]).lower()
+    assert "adoption timing among adopted animals" in notes
+    assert "adoption speed" not in notes

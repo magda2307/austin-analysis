@@ -71,16 +71,20 @@ def build_leakage_audit(
 
     # Classify every column in the dataset
     for col in sorted(set(all_columns)):
+        note = "Column is not part of the trained intake-time feature set"
         if col in set(feature_columns):
             category = "predictor"
             allowed = True
+            note = "Intake-time predictor used by the model"
             if col in LEAKAGE_COLUMNS:
                 category = "LEAKAGE — predictor AND leakage set"
                 allowed = False
                 violations.append(col)
+                note = "Leakage violation: outcome-derived column appears in feature_columns.json"
         elif col in set(TARGET_COLUMNS):
             category = "target"
             allowed = True
+            note = "Column is not part of the trained intake-time feature set"
             note = "Use as model label/target only"
         elif col in set(METADATA_COLUMNS):
             category = "metadata"
@@ -99,6 +103,10 @@ def build_leakage_audit(
             "in_leakage_set": col in LEAKAGE_COLUMNS,
             "leakage_violation": col in violations,
             "allowed_as_predictor": col in set(feature_columns) and col not in LEAKAGE_COLUMNS,
+            "role": category,
+            "allowed_as_feature": col in set(feature_columns) and col not in LEAKAGE_COLUMNS,
+            "leakage_risk": col in LEAKAGE_COLUMNS or col in violations,
+            "notes": note,
         })
 
     return pd.DataFrame(records), violations

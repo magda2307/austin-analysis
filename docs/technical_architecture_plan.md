@@ -13,7 +13,7 @@ Strong thesis framing:
 Central analytical angles:
 
 1. H1: intake circumstances vs appearance.
-2. H3: age and adoption speed.
+2. H3: age and adoption timing among adopted animals.
 3. H5: COVID-period adoption dynamics.
 
 Secondary descriptive angles:

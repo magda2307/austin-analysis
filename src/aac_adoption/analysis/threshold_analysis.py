@@ -108,7 +108,9 @@ def _evaluate_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> pd.DataFram
     balanced_t = float(thresholds[int(np.argmin(diffs))])
     rows.append(_row("balanced_precision_recall", balanced_t))
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    df["threshold_name"] = df["threshold_label"]
+    return df
 
 
 def _plot_confusion_matrices(y_true: np.ndarray, y_score: np.ndarray, thresholds_df: pd.DataFrame, out_path: Path) -> None:

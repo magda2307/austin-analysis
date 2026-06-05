@@ -142,6 +142,9 @@ def create_final_model_selection(
         ignore_index=True,
         sort=False,
     )
+    if "animal_subset" in combined.columns and "subset" not in combined.columns:
+        insert_at = combined.columns.get_loc("animal_subset") + 1
+        combined.insert(insert_at, "subset", combined["animal_subset"])
     combined.to_csv(tables / "final_model_selection.csv", index=False)
     print(f"[4.1] Wrote final_model_selection.csv")
 

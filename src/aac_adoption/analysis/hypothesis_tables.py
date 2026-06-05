@@ -435,6 +435,10 @@ def create_adopted_only_timing_tables(
         return
 
     result = pd.DataFrame(records)
+    age_rows = result["group_variable"].eq("age_group")
+    result["age_group"] = pd.NA
+    result.loc[age_rows, "age_group"] = result.loc[age_rows, "group_value"]
+    result["records"] = result["all_records"]
     result.to_csv(tables / "h3_adopted_only_age_speed.csv", index=False)
 
     # Figure: median days to adoption by age_group, per animal type

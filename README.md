@@ -345,32 +345,59 @@ After baseline and boosting metrics exist, run:
 python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
 ```
 
+To include the optional feature-family ablation study training (which trains 6 separate models per subset):
+
+```bash
+python scripts/run_analysis.py --data data/processed/modeling_dataset.csv --h1-ablation
+```
+
 Outputs:
 
 ```text
-reports/tables/model_comparison_classification.csv
-reports/tables/model_comparison_regression.csv
-reports/tables/h1_intake_vs_appearance.csv
+reports/tables/model_comparison_classification.csv (now with pr_auc and pr_auc_rank)
+reports/figures/model_comparison_classification_pr_auc.png
+reports/tables/final_model_selection.csv
+reports/summary/final_model_selection.md
+reports/tables/final_classifier_thresholds.csv
+reports/figures/final_confusion_matrix.png
+reports/summary/threshold_selection.md
+reports/tables/h1_feature_family_importance.csv
+reports/figures/h1_feature_family_importance.png
+reports/tables/h1_feature_family_ablation.csv (only when run with --h1-ablation)
+reports/summary/h1_interpretation.md (with importance and ablation tables)
 reports/tables/h2_seasonality_summary.csv
-reports/tables/h3_age_adoption_speed.csv
-reports/tables/h3_age_evidence_matrix.csv
-reports/tables/h4_dark_color_summary.csv
-reports/tables/h5_covid_period.csv
-reports/tables/h5_covid_evidence_matrix.csv
-reports/tables/hypothesis_evidence_matrix.csv
-reports/summary/h1_interpretation.md
+reports/figures/h2_adoption_rate_by_season.png
+reports/figures/h2_median_los_by_season.png
 reports/summary/h2_interpretation.md
+reports/tables/h3_age_evidence_matrix.csv
+reports/figures/h3_age_adoption_rate.png
+reports/figures/h3_age_adopted_only_median_days.png
+reports/figures/h3_age_shap_summary.png
 reports/summary/h3_interpretation.md
+reports/tables/h4_dark_color_summary.csv
+reports/figures/h4_dark_color_adoption_rate.png
+reports/figures/h4_dark_color_median_los.png
 reports/summary/h4_interpretation.md
+reports/tables/h5_covid_evidence_matrix.csv
+reports/tables/h5_covid_population_mix.csv
+reports/figures/h5_covid_adoption_rate.png
+reports/figures/h5_covid_median_los.png
+reports/figures/h5_covid_intake_volume.png
 reports/summary/h5_interpretation.md
+reports/tables/calibration_summary_by_subset.csv
+reports/summary/calibration_interpretation.md
+reports/tables/model_reliability_red_flags.csv
+reports/summary/model_reliability_red_flags.md
+reports/tables/hypothesis_evidence_matrix.csv
 reports/summary/hypothesis_evidence_matrix.md
 ```
 
+CLI Options:
+- `--h1-ablation`: Run the slow feature-family ablation study training.
+- `--models-dir`: Custom path to model artifacts directory (default: `models`).
+- `--skip-survival`: Skip Kaplan-Meier descriptive survival curve generation.
+
 H1, H3, and H5 remain the central thesis hypotheses. H2 and H4 are generated as supporting descriptive checks.
-
-## Generate Model Diagnostics and Interpretability
-
-After advanced model artifacts exist, generate reliability diagnostics, error slices, placement-risk quadrants, adoption timeline tables, and optional SHAP outputs:
 
 ```bash
 python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
@@ -558,7 +585,7 @@ python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
 python scripts/train_boosting.py --data data/processed/modeling_dataset.csv
 python scripts/train_advanced.py --data data/processed/modeling_dataset.csv
-python scripts/run_analysis.py --data data/processed/modeling_dataset.csv
+python scripts/run_analysis.py --data data/processed/modeling_dataset.csv --h1-ablation
 python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap
 python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
 python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
