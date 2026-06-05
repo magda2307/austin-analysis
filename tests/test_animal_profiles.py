@@ -29,6 +29,10 @@ def test_animal_descriptors_and_archetypes_include_health_behavior():
     assert "health_profile" in archetypes.columns
     assert "behavior_support_flag" in archetypes.columns
     assert "behavior_support_signal" in set(df["behavior_support_flag"])
+    labels = archetypes["profile_label"].tolist()
+    assert any("has recorded name" in label for label in labels)
+    assert any("no recorded name" in label for label in labels)
+    assert all(" named Cat" not in label for label in labels)
 
 
 def test_profile_contrasts_include_cat_health_and_named_views():

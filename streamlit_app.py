@@ -204,7 +204,7 @@ with tabs[2]:
             f"{selected.get('health_profile', 'unknown health')} | "
             f"{selected.get('behavior_support_flag', 'unknown behavior signal')} | "
             f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
-            f"{'named' if bool(selected['is_named']) else 'unnamed'}"
+            f"{'has recorded name' if bool(selected['is_named']) else 'no recorded name'}"
         )
         mix_cols = st.columns(3)
         mix_cols[0].metric("Transfer rate", f"{selected.get('transfer_rate_pct', 0):.1f}%")

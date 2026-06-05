@@ -78,10 +78,12 @@ def _save_barh(df: pd.DataFrame, label: str, value: str, path: Path, title: str,
 
 
 def _profile_label(row: pd.Series) -> str:
-    named = "named" if bool(row.get("is_named", False)) else "unnamed/unknown"
+    name_status = "has recorded name" if bool(row.get("is_named", False)) else "no recorded name"
     condition = row["health_profile"] if "health_profile" in row else row.get("intake_condition", "unknown")
+    sex = row.get("sex_upon_intake", "unknown sex")
     return (
-        f"{row.get('age_group', 'unknown')} {named} {row.get('animal_type', 'unknown')} | "
+        f"{row.get('age_group', 'unknown')} {row.get('animal_type', 'unknown')} | "
+        f"{name_status} / {sex} | "
         f"{row.get('intake_type', 'unknown')} / {condition} | "
         f"{row.get('simplified_breed_group', 'unknown')} / {row.get('simplified_color_group', 'unknown')}"
     )
