@@ -1072,6 +1072,98 @@ The processed modeling dataset includes, where available:
 - `is_adopted`
 - `target_adopted`
 - `classification_target`
+
+For current interpretation notes, see:
+
+```text
+docs/results_summary.md
+```
+
+## Create Initial EDA Outputs
+
+After the modeling dataset exists, run:
+
+```bash
+python scripts/run_eda.py --data data/processed/modeling_dataset.csv
+```
+
+Tables are saved to:
+
+```text
+reports/tables/
+```
+
+Figures are saved to:
+
+```text
+reports/figures/
+```
+
+## Run Validation Tests
+
+```bash
+pytest
+```
+
+## Dataset Assumptions
+
+AAC animals can appear multiple times. The first version of the pipeline treats each intake as a possible separate stay episode.
+
+For each `animal_id`, each intake is matched to the nearest unused outcome whose `outcome_datetime` is greater than or equal to `intake_datetime`. This avoids matching one outcome to many intakes and prevents negative length-of-stay values.
+
+Outcome fields are used only to create labels and target variables. Intake-time fields are used as predictors to reduce data leakage.
+
+Feature columns are saved to `data/processed/feature_columns.json`; target columns are saved to `data/processed/target_columns.json`.
+
+## Important Output Columns
+
+The processed modeling dataset includes, where available:
+
+- `animal_id`
+- `animal_type`
+- `intake_datetime`
+- `outcome_datetime`
+- `intake_type`
+- `intake_condition`
+- `outcome_type`
+- `sex_upon_intake`
+- `age_upon_intake`
+- `breed`
+- `color`
+- `found_location_kind`
+- `found_location_area`
+- `is_austin_found_location`
+- `is_outside_jurisdiction`
+- `is_intersection_location`
+- `is_address_like_location`
+- `is_airport_location`
+- `has_name`
+- `is_named`
+- `age_in_days`
+- `age_in_months`
+- `age_in_years`
+- `age_days`
+- `age_months`
+- `age_years`
+- `age_group`
+- `intake_year`
+- `intake_month`
+- `intake_quarter`
+- `intake_season`
+- `covid_period`
+- `color_group`
+- `primary_color`
+- `simplified_color_group`
+- `is_black_or_dark`
+- `primary_breed`
+- `is_mixed_breed`
+- `simplified_breed_group`
+- `days_to_outcome`
+- `length_of_stay`
+- `adopted`
+- `is_adopted`
+- `target_adopted`
+- `classification_target`
 - `regression_target_days`
 - `days_to_adoption`
 
@@ -1084,3 +1176,74 @@ The build script checks:
 - `days_to_outcome` is not negative,
 - target columns are created correctly.
 - leakage columns are not included in configured feature lists.
+
+## Modeling Pipeline Critique & Future ML Improvements
+
+*(Note: This section contains critical machine learning critiques and future improvements for developers and AI agents working on this repository.)*
+
+### 1. Target Leakage via Temporal Feature Updates
+- **Critique:** `sex_upon_intake` and `intake_condition` are treated as static intake-time features, but in shelter databases, these fields are often overwritten or updated *post-intake* (e.g., an animal neutered during its stay may have its record updated from "Intact" to "Spayed/Neutered", or a sick animal's condition may be updated). This leaks the length-of-stay outcome (longer stay increases the probability of medical treatment or neutering).
+- **Improvement:** Implement strict audit rules or use raw intake transaction logs to freeze features at the *exact timestamp of admission*.
+
+### 2. Lack of Post-Hoc Probability Calibration
+- **Critique:** The pipeline reports high calibration gaps (up to 0.21 for Terrier-type dogs, and a mean gap of 0.112 across bins). The CatBoost and HistGradientBoosting classifiers output uncalibrated probabilities, meaning output scores cannot be treated as literal probabilities of adoption.
+- **Improvement:** Apply post-hoc calibration scaling (e.g., Isotonic Regression or Platt Scaling) fit on the validation split (2022-2023) before evaluating on the test split.
+
+### 3. Suboptimal Regression Modeling for Length of Stay (LOS)
+- **Critique:** Shelter stay duration is highly right-skewed, zero-inflated, and strictly non-negative. Training regressors using standard MAE/MSE metrics leads to poor convergence, negative days-to-outcome predictions, and extreme sensitivity to long-stay outliers.
+- **Improvement:** 
+  - Log-transform the target: Train models on $y' = \log(y + 1)$ and invert predictions.
+  - Frame as Survival Analysis: Use Accelerated Failure Time (AFT) models or Cox Proportional Hazards with censoring markers, treating non-adoptions as censored stays.
+
+### 4. Concept Drift and Dataset Aging
+- **Critique:** The time split uses a training window spanning 2013 to 2021. Shelter operations, intake policies, and public adoption demand changed drastically post-COVID. Weighting 2013 data equally to 2021 data degrades model performance for the 2024-2025 test period.
+- **Improvement:** Implement recency-based sample weighting during model training, or transition to a sliding-window time split (e.g., training only on the most recent 3–5 years).
+
+### 5. High Cardinality Categorical Encoding (Breed and Color)
+- **Critique:** Categorical features like `breed` and `color` have hundreds of levels. The current pipeline maps them to simplified groups statically. This loses granular information (e.g., distinguishing specific terrier types) while still suffering from high-cardinality noise, and maps them to a very coarse set of 8 categories where `other` becomes a catch-all category grouping together highly distinct breeds (e.g. Rottweilers, Boxers, Poodles, Siamese cats, etc.).
+- **Improvement:** Replace static mapping with target encoding (with smoothing) or use text embedding vectors derived from a pretrained model for breeds and colors.
+
+### 6. Batch-dependent Dynamic Rolling Features (Online Prediction Failure)
+- **Critique:** The rolling features `intake_volume_7d/30d` and `animal_311_requests_7d/30d` are computed dynamically from the input DataFrame batch itself. If a single animal's record is passed to the pipeline for inference (e.g., in a production API or the Streamlit model sensitivity form), the rolling counts will fall back to zero (or be calculated incorrectly) because the historical window is absent in the input batch. This makes the model architecture incompatible with real-time, online single-record inference.
+- **Improvement:** Decouple rolling feature computation from the prediction batch. In production, rolling features should query a persistent historical context database or stream-processing layer.
+
+### 7. Underestimation of Shelter Volume via Matched-Only Filtering
+- **Critique:** The rolling intake volume feature is calculated *after* filtering for cats and dogs, and *after* matching intakes to outcomes. Thus, unmatched intakes (e.g., animals currently in the shelter or those that escaped/died without outcomes), other animal types (birds, wildlife, livestock), and active shelter residents are excluded from the rolling count. This results in a systematic underestimation of the actual shelter crowding/volume on any given day.
+- **Improvement:** Compute daily shelter volume and rolling context features from the *raw, unfiltered* intake dataset before matching and subsetting.
+
+### 8. Greedy Chronological Matching without Verification of Re-Intakes
+- **Critique:** The matching logic matches the *first* intake of an animal to its *first* outcome after that intake. If an animal has a re-intake before the first stay has an outcome record (e.g., due to missing outcome records or data logging errors), the first intake is matched to the future outcome (artificially inflating the length of stay), while the second, more recent intake is ignored and left unmatched.
+- **Improvement:** Validate that no intermediate intakes occur between an intake-outcome matched pair. If a second intake occurs, mark the first stay as right-censored/unmatched, and match the second intake to the outcome instead.
+
+### 9. Right-Censoring Bias at Temporal Split Boundaries
+- **Critique:** Staying episodes are matched only if they have a completed outcome before the data export date. For the test split (2024-2025), animals admitted near the end of 2025 will either be omitted due to no outcomes yet, or will only be included if they had a *short* stay. This introduces a strong right-censoring bias, artificially deflating length of stay metrics at the end of splits.
+- **Improvement:** Implement survival analysis methods that handle right-censoring natively, allowing active/unresolved stays to contribute to the model's training and evaluation.
+
+### 10. Inefficient Categorical Feature Handling in Gradient Boosting
+- **Critique:** For scikit-learn's `HistGradientBoostingClassifier`, categorical features like `primary_breed` and `primary_color` are one-hot encoded manually. This results in a very wide, sparse feature matrix. Since tree-based models can natively split categoricals, this manual encoding is highly suboptimal compared to native categorical support (which is natively supported in HistGradientBoosting since version 0.24).
+- **Improvement:** Pass categorical features directly (as integers or categories) and enable `categorical_features="from_dtype"` or pass the indices/boolean mask to the classifier.
+
+### 11. Feature Space Redundancy and Multicollinearity
+- **Critique:** The feature set includes highly collinear features, such as `age_days`, `age_months`, and `age_years` (which are direct linear transformations of each other), and `has_name` and `is_named` (which are identical). This introduces unnecessary noise, degrades linear models, and complicates feature importance/SHAP interpretations.
+- **Improvement:** Prune redundant columns. Keep a single continuous age feature (`age_days`) and a single boolean name flag (`is_named`).
+
+### 12. Model Selection and Diagnostics Pipeline Mismatch
+- **Critique:** The diagnostics script (`generate_diagnostics.py`) hardcodes loading the CatBoost classifier (`catboost`) to produce calibration curves, error slices, and placement-risk quadrants. However, the model selection step selects `HistGradientBoosting` for `combined` and `cats` classification due to higher ROC-AUC. As a result, the reported diagnostic graphs, calibration tables, and reliability red flags in `reports/` do not represent the selected models.
+- **Improvement:** Update the diagnostics pipeline to load the *selected* model for each subset and task from `final_model_selection.csv` instead of hardcoding CatBoost.
+
+### 13. Fixed-Threshold Leaderboard Metrics Comparison
+- **Critique:** Leaderboard comparisons (like F1, Precision, and Recall) are calculated using a hard decision threshold of 0.5 for all models. This is unfair to models calibrated differently or trained with balanced class weights, as their optimal threshold may differ significantly from 0.5. Models should be compared on threshold-independent metrics (like ROC-AUC and PR-AUC) or at their respective optimal F1 thresholds.
+- **Improvement:** Tune the decision threshold for each model to maximize F1 on the validation set, and report test metrics at those optimal thresholds.
+
+### 14. Regression Target Conflation (Stay Duration vs. Adoption Speed)
+- **Critique:** The regressor is trained on `regression_target_days` for *all* outcomes (including fast exits like transfers, euthanasias, and owner returns). When this regressor is used to predict wait times for animal adoption cards, it systematically underestimates stay duration because it is trained on non-adoption fast exits.
+- **Improvement:** Train a dedicated "adoption speed" regressor on the subset of adopted animals only, or use a multi-task learning/survival framework that explicitly models outcome type and duration simultaneously.
+
+### 15. Aggregated Context Features in SHAP Feature Family Importance
+- **Critique:** In the SHAP feature family mapping (`feature_families.py`), context features (weather, 311 requests, daily precipitation, shelter volume) are not mapped to specific categories, resulting in them all falling back to the `"other"` feature family. This obscures the collective contribution of environmental and shelter-demand features.
+- **Improvement:** Add explicit context mappings in `FEATURE_FAMILY_TERMS` (e.g., `"weather": ["temp", "precipitation", "heat", "rainy"]` and `"shelter_demand": ["311", "volume"]`).
+
+### 16. Subgroup Mismatch in Calibration Summaries
+- **Critique:** In `calibration_summary.py`, the calibration gaps for `dogs` and `cats` are not filtered or recalculated by species; instead, the script copies the `combined` subgroup reliability table and labels them as `dogs` and `cats` separately, meaning the reported metrics are identical to the combined subset.
+- **Improvement:** Modify `calibration_summary.py` to filter `subgroup_reliability.csv` by the respective species subset (or recalculate reliability metrics per species) before computing subset calibration statistics.
+
