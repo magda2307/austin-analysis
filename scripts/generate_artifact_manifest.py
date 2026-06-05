@@ -280,6 +280,19 @@ def _infer_chapter(rel_path: str) -> str:
     return "Unknown"
 
 
+def _clean_text(value: object) -> object:
+    """Normalize common mojibake dashes in manifest text."""
+    if not isinstance(value, str):
+        return value
+    return (
+        value.replace("\u00e2\u20ac\u201d", "-")
+        .replace("\u00e2\u20ac\u2014", "-")
+        .replace("\u0101\u20ac\u201d", "-")
+        .replace("\u0101\u20ac\u2014", "-")
+        .replace("â€”", "-")
+    )
+
+
 def collect_artifacts() -> list[dict]:
     rows = []
     scan_dirs = [REPORTS_DIR, ROOT / "docs"]
@@ -297,12 +310,12 @@ def collect_artifacts() -> list[dict]:
             rows.append(
                 {
                     "artifact_path": rel,
-                    "artifact_type": meta.get("artifact_type", _infer_type(fpath)),
+                    "artifact_type": _clean_text(meta.get("artifact_type", _infer_type(fpath))),
                     "created_at": mtime,
-                    "source_script": meta.get("source_script", ""),
+                    "source_script": _clean_text(meta.get("source_script", "")),
                     "required_for_thesis": meta.get("required_for_thesis", False),
-                    "chapter": meta.get("chapter", _infer_chapter(rel)),
-                    "notes": meta.get("notes", ""),
+                    "chapter": _clean_text(meta.get("chapter", _infer_chapter(rel))),
+                    "notes": _clean_text(meta.get("notes", "")),
                     "exists_on_disk": True,
                 }
             )
@@ -313,12 +326,12 @@ def collect_artifacts() -> list[dict]:
             rows.append(
                 {
                     "artifact_path": rel,
-                    "artifact_type": meta.get("artifact_type", "unknown"),
+                    "artifact_type": _clean_text(meta.get("artifact_type", "unknown")),
                     "created_at": "",
-                    "source_script": meta.get("source_script", ""),
+                    "source_script": _clean_text(meta.get("source_script", "")),
                     "required_for_thesis": meta.get("required_for_thesis", False),
-                    "chapter": meta.get("chapter", ""),
-                    "notes": meta.get("notes", ""),
+                    "chapter": _clean_text(meta.get("chapter", "")),
+                    "notes": _clean_text(meta.get("notes", "")),
                     "exists_on_disk": False,
                 }
             )
@@ -327,7 +340,7 @@ def collect_artifacts() -> list[dict]:
 
 def markdown_cell(value: object) -> str:
     """Return ASCII-safe manifest Markdown cell text."""
-    return str(value).replace("—", "-").replace("|", "\\|")
+    return str(_clean_text(value)).replace("—", "-").replace("|", "\\|")
 
 
 def build_markdown(df: pd.DataFrame) -> str:

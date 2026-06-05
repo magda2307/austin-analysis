@@ -53,9 +53,10 @@ Implemented:
 - SHAP and feature-family summaries,
 - animal-centered profile research,
 - model evidence pack with confidence intervals and cohort limitations,
+- local explanation example artifacts that connect Animal Journey Cards, similar historical cases, and model reasons,
 - subgroup reliability and descriptive time-to-adoption evidence,
 - data audit, target-definition audit, leakage audit, matching examples, feature-quality audit, and environment snapshot artifacts,
-- artifact manifest for thesis deliverables,
+- artifact manifest for thesis deliverables, including generator-declared local explanation artifacts,
 - Streamlit thesis dashboard,
 - formal report-generation scripts,
 - full-pipeline runners for Python, PowerShell, and shell workflows.
@@ -92,6 +93,7 @@ Important local structure changes from recent multi-agent work:
 - `scripts/generate_artifact_manifest.py` records generated thesis deliverables and whether they exist on disk.
 - `scripts/generate_data_audit.py`, `scripts/generate_leakage_audit.py`, `scripts/generate_matching_examples.py`, `scripts/generate_environment_snapshot.py`, and `scripts/generate_feature_quality_audit.py` create reproducibility and methodology artifacts.
 - `src/aac_adoption/analysis/` now contains dedicated modules for hypothesis evidence, final model selection, threshold analysis, calibration summaries, and reliability red flags.
+- `src/aac_adoption/reporting/evidence_pack.py` now emits both Animal Journey examples and acceptance-facing local explanation examples with explicit non-causal limitation notes.
 - `streamlit_app.py` now presents generated artifacts, methodology reports, trust/limits evidence, animal stories, risk exploration, campaign candidates, and a model sensitivity demo.
 - `reports/artifact_manifest.csv` is a lightweight tracked manifest of generated thesis artifacts; large raw data, processed data, and model binaries remain local/generated assets.
 
@@ -211,7 +213,10 @@ Schema compatibility rules:
 - some generated report tables intentionally include alias columns for acceptance and dashboard compatibility;
 - examples include `subset` alongside `animal_subset`, `threshold_name` alongside `threshold_label`, and `subgroup_field` / `subgroup_value` alongside `cohort` / `value`;
 - H3 adopted-only timing output includes `age_group` and `records` aliases for `group_value` and `all_records`;
-- leakage audit output keeps detailed internal columns and adds user-facing aliases such as `allowed_as_feature`, `leakage_risk`, and `notes`.
+- calibration output includes `subset` and `records` aliases so reviewer-facing checks can read the same table without knowing internal naming;
+- reliability red-flag output keeps the original cohort columns and adds `subgroup_field`, `subgroup_value`, and `mean_predicted_probability` for the pasted acceptance contract;
+- leakage audit output keeps detailed internal columns and adds user-facing aliases such as `role`, `allowed_as_feature`, `leakage_risk`, and `notes`;
+- these alias columns are additive only: existing dashboard/report readers can keep using the original internal column names.
 
 ## Modeling Stack
 
@@ -282,6 +287,7 @@ Interpretability layers:
 - SHAP global feature tables;
 - SHAP feature-family summaries;
 - local SHAP explanations for representative animal journey cards;
+- local explanation examples that combine journey-card profiles, similar historical cases, SHAP/model reasons, and limitation notes;
 - standalone feature-family importance plots.
 
 Audit and reproducibility layers:
@@ -324,7 +330,7 @@ Analysis, diagnostics, and reports:
 | `scripts/run_analysis.py` | Generate model comparison, hypotheses, model selection, thresholds, calibration, and evidence matrix outputs. |
 | `scripts/generate_diagnostics.py` | Generate calibration, error slices, risk quadrants, SHAP, and adoption milestones. |
 | `scripts/generate_animal_research.py` | Generate animal archetypes, vulnerability profiles, contrasts, and profile error summaries. |
-| `scripts/generate_evidence_pack.py` | Generate ML-rigor evidence pack, subgroup reliability, intervals, milestones, and journey examples. |
+| `scripts/generate_evidence_pack.py` | Generate ML-rigor evidence pack, subgroup reliability, intervals, milestones, journey examples, and local explanation examples. |
 | `scripts/generate_report_outputs.py` | Generate thesis-ready summary Markdown and key report figures. |
 | `scripts/generate_feature_family_importance.py` | Create standalone feature-family SHAP importance summaries and plots. |
 
@@ -367,7 +373,9 @@ Artifact manifest:
 - `reports/artifact_manifest.csv` is tracked as a lightweight index;
 - `reports/summary/artifact_manifest.md` is generated for human review;
 - status values are ASCII `present` / `missing`;
-- required thesis artifacts are tested for existence when manifest files are available.
+- required thesis artifacts are tested for existence when manifest files are available;
+- manifest text is normalized to avoid mojibake dash artifacts in generated Markdown and CSV cells;
+- generator-declared artifacts such as local explanation examples are listed with their source script, chapter mapping, notes, and disk-presence status.
 
 ## Test Suite Map
 
@@ -388,7 +396,8 @@ Coverage areas:
 - evidence pack and subgroup reliability functions;
 - data audit, leakage audit, target definitions, and artifact manifest;
 - dashboard data helpers and story content;
-- acceptance/schema aliases for generated artifacts.
+- acceptance/schema aliases for generated artifacts;
+- local explanation example generation and manifest registration.
 
 Current expected verification:
 
@@ -808,15 +817,27 @@ reports/tables/model_evidence_pack.csv
 reports/tables/model_limitations_by_cohort.csv
 reports/tables/metric_confidence_intervals.csv
 reports/tables/animal_journey_examples.csv
+reports/tables/local_explanation_examples.csv
 reports/tables/subgroup_reliability.csv
 reports/tables/subgroup_metric_confidence_intervals.csv
 reports/tables/subgroup_adoption_milestones.csv
 reports/tables/model_failure_modes.csv
 reports/summary/model_evidence_pack.md
 reports/summary/subgroup_reliability.md
+reports/summary/local_explanation_examples.md
 ```
 
-The evidence pack is the main ML-rigor layer. It summarizes model choice, PR-AUC, bootstrap metric intervals, calibration and error limits by cohort, SHAP feature-family evidence, selected Animal Journey examples, subgroup reliability, model failure modes, and descriptive adoption milestones at days 7, 30, 60, and 90. It uses association language, not causal language.
+The evidence pack is the main ML-rigor layer. It summarizes model choice, PR-AUC, bootstrap metric intervals, calibration and error limits by cohort, SHAP feature-family evidence, selected Animal Journey examples, local explanation examples, subgroup reliability, model failure modes, and descriptive adoption milestones at days 7, 30, 60, and 90. It uses association language, not causal language.
+
+Local explanation examples are thesis/demo artifacts, not causal case studies. Each row in `reports/tables/local_explanation_examples.csv` is derived from an Animal Journey profile and includes:
+
+- `explanation_type`: profile-level explanation framing;
+- `profile_label`: representative animal profile label;
+- `similar_historical_cases`: nearest/similar historical cohort summary;
+- `shap_model_reasons`: local SHAP reasons or global SHAP fallback reasons linked to model behavior;
+- `limitation_note`: explicit warning that examples are illustrative, non-causal, and not individual certainty.
+
+The companion `reports/summary/local_explanation_examples.md` gives a short thesis-readable explanation of how to cite these examples safely.
 
 Useful development options:
 
@@ -866,19 +887,32 @@ Typical outputs include:
 ```text
 reports/tables/data_audit.csv
 reports/tables/leakage_audit.csv
+reports/tables/local_explanation_examples.csv
 reports/tables/matching_logic_examples.csv
 reports/tables/environment_snapshot.csv
 reports/tables/feature_quality_audit.csv
 reports/artifact_manifest.csv
 reports/summary/data_audit.md
 reports/summary/leakage_audit.md
+reports/summary/local_explanation_examples.md
 reports/summary/matching_logic_examples.md
 reports/summary/environment_snapshot.md
 reports/summary/feature_quality_audit.md
 reports/summary/artifact_manifest.md
 ```
 
-The manifest uses `present` / `missing` status values and is displayed in the Streamlit Artifacts tab.
+The manifest uses `present` / `missing` status values and is displayed in the Streamlit Artifacts tab. Manifest generation also cleans common mojibake dash sequences before writing CSV/Markdown text, which keeps generated artifact notes readable in thesis appendices.
+
+Acceptance-facing artifact contracts currently enforced by tests include:
+
+- leakage audit aliases: `role`, `allowed_as_feature`, `leakage_risk`, `notes`;
+- adopted-only H3 aliases: `age_group`, `records`;
+- model-selection alias: `subset`;
+- threshold alias: `threshold_name`;
+- calibration aliases: `subset`, `records`;
+- red-flag aliases: `subgroup_field`, `subgroup_value`, `mean_predicted_probability`;
+- local explanation artifact presence and non-causal limitation text;
+- manifest entries for `local_explanation_examples.csv` and `local_explanation_examples.md`.
 
 ## Run Full Pipeline
 
