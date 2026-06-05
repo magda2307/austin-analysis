@@ -1,5 +1,18 @@
 # Current Results Summary
 
+## Scope and Claim
+
+This pipeline builds a **reproducible, leakage-safe, interpretable supervised ML framework** for analyzing adoption likelihood and length-of-stay patterns in Austin Animal Center dog and cat records using **intake-time features only**.
+
+- All model outputs are **predictive associations**, not causal claims.
+- Regression predicts **`days_to_outcome` (length of stay until any matched outcome)**, not adoption speed.
+- `days_to_adoption` is a separate variable used only for adopted-animal descriptive analysis (H3).
+- Findings are specific to AAC (2013–2025) and do not generalize beyond this dataset without replication.
+- The Streamlit dashboard is a thesis **demo and presentation layer**, not the primary scientific contribution.
+
+See `docs/target_definitions.md` for formal target variable taxonomy.
+See `docs/methodology_notes.md` for regression and causal-framing justifications.
+
 This document summarizes the current reproducible outputs of the AAC adoption ML pipeline. It is intended as a working reference for thesis chapters on data preparation, modeling, evaluation, and interpretation.
 
 ## Dataset
@@ -115,11 +128,11 @@ Main comparison file:
 reports/tables/model_comparison_regression.csv
 ```
 
-Best MAE by subset:
+Best MAE by subset (regression predicts `days_to_outcome` = **length of stay**, not adoption speed):
 
-- combined: `hist_gradient_boosting`, MAE about 20.21 days
-- dogs: `hist_gradient_boosting`, MAE about 22.62 days
-- cats: `hist_gradient_boosting`, MAE about 18.28 days
+- combined: `hist_gradient_boosting`, MAE about 20.21 days for length-of-stay / days-to-outcome prediction
+- dogs: `hist_gradient_boosting`, MAE about 22.62 days for length-of-stay / days-to-outcome prediction
+- cats: `hist_gradient_boosting`, MAE about 18.28 days for length-of-stay / days-to-outcome prediction
 
 Interpretation:
 
@@ -142,10 +155,12 @@ H1: intake circumstances vs appearance.
 - table combines `intake_type`, `intake_condition`, `simplified_breed_group`, and `simplified_color_group`,
 - includes adoption rate, median days to outcome, and related model-importance signals.
 
-H3: age and adoption speed.
+H3: age and length-of-stay / time-to-outcome patterns.
 
-- table summarizes adoption outcomes by `age_group`,
+- table summarizes outcome patterns by `age_group`,
+- `median_days_to_outcome` is length of stay until any outcome, not adoption speed,
 - current descriptive pattern: baby animals have higher adoption rate than adult/senior animals.
+- **Adopted-only timing:** see `h3_adopted_only_age_speed.csv` for median `days_to_adoption` restricted to adopted animals.
 
 H5: COVID-period adoption dynamics.
 
@@ -180,7 +195,7 @@ Use these to discuss predictive importance, not causality.
 
 Recommended thesis language:
 
-> The model identifies variables associated with adoption outcomes and length of stay. These associations do not prove causal effects, but they help indicate which intake-time characteristics are most informative for prediction.
+> The model identifies variables associated with adoption outcomes and length of stay. These associations do not prove causal effects, but they help indicate which intake-time characteristics are most informative for prediction. SHAP values explain how features contributed to this model's prediction. They do not prove that changing a feature would causally change adoption probability.
 
 ## Reproduction Commands
 

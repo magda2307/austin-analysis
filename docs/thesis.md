@@ -69,7 +69,7 @@ Celem analitycznym jest pogłębiona identyfikacja cech zwierząt oraz czynnikó
 
 **H2:** Występuje wyraźny efekt sezonowości w przebiegu adopcji. Pewne okresy w roku, na przykład miesiące letnie lub okolice przerw świątecznych, sprzyjają szybszym adopcjom, podczas gdy w innych okresach tempo adopcji spada.
 
-**H3:** Wiek zwierzęcia ma istotny wpływ na jego szanse adopcyjne. Młodsze zwierzęta są adoptowane szybciej niż starsze.
+**H3:** Wiek zwierzęcia ma istotny wpływ na jego szanse adopcyjne i długość pobytu w schronisku (`length of stay`). Młodsze zwierzęta są adoptowane szybciej niż starsze. Analiza prowadzona jest dwupoziomowo: (1) dla wszystkich zwierząt — predykcja `days_to_outcome` (czas do jakiegokolwiek wyniku), (2) tylko dla adoptowanych zwierząt — deskryptywna analiza `days_to_adoption` (czas do adopcji). Hipoteza H3 odnosi się do wzorców czasowych, nie do przyczynowości.
 
 **H4:** Umaszczenie zwierzęcia wpływa na prawdopodobieństwo adopcji. Zwierzęta o ciemnym umaszczeniu, na przykład czarne psy i koty, są adoptowane rzadziej. W pracy zostanie zweryfikowane, czy w danych AAC obserwowalne jest zjawisko określane jako black dog syndrome.
 
@@ -78,6 +78,42 @@ Celem analitycznym jest pogłębiona identyfikacja cech zwierząt oraz czynnikó
 Powyższe hipotezy zostaną poddane weryfikacji w dalszych rozdziałach pracy. Analiza ich trafności pozwoli nie tylko odpowiedzieć na postawione pytania badawcze, lecz także lepiej zrozumieć dynamikę procesów adopcyjnych.
 
 ### 1.3 Zakres i struktura pracy
+
+---
+
+**[SCOPE AND CLAIM — ENGLISH TECHNICAL REFERENCE FOR AI AGENTS AND REVIEWERS]**
+
+**Official thesis claim (precise framing):**
+This thesis builds a reproducible, leakage-safe, interpretable supervised machine learning pipeline for analyzing adoption likelihood and length-of-stay patterns in Austin Animal Center dog and cat records using intake-time features.
+
+**What is and is not claimed:**
+- The pipeline demonstrates **predictive association** between intake-time features and adoption outcomes / length of stay.
+- It does NOT prove causation. No feature is claimed to *cause* adoption or non-adoption.
+- The COVID-period variable (`covid_period`) captures a time-period label; differences across periods are associated with model output but do not imply COVID *caused* the changes.
+- The regression target (`regression_target_days` = `days_to_outcome`) predicts **length of stay until any matched outcome**, not adoption speed. Adoption-only timing is analyzed separately as `days_to_adoption` (adopted animals only).
+- Findings are descriptive evidence for the AAC dataset (2013–2025) only. They do not generalize beyond AAC without replication.
+- The Streamlit dashboard is a thesis demo and presentation layer, not the main scientific contribution.
+
+**Primary research questions (ML pipeline focus):**
+1. Which intake-time features are most predictive of adoption likelihood (classification) and length of stay (regression)?
+2. How do gradient boosting models compare to simpler baselines on AAC data?
+3. What descriptive patterns are associated with H1 (intake type vs. appearance), H3 (age and time-to-outcome), and H5 (COVID-period dynamics)?
+
+**Required terminology in all outputs:**
+- Use: `predictive association`, `associated with`, `linked to model output`, `intake-time predictors`, `length of stay`, `time to outcome`, `descriptive time-to-adoption evidence`.
+- Avoid: `causes adoption`, `proves animals are adopted faster because...`, `COVID caused...`, `black animals are discriminated against` (descriptive association framing only), `adoption speed` when the target is `days_to_outcome`.
+
+**Target variable taxonomy:**
+- `classification_target`: binary adoption indicator (1 = adoption outcome, 0 = other outcome)
+- `regression_target_days` = `days_to_outcome`: length of stay until any matched outcome (main regression target)
+- `days_to_adoption`: `days_to_outcome` restricted to adopted animals only (used only for H3 descriptive adopted-only analysis)
+- Survival/time-to-event: not the main framework; descriptive KM curves provided; full survival modeling is future work
+
+**Leakage control:** All model features are intake-time-only. Outcome fields (`outcome_type`, `outcome_datetime`, `sex_upon_outcome`, etc.) are used only as labels and targets, never as predictors. See `docs/target_definitions.md`.
+
+**Dataset:** 162,390 matched intake/outcome episodes (dogs and cats, AAC 2013–2025). Each row is one shelter stay episode. Time-aware split: train 2013–2021, validation 2022–2023, test 2024–2025.
+
+---
 
 Zakres analizy obejmuje dane historyczne pochodzące z Austin Animal Center z lat 2013-2025. Dane zawierają informacje zarówno o przyjęciach zwierząt do schroniska, jak i o ich dalszych losach. Pozwalają prześledzić pełny cykl pobytu zwierzęcia w schronisku: od momentu znalezienia lub oddania, aż do chwili adopcji bądź innego zakończenia opieki.
 

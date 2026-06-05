@@ -17,6 +17,11 @@ AGE_UNIT_TO_DAYS = {
     "years": 365.25,
 }
 
+AREA_IN_PATTERN = re.compile(r"\bin\s+(?P<area>[^()]+?)\s*\(tx\)\s*$", re.IGNORECASE)
+AREA_EXACT_PATTERN = re.compile(r"^(?P<area>[^()]+?)\s*\(tx\)\s*$", re.IGNORECASE)
+INTERSECTION_PATTERN = re.compile(r"\bintersection\b|/|&|\band\b", re.IGNORECASE)
+AIRPORT_PATTERN = re.compile(r"\bairport\b|presidential\s+blvd", re.IGNORECASE)
+
 
 def parse_age_to_days(value: object) -> float:
     """Parse AAC age strings like '2 years' or '7 months' to days."""
@@ -145,6 +150,70 @@ def simplified_breed_group(value: object) -> str:
     return "other"
 
 
+def normalize_location_area(value: str) -> str:
+    """Normalize extracted location labels into stable categorical tokens."""
+    normalized = re.sub(r"[^0-9a-zA-Z]+", "_", value.strip().lower())
+    normalized = re.sub(r"_+", "_", normalized).strip("_")
+    return normalized or "unknown"
+
+
+def extract_found_location_area(value: object) -> str:
+    """Extract trailing AAC area labels such as Austin or Travis from Found Location."""
+    if pd.isna(value):
+        return "unknown"
+
+    text = str(value).strip()
+    if not text:
+        return "unknown"
+
+    match = AREA_IN_PATTERN.search(text) or AREA_EXACT_PATTERN.search(text)
+    if not match:
+        return "unknown"
+    return normalize_location_area(match.group("area"))
+
+
+def found_location_flags(value: object) -> dict[str, bool]:
+    """Return deterministic intake-time flags for AAC Found Location text."""
+    if pd.isna(value):
+        text = ""
+    else:
+        text = str(value).strip()
+    lower = text.lower()
+
+    return {
+        "is_austin_found_location": extract_found_location_area(text) == "austin",
+        "is_outside_jurisdiction": lower == "outside jurisdiction",
+        "is_intersection_location": bool(INTERSECTION_PATTERN.search(text)),
+        "is_address_like_location": bool(re.match(r"^\s*\d+", text)),
+        "is_airport_location": bool(AIRPORT_PATTERN.search(text)),
+    }
+
+
+def found_location_kind(value: object) -> str:
+    """Classify AAC Found Location into a coarse, leakage-safe taxonomy."""
+    if pd.isna(value):
+        return "other"
+
+    text = str(value).strip()
+    if not text:
+        return "other"
+
+    flags = found_location_flags(text)
+    area = extract_found_location_area(text)
+
+    if flags["is_outside_jurisdiction"]:
+        return "outside_jurisdiction"
+    if flags["is_intersection_location"]:
+        return "intersection"
+    if flags["is_address_like_location"]:
+        return "address_like"
+    if area == "austin":
+        return "austin_city"
+    if area != "unknown":
+        return "county_or_region"
+    return "other"
+
+
 def add_intake_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add intake-time features only."""
     result = df.copy()
@@ -183,4 +252,17 @@ def add_intake_features(df: pd.DataFrame) -> pd.DataFrame:
     result["simplified_breed_group"] = result.get("breed", pd.Series(index=result.index)).map(
         simplified_breed_group
     )
+
+    found_location = result.get("found_location", pd.Series(index=result.index))
+    flags = found_location.map(found_location_flags)
+    result["found_location_kind"] = found_location.map(found_location_kind)
+    result["found_location_area"] = found_location.map(extract_found_location_area)
+    for column in [
+        "is_austin_found_location",
+        "is_outside_jurisdiction",
+        "is_intersection_location",
+        "is_address_like_location",
+        "is_airport_location",
+    ]:
+        result[column] = flags.map(lambda values, name=column: values[name])
     return result

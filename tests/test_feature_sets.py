@@ -8,6 +8,8 @@ def test_available_intake_features_excludes_outcome_columns():
         "animal_type",
         "intake_type",
         "age_years",
+        "found_location_kind",
+        "found_location",
         "outcome_type",
         "days_to_outcome",
         "classification_target",
@@ -15,7 +17,7 @@ def test_available_intake_features_excludes_outcome_columns():
 
     features = available_intake_features(columns)
 
-    assert features == ["animal_type", "intake_type", "age_years"]
+    assert features == ["animal_type", "intake_type", "age_years", "found_location_kind"]
 
 
 def test_validate_no_leakage_rejects_outcome_features():

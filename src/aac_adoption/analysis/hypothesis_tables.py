@@ -1,9 +1,17 @@
-"""H1/H3/H5 support tables for thesis discussion."""
+"""H1/H3/H5 support tables, adopted-only timing, and KM descriptive survival curves."""
 
 from pathlib import Path
 
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
 
 def _summarize(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return (
@@ -68,11 +76,20 @@ def _write_with_importance(
     summary.to_csv(output_path, index=False)
 
 
+# ---------------------------------------------------------------------------
+# Primary hypothesis tables
+# ---------------------------------------------------------------------------
+
 def create_hypothesis_support_tables(
     data_path: str | Path = "data/processed/modeling_dataset.csv",
     tables_dir: str | Path = "reports/tables",
 ) -> None:
-    """Create thesis support tables for central hypotheses H1, H3, and H5."""
+    """Create thesis support tables for central hypotheses H1, H3, and H5.
+
+    H3 output is renamed to h3_age_length_of_stay.csv to reflect that
+    median_days_to_outcome is length-of-stay (all outcomes), not adoption speed.
+    The adopted-only speed table is written separately by create_adopted_only_timing_tables().
+    """
     tables = Path(tables_dir)
     tables.mkdir(parents=True, exist_ok=True)
     df = pd.read_csv(data_path)
@@ -99,7 +116,7 @@ def create_hypothesis_support_tables(
     _write_with_importance(
         h3,
         _importance_for(tables, ["age_days", "age_months", "age_years", "age_group"]),
-        tables / "h3_age_adoption_speed.csv",
+        tables / "h3_age_length_of_stay.csv",
     )
 
     h5 = _summarize(df, "covid_period")
@@ -109,3 +126,418 @@ def create_hypothesis_support_tables(
         tables / "h5_covid_period.csv",
     )
 
+
+# ---------------------------------------------------------------------------
+# Task 3.5 — H2 Seasonality and H4 Dark Colour
+# ---------------------------------------------------------------------------
+
+SEASON_ORDER = ["Spring", "Summer", "Autumn", "Fall", "Winter"]
+SEASON_COLORS = {"Spring": "#2DC653", "Summer": "#FFBE0B", "Autumn": "#FB5607", "Fall": "#FB5607", "Winter": "#3A86FF"}
+
+
+def _bar_figure(
+    df: pd.DataFrame,
+    x_col: str,
+    y_col: str,
+    title: str,
+    ylabel: str,
+    out_path: Path,
+    x_order: list[str] | None = None,
+    colors: dict[str, str] | None = None,
+    subtitle: str | None = None,
+) -> None:
+    if x_order:
+        df = df.copy()
+        df[x_col] = pd.Categorical(df[x_col], categories=x_order, ordered=True)
+        df = df.sort_values(x_col)
+    vals = df[y_col].tolist()
+    labels = df[x_col].astype(str).tolist()
+    bar_colors = [colors.get(l, "#555") for l in labels] if colors else ["#3A86FF"] * len(labels)
+    fig, ax = plt.subplots(figsize=(8, 5))
+    ax.bar(labels, vals, color=bar_colors, alpha=0.87, edgecolor="white")
+    ax.set_ylabel(ylabel, fontsize=12)
+    ax.set_xlabel(x_col.replace("_", " ").title(), fontsize=11)
+    full_title = title if not subtitle else f"{title}\n{subtitle}"
+    ax.set_title(full_title, fontsize=12)
+    for i, v in enumerate(vals):
+        ax.text(i, v * 1.01 + 0.001, f"{v:.2f}", ha="center", fontsize=9)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+
+def create_h2_seasonality_outputs(
+    data_path: str | Path = "data/processed/modeling_dataset.csv",
+    tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
+) -> None:
+    """H2: adoption rate and median LOS by intake season."""
+    tables = Path(tables_dir)
+    figures = Path(figures_dir)
+    for d in [tables, figures]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path)
+    if "intake_season" not in df.columns:
+        print("[3.5] intake_season column not found — skipping H2.")
+        return
+
+    summary = _summarize(df, "intake_season")
+    summary.to_csv(tables / "h2_seasonality_summary.csv", index=False)
+    print("[3.5] Wrote h2_seasonality_summary.csv")
+
+    ordered_seasons = [s for s in SEASON_ORDER if s in summary["value"].values]
+    if not ordered_seasons:
+        ordered_seasons = None
+
+    if "adoption_rate_pct" in summary.columns:
+        _bar_figure(
+            summary, "value", "adoption_rate_pct",
+            title="H2 — Adoption Rate by Season (secondary check)",
+            ylabel="Adoption Rate (%)",
+            out_path=figures / "h2_adoption_rate_by_season.png",
+            x_order=ordered_seasons,
+            colors=SEASON_COLORS,
+        )
+        print("[3.5] Wrote h2_adoption_rate_by_season.png")
+
+    if "median_days_to_outcome" in summary.columns:
+        _bar_figure(
+            summary, "value", "median_days_to_outcome",
+            title="H2 — Median Length of Stay by Season (secondary check)",
+            ylabel="Median Days to Outcome",
+            out_path=figures / "h2_median_los_by_season.png",
+            x_order=ordered_seasons,
+            colors=SEASON_COLORS,
+        )
+        print("[3.5] Wrote h2_median_los_by_season.png")
+
+
+DARK_COLOR_LABELS = {True: "Dark / Black", False: "Not Dark", "True": "Dark / Black", "False": "Not Dark"}
+DARK_COLORS_MAP = {"Dark / Black": "#1A1A2E", "Not Dark": "#E2B96F"}
+
+
+def create_h4_dark_color_outputs(
+    data_path: str | Path = "data/processed/modeling_dataset.csv",
+    tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
+) -> None:
+    """H4: adoption rate and median LOS by dark colour flag."""
+    tables = Path(tables_dir)
+    figures = Path(figures_dir)
+    for d in [tables, figures]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path)
+    if "is_black_or_dark" not in df.columns:
+        print("[3.5] is_black_or_dark column not found — skipping H4.")
+        return
+
+    summary = _summarize(df, "is_black_or_dark")
+    summary["value"] = summary["value"].astype(str).map(lambda v: DARK_COLOR_LABELS.get(v, v))
+    summary.to_csv(tables / "h4_dark_color_summary.csv", index=False)
+    print("[3.5] Wrote h4_dark_color_summary.csv")
+
+    caution = "Note: is_black_or_dark is an approximate operational colour grouping"
+
+    if "adoption_rate_pct" in summary.columns:
+        _bar_figure(
+            summary, "value", "adoption_rate_pct",
+            title="H4 — Adoption Rate by Coat Colour (secondary check)",
+            ylabel="Adoption Rate (%)",
+            out_path=figures / "h4_dark_color_adoption_rate.png",
+            colors=DARK_COLORS_MAP,
+            subtitle=caution,
+        )
+        print("[3.5] Wrote h4_dark_color_adoption_rate.png")
+
+    if "median_days_to_outcome" in summary.columns:
+        _bar_figure(
+            summary, "value", "median_days_to_outcome",
+            title="H4 — Median Length of Stay by Coat Colour (secondary check)",
+            ylabel="Median Days to Outcome",
+            out_path=figures / "h4_dark_color_median_los.png",
+            colors=DARK_COLORS_MAP,
+            subtitle=caution,
+        )
+        print("[3.5] Wrote h4_dark_color_median_los.png")
+
+
+# ---------------------------------------------------------------------------
+# Adopted-only descriptive timing tables (Task 2.2)
+# ---------------------------------------------------------------------------
+
+def create_adopted_only_timing_tables(
+    data_path: str | Path = "data/processed/modeling_dataset.csv",
+    tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
+) -> None:
+    """Create adopted-animal-only timing tables for H3 support.
+
+    Uses days_to_adoption (= days_to_outcome where outcome_type == 'Adoption').
+    This is the correct metric for adoption-speed analysis.
+    The main h3_age_length_of_stay.csv uses all outcomes.
+    """
+    tables = Path(tables_dir)
+    figures = Path(figures_dir)
+    tables.mkdir(parents=True, exist_ok=True)
+    figures.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path)
+
+    # Filter to adopted animals only
+    adopted = df[df["adopted"].astype(bool)].copy()
+    if adopted.empty:
+        return
+
+    # Ensure days_to_adoption column exists (= days_to_outcome for adopted animals)
+    if "days_to_adoption" not in adopted.columns:
+        adopted["days_to_adoption"] = adopted["days_to_outcome"]
+
+    groups = ["age_group", "animal_type"]
+    records = []
+
+    for group_col in groups:
+        if group_col not in adopted.columns:
+            continue
+        for (group_val, atype), sub in adopted.groupby([group_col, "animal_type"], dropna=False):
+            d = sub["days_to_adoption"].dropna()
+            if d.empty:
+                continue
+            total = len(df[df["animal_type"] == atype]) if group_col == "age_group" else len(df)
+            if group_col == "age_group":
+                total = len(df[(df["age_group"] == group_val) & (df["animal_type"] == atype)])
+            records.append(
+                {
+                    "group_variable": group_col,
+                    "group_value": group_val,
+                    "animal_type": atype,
+                    "all_records": total,
+                    "adopted_records": len(sub),
+                    "median_days_to_adoption": float(d.median()),
+                    "mean_days_to_adoption": float(d.mean()),
+                    "p25_days_to_adoption": float(d.quantile(0.25)),
+                    "p75_days_to_adoption": float(d.quantile(0.75)),
+                    "adopted_within_7_days": int((d <= 7).sum()),
+                    "adopted_within_30_days": int((d <= 30).sum()),
+                    "adopted_within_60_days": int((d <= 60).sum()),
+                    "adopted_within_90_days": int((d <= 90).sum()),
+                }
+            )
+
+    # Also combined (all animal types together)
+    for group_col in groups:
+        if group_col not in adopted.columns:
+            continue
+        for group_val, sub in adopted.groupby(group_col, dropna=False):
+            d = sub["days_to_adoption"].dropna()
+            if d.empty:
+                continue
+            all_for_group = len(df[df[group_col] == group_val])
+            records.append(
+                {
+                    "group_variable": group_col,
+                    "group_value": group_val,
+                    "animal_type": "Combined",
+                    "all_records": all_for_group,
+                    "adopted_records": len(sub),
+                    "median_days_to_adoption": float(d.median()),
+                    "mean_days_to_adoption": float(d.mean()),
+                    "p25_days_to_adoption": float(d.quantile(0.25)),
+                    "p75_days_to_adoption": float(d.quantile(0.75)),
+                    "adopted_within_7_days": int((d <= 7).sum()),
+                    "adopted_within_30_days": int((d <= 30).sum()),
+                    "adopted_within_60_days": int((d <= 60).sum()),
+                    "adopted_within_90_days": int((d <= 90).sum()),
+                }
+            )
+
+    if not records:
+        return
+
+    result = pd.DataFrame(records)
+    result.to_csv(tables / "h3_adopted_only_age_speed.csv", index=False)
+
+    # Figure: median days to adoption by age_group, per animal type
+    age_view = result[result["group_variable"] == "age_group"].copy()
+    if not age_view.empty:
+        fig, ax = plt.subplots(figsize=(10, 5))
+        for atype, sub in age_view.groupby("animal_type"):
+            sub_sorted = sub.sort_values("median_days_to_adoption")
+            ax.bar(
+                [f"{row['group_value']}\n({atype})" for _, row in sub_sorted.iterrows()],
+                sub_sorted["median_days_to_adoption"],
+                label=atype,
+                alpha=0.8,
+            )
+        ax.set_xlabel("Age group / Animal type")
+        ax.set_ylabel("Median days to adoption (adopted animals only)")
+        ax.set_title(
+            "H3: Median days to adoption by age group — adopted animals only\n"
+            "(uses days_to_adoption, not days_to_outcome)"
+        )
+        ax.legend()
+        plt.tight_layout()
+        fig.savefig(figures / "h3_adopted_only_median_days_to_adoption.png", dpi=150)
+        plt.close(fig)
+
+
+# ---------------------------------------------------------------------------
+# Kaplan–Meier style descriptive survival curves (Task 2.3)
+# ---------------------------------------------------------------------------
+
+def _empirical_survival(times: np.ndarray, max_days: int = 365) -> tuple[np.ndarray, np.ndarray]:
+    """Compute empirical survival (proportion not yet adopted) at each day."""
+    n = len(times)
+    days = np.arange(0, max_days + 1)
+    survived = np.array([(times > d).sum() / n for d in days])
+    return days, survived
+
+
+def _km_survival(times: np.ndarray, max_days: int = 365) -> tuple[np.ndarray, np.ndarray]:
+    """Compute KM estimate using lifelines when available, else fallback to empirical."""
+    try:
+        from lifelines import KaplanMeierFitter
+
+        kmf = KaplanMeierFitter()
+        # All events are observed (no censoring in adopted-only subset)
+        event_observed = np.ones(len(times), dtype=bool)
+        kmf.fit(times, event_observed=event_observed, label="km")
+        timeline = np.arange(0, max_days + 1)
+        sf = kmf.survival_function_at_times(timeline).values
+        return timeline, sf
+    except ImportError:
+        return _empirical_survival(times, max_days)
+
+
+def create_survival_descriptive(
+    data_path: str | Path = "data/processed/modeling_dataset.csv",
+    tables_dir: str | Path = "reports/tables",
+    figures_dir: str | Path = "reports/figures",
+    summary_dir: str | Path = "reports/summary",
+    max_days: int = 180,
+) -> None:
+    """Create descriptive Kaplan-Meier style adoption survival curves.
+
+    These are descriptive time-to-adoption views among ADOPTED animals only.
+    They are NOT the main modeling framework and do not replace the supervised ML
+    comparison. They serve as descriptive evidence for H3 and address the 'why
+    not survival analysis?' reviewer question.
+
+    Uses lifelines.KaplanMeierFitter when available; falls back to empirical
+    proportion-not-yet-adopted curves if lifelines is not installed.
+
+    Groups: animal_type, age_group, covid_period, intake_type.
+    """
+    tables = Path(tables_dir)
+    figures = Path(figures_dir)
+    summary = Path(summary_dir)
+    for d in [tables, figures, summary]:
+        d.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path)
+
+    # Use adopted animals only for KM curves (time-to-adoption analysis)
+    adopted = df[df["adopted"].astype(bool)].copy()
+    if adopted.empty:
+        return
+
+    if "days_to_adoption" not in adopted.columns:
+        adopted["days_to_adoption"] = adopted["days_to_outcome"]
+
+    group_columns = ["animal_type", "age_group", "covid_period", "intake_type"]
+    group_columns = [c for c in group_columns if c in adopted.columns]
+
+    all_curves: list[dict] = []
+
+    for group_col in group_columns:
+        fig, ax = plt.subplots(figsize=(10, 6))
+        group_data = adopted.groupby(group_col, dropna=False)
+
+        for group_val, sub in group_data:
+            times = sub["days_to_adoption"].dropna().values
+            if len(times) < 20:
+                continue
+            days, sf = _km_survival(times, max_days=max_days)
+            label = f"{group_val} (n={len(times):,})"
+            ax.step(days, sf, where="post", label=label, linewidth=2)
+
+            for d, s in zip(days[::10], sf[::10]):
+                all_curves.append(
+                    {
+                        "group_variable": group_col,
+                        "group_value": str(group_val),
+                        "day": int(d),
+                        "survival_probability": float(s),
+                        "adoption_probability": float(1 - s),
+                        "records": int(len(times)),
+                    }
+                )
+
+        ax.set_xlabel("Days since intake")
+        ax.set_ylabel("Proportion not yet adopted (survival function)")
+        ax.set_title(
+            f"Descriptive adoption survival curve by {group_col}\n"
+            "(adopted animals only — KM-style descriptive view, not a full survival model)"
+        )
+        ax.legend(loc="upper right", fontsize=9)
+        ax.set_ylim(0, 1)
+        ax.grid(alpha=0.3)
+        plt.tight_layout()
+        out_path = figures / f"km_adoption_by_{group_col}.png"
+        fig.savefig(out_path, dpi=150)
+        plt.close(fig)
+
+    if all_curves:
+        curves_df = pd.DataFrame(all_curves)
+        curves_df.to_csv(tables / "adoption_survival_curves.csv", index=False)
+
+    # Write methodology note
+    note = """\
+# Descriptive Survival Analysis Note
+
+## What These Curves Are
+
+The figures `km_adoption_by_*.png` and the table `adoption_survival_curves.csv`
+show **empirical Kaplan-Meier style adoption survival curves** for adopted animals,
+grouped by `animal_type`, `age_group`, `covid_period`, and `intake_type`.
+
+The y-axis is the **proportion of adopted animals not yet adopted** at each day since intake.
+The x-axis is days since intake, restricted to adopted animals only.
+
+Implementation: uses `lifelines.KaplanMeierFitter` when available; falls back to
+empirical proportion curves. All events are observed (no censoring) in this adopted-only subset.
+
+## What These Curves Are NOT
+
+These curves are **descriptive time-to-adoption views**. They are NOT:
+- The main modeling framework of this thesis.
+- A replacement for the supervised ML classification and regression comparison.
+- A full survival model with censoring or competing risks.
+
+## Why Not Full Survival Analysis?
+
+1. **Most episodes are resolved:** The dataset contains only matched intake/outcome
+   episodes. Animals without a future outcome are excluded from the modeling dataset,
+   making the censoring problem smaller than in typical clinical survival analysis.
+
+2. **The main regression target is length-of-stay, not time-to-adoption:**
+   `regression_target_days` = `days_to_outcome` covers all outcomes, not just adoption.
+   This is operationally relevant for shelter resource planning.
+
+3. **Interpretability:** A regression prediction ("predicted length of stay: 12 days")
+   is more directly actionable for a shelter worker than a hazard ratio from a Cox model.
+
+4. **Future work:** Full survival modeling with censoring and competing risks
+   (adoption vs. transfer vs. euthanasia vs. return-to-owner) would be a natural
+   extension. The descriptive KM curves here provide the foundation.
+
+## Thesis Defense Statement
+
+> "These curves are descriptive time-to-adoption views among adopted animals.
+> They provide descriptive evidence for H3 (age and adoption timing patterns)
+> without making causal claims. Full time-to-event survival modeling with censoring
+> and competing risks is outside the main scope of this thesis and is discussed
+> as a natural extension for future work."
+"""
+    (summary / "survival_descriptive_note.md").write_text(note, encoding="utf-8")

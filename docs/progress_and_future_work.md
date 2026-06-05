@@ -158,6 +158,7 @@ Implemented intake-time features include:
 - age groups,
 - breed simplification,
 - mixed-breed flag,
+- Found Location coarse taxonomy and flags,
 - color simplification,
 - black/dark color flag,
 - name availability flags,
@@ -172,7 +173,7 @@ Target metadata is saved in:
 
 - `data/processed/target_columns.json`.
 
-Current configured feature list contains 24 intake-time predictors. Current configured target list contains 8 target or outcome-derived columns.
+Current configured feature list contains 31 intake-time predictors. Current configured target list contains 8 target or outcome-derived columns.
 
 ### 5.5 Leakage Control
 

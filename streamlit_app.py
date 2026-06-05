@@ -35,6 +35,24 @@ from aac_adoption.dashboard.story import (  # noqa: E402
     story_cards,
     workflow_dot,
 )
+from aac_adoption.dashboard.trust_page import render_trust_and_limits  # noqa: E402
+
+# ---------------------------------------------------------------------------
+# Methodological language constants — used consistently across all SHAP views
+# ---------------------------------------------------------------------------
+SHAP_DISCLAIMER = (
+    "SHAP values explain how features contributed to this model's prediction. "
+    "They do not prove that changing a feature would causally change adoption probability."
+)
+CAUSAL_WARNING = (
+    "⚠️ **Methodological note:** Changing fields in this form shows how the trained model "
+    "reacts to different input records. It does not prove that changing a real animal's "
+    "characteristic would change its adoption outcome."
+)
+INTAKE_ONLY_NOTE = (
+    "This model uses only information available **at intake time**. "
+    "It cannot account for changes after an animal enters the shelter."
+)
 
 
 TABLES_DIR = PROJECT_ROOT / "reports" / "tables"
@@ -43,6 +61,254 @@ SUMMARY_DIR = PROJECT_ROOT / "reports" / "summary"
 DIAGNOSTICS_DIR = PROJECT_ROOT / "reports" / "diagnostics"
 MODELS_DIR = PROJECT_ROOT / "models" / "advanced"
 DATA_PATH = PROJECT_ROOT / "data" / "processed" / "modeling_dataset.csv"
+
+LANGUAGES = {
+    "English": "en",
+    "Polski": "pl",
+}
+
+PL = {
+    "AAC Adoption Thesis Demo": "Demo pracy dyplomowej: adopcje AAC",
+    "Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions.": "Dashboard oparty na artefaktach: wyniki modeli, sygnały hipotez i predykcje what-if.",
+    "Language": "Język",
+    "Executive Overview": "Przegląd",
+    "Story Mode": "Narracja",
+    "Animal Stories": "Historie zwierząt",
+    "Model Quality": "Jakość modelu",
+    "Trust & Limits": "Zaufanie i ograniczenia",
+    "Interpretability": "Interpretowalność",
+    "Risk Explorer": "Eksplorator ryzyka",
+    "Hypothesis Lab": "Laboratorium hipotez",
+    "Campaign Finder": "Wyszukiwarka kampanii",
+    "What-if Prediction": "Predykcja what-if",
+    "Adoption Timeline": "Oś czasu adopcji",
+    "Artifacts": "Artefakty",
+    "Context Data": "Dane kontekstowe",
+    "Run the training and analysis pipeline to populate model comparison outputs.": "Uruchom pipeline trenowania i analizy, aby wypełnić wyniki porównania modeli.",
+    "Missing figure": "Brak wykresu",
+    "Data-to-Decision Story": "Od danych do decyzji",
+    "How raw shelter records become thesis evidence and practical shelter-facing signals.": "Jak surowe rekordy schroniska stają się materiałem do pracy i praktycznymi sygnałami dla schroniska.",
+    "Approach Comparison": "Porównanie podejść",
+    "Analytical layer": "Warstwa analityczna",
+    "Story weight": "Waga narracyjna",
+    "Probability Trust": "Wiarygodność prawdopodobieństw",
+    "When model says 70% adoption chance, does reality agree?": "Gdy model mówi o 70% szansy adopcji, czy rzeczywistość się zgadza?",
+    "Calibration curve": "Krzywa kalibracji",
+    "Long-stay Risk": "Ryzyko długiego pobytu",
+    "Which animals look adoptable but may wait longer?": "Które zwierzęta wyglądają na adopcyjne, ale mogą czekać dłużej?",
+    "Model Failure Modes": "Tryby błędów modelu",
+    "Where do false negatives and large LOS errors cluster?": "Gdzie grupują się fałszywe negatywy i duże błędy długości pobytu?",
+    "Which cohorts may deserve targeted visibility?": "Które kohorty mogą wymagać większej widoczności?",
+    "Similar Cases": "Podobne przypadki",
+    "What happened historically to animals like this one?": "Co historycznie działo się ze zwierzętami podobnymi do tego?",
+    "Real-life Shelter Questions": "Praktyczne pytania schroniska",
+    "Animal Journey Cards": "Karty ścieżki zwierzęcia",
+    "Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories.": "Uruchom `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv`, aby wypełnić historie zwierząt.",
+    "Animal profile": "Profil zwierzęcia",
+    "Similar records": "Podobne rekordy",
+    "Adoption rate": "Odsetek adopcji",
+    "Median wait": "Mediana oczekiwania",
+    "Visibility need": "Potrzeba widoczności",
+    "Profile": "Profil",
+    "has recorded name": "ma zapisane imię",
+    "no recorded name": "brak zapisanego imienia",
+    "Transfer rate": "Odsetek transferów",
+    "Return-to-owner rate": "Odsetek powrotów do opiekuna",
+    "Euthanasia rate": "Odsetek eutanazji",
+    "Model View for This Journey": "Widok modelu dla tej ścieżki",
+    "Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.": "Uruchom `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv`, aby dodać predykcje CatBoost do kart ścieżki.",
+    "Predicted adoption chance": "Prognozowana szansa adopcji",
+    "Predicted wait": "Prognozowane oczekiwanie",
+    "Model visibility label": "Etykieta widoczności modelu",
+    "Representative model record": "Reprezentatywny rekord modelu",
+    "high visibility need": "wysoka potrzeba widoczności",
+    "medium visibility need": "średnia potrzeba widoczności",
+    "standard visibility": "standardowa widoczność",
+    "low": "niska",
+    "medium": "średnia",
+    "high": "wysoka",
+    "Similar Historical Cases": "Podobne przypadki historyczne",
+    "No similar historical cases found for this representative card.": "Nie znaleziono podobnych przypadków historycznych dla tej karty.",
+    "Top SHAP Reasons": "Najważniejsze powody SHAP",
+    "Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons.": "Uruchom `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap`, aby wypełnić powody SHAP.",
+    "Model-wide SHAP signals mapped onto this animal profile; associations, not causes.": "Globalne sygnały SHAP przypisane do profilu; to powiązania, nie przyczyny.",
+    "Local CatBoost SHAP values for the representative journey record; associations, not causes.": "Lokalne wartości SHAP CatBoost dla reprezentatywnego rekordu; to powiązania, nie przyczyny.",
+    "Key Animal Contrasts": "Kluczowe kontrasty zwierząt",
+    "Contrast": "Kontrast",
+    "Animal group": "Grupa zwierząt",
+    "Largest animal archetypes": "Największe archetypy zwierząt",
+    "Animal profiles needing visibility or support": "Profile wymagające widoczności lub wsparcia",
+    "Vulnerable Profiles": "Profile wrażliwe",
+    "Health and Behavior Support Profiles": "Profile zdrowia i wsparcia behawioralnego",
+    "Classification Table": "Tabela klasyfikacji",
+    "Regression Table": "Tabela regresji",
+    "Probability Trust Meter": "Miernik wiarygodności prawdopodobieństw",
+    "Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics.": "Uruchom `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv`, aby wypełnić diagnostykę kalibracji.",
+    "Mean predicted probability": "Średnie prognozowane prawdopodobieństwo",
+    "Observed adoption rate": "Zaobserwowany odsetek adopcji",
+    "Reliability Figures": "Wykresy wiarygodności",
+    "Advanced model ROC curve": "Krzywa ROC modelu zaawansowanego",
+    "Advanced model precision-recall curve": "Krzywa precision-recall modelu zaawansowanego",
+    "Probability calibration": "Kalibracja prawdopodobieństw",
+    "Regression predicted vs actual": "Regresja: prognoza vs wartość rzeczywista",
+    "Model Evidence Pack": "Pakiet dowodów modelu",
+    "Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts.": "Uruchom `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv`, aby wypełnić artefakty zaufania i ograniczeń.",
+    "Metric Confidence Intervals": "Przedziały ufności metryk",
+    "Metric": "Metryka",
+    "Bootstrap interval": "Przedział bootstrap",
+    "Cohort Reliability Limits": "Ograniczenia wiarygodności kohort",
+    "Calibration gap": "Luka kalibracji",
+    "Cohort value": "Wartość kohorty",
+    "Subgroup Explorer": "Eksplorator podgrup",
+    "Reliability subgroup": "Podgrupa wiarygodności",
+    "Where the Model Struggles": "Gdzie model ma trudności",
+    "Subgroup Metric Intervals": "Przedziały metryk podgrup",
+    "Time-to-Adoption Milestones": "Kamienie milowe czasu do adopcji",
+    "Milestone subgroup": "Podgrupa kamieni milowych",
+    "Adopted animals (%)": "Zwierzęta adoptowane (%)",
+    "Milestone": "Kamień milowy",
+    "Value": "Wartość",
+    "Records": "Rekordy",
+    "Adoptions": "Adopcje",
+    "Adopted by day": "Adoptowane do dnia",
+    "Animal Journey Evidence Examples": "Przykłady dowodów ścieżek zwierząt",
+    "SHAP Global Explanations": "Globalne wyjaśnienia SHAP",
+    "SHAP values describe factors associated with model predictions, not causal effects.": "Wartości SHAP opisują czynniki powiązane z predykcjami modelu, nie efekty przyczynowe.",
+    "Classification SHAP summary": "Podsumowanie SHAP klasyfikacji",
+    "Regression SHAP summary": "Podsumowanie SHAP regresji",
+    "Feature Family Scores": "Wyniki rodzin cech",
+    "Sum mean absolute SHAP": "Suma średnich bezwzględnych SHAP",
+    "Feature family": "Rodzina cech",
+    "Run diagnostics with `--include-shap` to populate interpretation artifacts.": "Uruchom diagnostykę z `--include-shap`, aby wypełnić artefakty interpretacji.",
+    "Risk Threshold Simulator": "Symulator progu ryzyka",
+    "Run diagnostics to populate threshold tradeoffs.": "Uruchom diagnostykę, aby wypełnić kompromisy progów.",
+    "Adoption probability threshold": "Próg prawdopodobieństwa adopcji",
+    "Precision": "Precyzja",
+    "Recall": "Czułość",
+    "F1": "F1",
+    "Flagged share": "Odsetek oznaczonych",
+    "Threshold": "Próg",
+    "Metric value": "Wartość metryki",
+    "Placement Risk Quadrant": "Kwadrant ryzyka umieszczenia",
+    "Predicted adoption probability": "Prognozowane prawdopodobieństwo adopcji",
+    "Predicted days to outcome": "Prognozowane dni do wyniku",
+    "Error Slice Explorer": "Eksplorator przekrojów błędów",
+    "H1: Intake vs Appearance": "H1: Przyjęcie vs wygląd",
+    "H3: Age and Length of Stay": "H3: Wiek i długość pobytu",
+    "H5: COVID-period Dynamics": "H5: Dynamika okresu COVID",
+    "Campaign Candidate Finder": "Wyszukiwarka kandydatów do kampanii",
+    "Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.": "Eksploracyjna wyszukiwarka kohort, które mogą skorzystać z większej widoczności. To nie jest logika rekomendacji przyczynowej.",
+    "Run diagnostics to populate campaign cohorts.": "Uruchom diagnostykę, aby wypełnić kohorty kampanii.",
+    "All": "Wszystkie",
+    "No records match this cohort.": "Brak rekordów pasujących do tej kohorty.",
+    "Cohort size": "Wielkość kohorty",
+    "Observed adoption": "Zaobserwowana adopcja",
+    "Mean predicted adoption": "Średnia prognozowana adopcja",
+    "Median predicted days": "Mediana prognozowanych dni",
+    "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact.": "Ujęcie kampanii: ta kohorta może być użyteczna dla działań zwiększających widoczność, gdy prognozowana szansa adopcji jest niska lub prognozowany czas do wyniku jest wysoki. Traktuj to jako sygnał priorytetyzacji, nie dowód wpływu interwencji.",
+    "Animal Type": "Typ zwierzęcia",
+    "Age Group": "Grupa wieku",
+    "Intake Type": "Typ przyjęcia",
+    "Covid Period": "Okres COVID",
+    "Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.": "Używa połączonego klasyfikatora i regresora CatBoost, gdy istnieją artefakty modeli zaawansowanych. To predykcja demonstracyjna, nie przyczynowa reguła decyzyjna.",
+    "Animal type": "Typ zwierzęcia",
+    "Intake type": "Typ przyjęcia",
+    "Intake condition": "Stan przy przyjęciu",
+    "Sex upon intake": "Status płciowy przy przyjęciu",
+    "Has name": "Ma imię",
+    "Age in years": "Wiek w latach",
+    "Breed": "Rasa",
+    "Color": "Kolor",
+    "Intake date": "Data przyjęcia",
+    "Run prediction": "Uruchom predykcję",
+    "Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.": "Najpierw uruchom `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv`.",
+    "Timeline group": "Grupa osi czasu",
+    "Run diagnostics to generate adoption timeline milestones.": "Uruchom diagnostykę, aby wygenerować kamienie milowe adopcji.",
+    "Share adopted (%)": "Odsetek adoptowanych (%)",
+    "Adoption timeline milestones": "Kamienie milowe osi czasu adopcji",
+    "Generated Artifacts": "Wygenerowane artefakty",
+    "Core commands:": "Główne komendy:",
+    "Reports directory:": "Katalog raportów:",
+    "Models directory:": "Katalog modeli:",
+    "External Context Feature Test": "Test cech kontekstowych",
+    "Run the commands below to populate `context_model_comparison.csv`.": "Uruchom poniższe komendy, aby wypełnić `context_model_comparison.csv`.",
+    "Context features use intake-date weather and prior-window 311/intake-volume counts only.": "Cechy kontekstowe używają pogody z dnia przyjęcia oraz wcześniejszych okien 311/liczby przyjęć.",
+    "Context minus base metric delta": "Różnica metryki: kontekst minus baza",
+    "Model": "Model",
+    "Effect": "Efekt",
+    "Task": "Zadanie",
+    "improved": "poprawa",
+    "worsened": "pogorszenie",
+    "Dog": "Pies",
+    "Cat": "Kot",
+    "Stray": "Znalezione/bezdomne",
+    "Owner Surrender": "Oddane przez właściciela",
+    "Public Assist": "Pomoc publiczna",
+    "Abandoned": "Porzucone",
+    "Euthanasia Request": "Prośba o eutanazję",
+    "Normal": "Normalny",
+    "Injured": "Ranny",
+    "Sick": "Chory",
+    "Nursing": "Karmiący",
+    "Neonatal": "Noworodek",
+    "Aged": "Starszy",
+    "Medical": "Medyczny",
+    "Behavior": "Behawioralny",
+    "Other": "Inny",
+    "Intact Male": "Samiec niesterylizowany",
+    "Intact Female": "Samica niesterylizowana",
+    "Neutered Male": "samiec kastrowany",
+    "Spayed Female": "samica sterylizowana",
+    "Unknown": "nieznane",
+    "unknown health": "nieznany stan zdrowia",
+    "unknown behavior signal": "nieznany sygnał behawioralny",
+    "📖 Thesis Guide": "Przewodnik po pracy",
+    "Model Sensitivity Demo": "Demo wrażliwości modelu",
+}
+
+
+def t(text: str) -> str:
+    """Translate visible UI text for the selected language."""
+    if st.session_state.get("language", "en") == "pl":
+        return PL.get(text, text)
+    return text
+
+
+def localized_profile_label(label: str) -> str:
+    """Translate common profile-label fragments while preserving model group names."""
+    if st.session_state.get("language", "en") == "pl":
+        replacements = {
+            "Cat": "kot",
+            "Dog": "pies",
+            "has recorded name": "ma zapisane imię",
+            "no recorded name": "brak zapisanego imienia",
+            "normal": "normalny",
+            "baby": "młode",
+            "young": "młody dorosły",
+            "adult": "dorosły",
+            "senior": "senior",
+            "unknown": "nieznany",
+            "Stray": "Znalezione/bezdomne",
+            "Owner Surrender": "Oddane przez właściciela",
+            "Public Assist": "Pomoc publiczna",
+            "Abandoned": "Porzucone",
+            "Intact Male": "samiec niesterylizowany",
+            "Intact Female": "samica niesterylizowana",
+            "Neutered Male": "samiec kastrowany",
+            "Spayed Female": "samica sterylizowana",
+            "Unknown": "nieznane",
+        }
+    else:
+        replacements = {
+            "Cat": "cat",
+            "Dog": "dog",
+            "has recorded name": "recorded name present",
+            "no recorded name": "no recorded name",
+        }
+    result = label
+    for source, target in replacements.items():
+        result = result.replace(source, target)
+    return result
 
 
 st.set_page_config(
@@ -96,7 +362,7 @@ def cached_diagnostics() -> dict[str, pd.DataFrame]:
 
 def show_metric_cards(best_rows: pd.DataFrame) -> None:
     if best_rows.empty:
-        st.info("Run the training and analysis pipeline to populate model comparison outputs.")
+        st.info(t("Run the training and analysis pipeline to populate model comparison outputs."))
         return
 
     ordered = best_rows.sort_values(["task", "animal_subset"])
@@ -113,33 +379,41 @@ def show_metric_cards(best_rows: pd.DataFrame) -> None:
 
 def figure(path: Path, caption: str) -> None:
     if path.exists():
-        st.image(str(path), caption=caption, use_container_width=True)
+        st.image(str(path), caption=t(caption), use_container_width=True)
     else:
-        st.info(f"Missing figure: {path.name}")
+        st.info(f"{t('Missing figure')}: {path.name}")
 
 
 tables = cached_tables()
 diagnostics = cached_diagnostics()
 best_rows = best_model_rows(tables["classification"], tables["regression"])
 
-st.title("AAC Adoption Thesis Demo")
-st.caption("Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions.")
+selected_language = st.sidebar.selectbox(
+    "Language / Język",
+    list(LANGUAGES),
+    index=0,
+)
+st.session_state["language"] = LANGUAGES[selected_language]
+
+st.title(t("AAC Adoption Thesis Demo"))
+st.caption(t("Artifact-driven dashboard for model results, hypothesis signals, and what-if predictions."))
 
 tabs = st.tabs(
     [
-        "Executive Overview",
-        "Story Mode",
-        "Animal Stories",
-        "Model Quality",
-        "Trust & Limits",
-        "Interpretability",
-        "Risk Explorer",
-        "Hypothesis Lab",
-        "Campaign Finder",
-        "What-if Prediction",
-        "Adoption Timeline",
-        "Artifacts",
-        "Context Data",
+        t("Executive Overview"),
+        t("Story Mode"),
+        t("Animal Stories"),
+        t("Model Quality"),
+        t("Trust & Limits"),
+        t("Interpretability"),
+        t("Risk Explorer"),
+        t("Hypothesis Lab"),
+        t("Campaign Finder"),
+        t("Model Sensitivity Demo"),
+        t("Adoption Timeline"),
+        t("Artifacts"),
+        t("Context Data"),
+        t("📖 Thesis Guide"),
     ]
 )
 
@@ -148,19 +422,19 @@ with tabs[0]:
     st.markdown(load_summary(SUMMARY_DIR))
 
 with tabs[1]:
-    st.subheader("Data-to-Decision Story")
-    st.caption("How raw shelter records become thesis evidence and practical shelter-facing signals.")
+    st.subheader(t("Data-to-Decision Story"))
+    st.caption(t("How raw shelter records become thesis evidence and practical shelter-facing signals."))
     st.graphviz_chart(workflow_dot(), use_container_width=True)
     st.plotly_chart(decision_sankey(), use_container_width=True)
 
-    st.subheader("Approach Comparison")
+    st.subheader(t("Approach Comparison"))
     approaches = approach_comparison_rows()
     st.altair_chart(
         alt.Chart(approaches)
         .mark_bar()
         .encode(
-            y=alt.Y("layer:N", sort=None, title="Analytical layer"),
-            x=alt.X("count():Q", title="Story weight"),
+            y=alt.Y("layer:N", sort=None, title=t("Analytical layer")),
+            x=alt.X("count():Q", title=t("Story weight")),
             color=alt.Color("layer:N", legend=None),
             tooltip=["layer", "technology", "answers", "strength", "dashboard_use"],
         )
@@ -169,20 +443,20 @@ with tabs[1]:
     )
     st.dataframe(approaches, use_container_width=True, hide_index=True)
 
-    st.subheader("Real-life Shelter Questions")
+    st.subheader(t("Real-life Shelter Questions"))
     card_columns = st.columns(5)
     for column, card in zip(card_columns, story_cards()):
-        column.metric(card["title"], card["artifact"])
-        column.caption(card["question"])
+        column.metric(t(card["title"]), t(card["artifact"]))
+        column.caption(t(card["question"]))
 
 with tabs[2]:
-    st.subheader("Animal Journey Cards")
+    st.subheader(t("Animal Journey Cards"))
     archetypes = tables["animal_archetypes"]
     if archetypes.empty:
-        st.info("Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories.")
+        st.info(t("Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories."))
     else:
         labels = archetypes["profile_label"].head(250).tolist()
-        selected_label = st.selectbox("Animal profile", labels)
+        selected_label = st.selectbox(t("Animal profile"), labels, format_func=localized_profile_label)
         selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
         profile_record = build_profile_prediction_record(selected)
         profile_prediction: dict[str, float] | None = None
@@ -193,44 +467,44 @@ with tabs[2]:
             profile_prediction = None
 
         col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Similar records", f"{int(selected['records']):,}")
-        col2.metric("Adoption rate", f"{selected['adoption_rate_pct']:.1f}%")
-        col3.metric("Median wait", f"{selected['median_days_to_outcome']:.1f} days")
-        col4.metric("Visibility need", selected["visibility_need"])
+        col1.metric(t("Similar records"), f"{int(selected['records']):,}")
+        col2.metric(t("Adoption rate"), f"{selected['adoption_rate_pct']:.1f}%")
+        col3.metric(t("Median wait"), f"{selected['median_days_to_outcome']:.1f} days")
+        col4.metric(t("Visibility need"), selected["visibility_need"])
 
         st.write(
-            f"**Profile:** {selected['animal_type']} | {selected['age_group']} | "
-            f"{selected['intake_type']} / {selected['intake_condition']} | "
-            f"{selected.get('health_profile', 'unknown health')} | "
-            f"{selected.get('behavior_support_flag', 'unknown behavior signal')} | "
+            f"**{t('Profile')}:** {t(str(selected['animal_type']))} | {t(str(selected['age_group']))} | "
+            f"{t(str(selected['intake_type']))} / {t(str(selected['intake_condition']))} | "
+            f"{t(str(selected.get('health_profile', 'unknown health')))} | "
+            f"{t(str(selected.get('behavior_support_flag', 'unknown behavior signal')))} | "
             f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
-            f"{'has recorded name' if bool(selected['is_named']) else 'no recorded name'}"
+            f"{t('has recorded name') if bool(selected['is_named']) else t('no recorded name')}"
         )
         mix_cols = st.columns(3)
-        mix_cols[0].metric("Transfer rate", f"{selected.get('transfer_rate_pct', 0):.1f}%")
-        mix_cols[1].metric("Return-to-owner rate", f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
-        mix_cols[2].metric("Euthanasia rate", f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
+        mix_cols[0].metric(t("Transfer rate"), f"{selected.get('transfer_rate_pct', 0):.1f}%")
+        mix_cols[1].metric(t("Return-to-owner rate"), f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
+        mix_cols[2].metric(t("Euthanasia rate"), f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
 
-        st.subheader("Model View for This Journey")
+        st.subheader(t("Model View for This Journey"))
         if profile_prediction is None:
-            st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.")
+            st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards."))
         else:
             predicted_probability = profile_prediction["adoption_probability"]
             predicted_days = profile_prediction["predicted_days_to_outcome"]
             model_cols = st.columns(3)
-            model_cols[0].metric("Predicted adoption chance", f"{predicted_probability * 100:.1f}%")
-            model_cols[1].metric("Predicted wait", f"{predicted_days:.1f} days")
-            model_cols[2].metric("Model visibility label", visibility_need_from_prediction(predicted_probability, predicted_days))
-            with st.expander("Representative model record"):
+            model_cols[0].metric(t("Predicted adoption chance"), f"{predicted_probability * 100:.1f}%")
+            model_cols[1].metric(t("Predicted wait"), f"{predicted_days:.1f} days")
+            model_cols[2].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
+            with st.expander(t("Representative model record")):
                 st.dataframe(profile_record, use_container_width=True, hide_index=True)
 
-        st.subheader("Similar Historical Cases")
+        st.subheader(t("Similar Historical Cases"))
         if profile_similarity.empty:
-            st.info("No similar historical cases found for this representative card.")
+            st.info(t("No similar historical cases found for this representative card."))
         else:
             st.dataframe(profile_similarity, use_container_width=True, hide_index=True)
 
-        st.subheader("Top SHAP Reasons")
+        st.subheader(t("Top SHAP Reasons"))
         shap_view = pd.DataFrame()
         if profile_prediction is not None:
             try:
@@ -240,25 +514,31 @@ with tabs[2]:
         if shap_view.empty:
             shap_view = profile_global_shap_reasons(selected, tables["shap_classification"], top_n=8)
             if shap_view.empty:
-                st.info("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons.")
+                st.info(t("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons."))
             else:
-                st.caption("Model-wide SHAP signals mapped onto this animal profile; associations, not causes.")
+                st.caption(t("Model-wide SHAP signals mapped onto this animal profile; associations, not causes."))
                 st.dataframe(shap_view, use_container_width=True, hide_index=True)
         else:
-            st.caption("Local CatBoost SHAP values for the representative journey record; associations, not causes.")
+            st.caption(t("Local CatBoost SHAP values for the representative journey record; associations, not causes."))
             st.dataframe(shap_view, use_container_width=True, hide_index=True)
 
-    st.subheader("Key Animal Contrasts")
+        with st.expander(t("⚠️ Interpretation limits")):
+            st.info(
+                t("This explanation shows model feature contributions, not real-world causes of this animal's outcome. "
+                  "Feature families like breed or coat color represent associations in the training set, not proof of direct impact.")
+            )
+
+    st.subheader(t("Key Animal Contrasts"))
     contrasts = tables["profile_contrasts"]
     if not contrasts.empty:
-        contrast_choice = st.selectbox("Contrast", sorted(contrasts["contrast"].unique()))
+        contrast_choice = st.selectbox(t("Contrast"), sorted(contrasts["contrast"].unique()))
         contrast_view = contrasts[contrasts["contrast"].eq(contrast_choice)]
         st.altair_chart(
             alt.Chart(contrast_view)
             .mark_bar()
             .encode(
-                x=alt.X("contrast_value:N", title="Animal group"),
-                y=alt.Y("adoption_rate_pct:Q", title="Adoption rate (%)"),
+                x=alt.X("contrast_value:N", title=t("Animal group")),
+                y=alt.Y("adoption_rate_pct:Q", title=t("Adoption rate")),
                 color="contrast_value:N",
                 tooltip=["contrast_value", "records", "adoption_rate_pct", "median_days_to_outcome", "euthanasia_rate_pct"],
             )
@@ -271,9 +551,9 @@ with tabs[2]:
         figure(FIGURES_DIR / "animal_archetypes_top.png", "Largest animal archetypes")
     with right_animal:
         figure(FIGURES_DIR / "vulnerable_profiles.png", "Animal profiles needing visibility or support")
-    st.subheader("Vulnerable Profiles")
+    st.subheader(t("Vulnerable Profiles"))
     st.dataframe(tables["vulnerable_profiles"].head(30), use_container_width=True, hide_index=True)
-    st.subheader("Health and Behavior Support Profiles")
+    st.subheader(t("Health and Behavior Support Profiles"))
     st.dataframe(tables["health_behavior_profiles"], use_container_width=True, hide_index=True)
 
 with tabs[3]:
@@ -285,28 +565,28 @@ with tabs[3]:
         figure(FIGURES_DIR / "model_comparison_regression_mae.png", "Regression MAE")
         figure(FIGURES_DIR / "model_comparison_regression_rmse.png", "Regression RMSE")
 
-    st.subheader("Classification Table")
+    st.subheader(t("Classification Table"))
     st.dataframe(tables["classification"], use_container_width=True, hide_index=True)
-    st.subheader("Regression Table")
+    st.subheader(t("Regression Table"))
     st.dataframe(tables["regression"], use_container_width=True, hide_index=True)
 
-    st.subheader("Probability Trust Meter")
+    st.subheader(t("Probability Trust Meter"))
     calibration = diagnostics["calibration"]
     if calibration.empty:
-        st.info("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics.")
+        st.info(t("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics."))
     else:
         st.altair_chart(
             alt.Chart(calibration)
             .mark_line(point=True)
             .encode(
-                x=alt.X("mean_predicted_probability:Q", title="Mean predicted probability"),
-                y=alt.Y("observed_adoption_rate:Q", title="Observed adoption rate"),
+                x=alt.X("mean_predicted_probability:Q", title=t("Mean predicted probability")),
+                y=alt.Y("observed_adoption_rate:Q", title=t("Observed adoption rate")),
                 tooltip=["probability_bin", "records", "mean_predicted_probability", "observed_adoption_rate"],
             )
             .properties(height=320),
             use_container_width=True,
         )
-    st.subheader("Reliability Figures")
+    st.subheader(t("Reliability Figures"))
     left_diag, right_diag = st.columns(2)
     with left_diag:
         figure(FIGURES_DIR / "diagnostic_roc_curve.png", "Advanced model ROC curve")
@@ -316,7 +596,9 @@ with tabs[3]:
         figure(FIGURES_DIR / "diagnostic_predicted_vs_actual.png", "Regression predicted vs actual")
 
 with tabs[4]:
-    st.subheader("Model Evidence Pack")
+    render_trust_and_limits(tables)
+    st.markdown("---")
+    st.subheader(t("Model Evidence Pack"))
     evidence = tables["model_evidence_pack"]
     intervals = tables["metric_confidence_intervals"]
     limitations = tables["model_limitations_by_cohort"]
@@ -327,19 +609,19 @@ with tabs[4]:
     journey_examples = tables["animal_journey_examples"]
     evidence_summary = load_summary(SUMMARY_DIR).split("## Model Evidence Pack", maxsplit=1)
     if evidence.empty and intervals.empty and limitations.empty:
-        st.info("Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts.")
+        st.info(t("Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts."))
     else:
         if len(evidence_summary) > 1:
             st.markdown("## Model Evidence Pack" + evidence_summary[1])
         if not intervals.empty:
-            st.subheader("Metric Confidence Intervals")
+            st.subheader(t("Metric Confidence Intervals"))
             st.dataframe(intervals, use_container_width=True, hide_index=True)
             st.altair_chart(
                 alt.Chart(intervals)
                 .mark_rule(size=4)
                 .encode(
-                    y=alt.Y("metric:N", sort=None, title="Metric"),
-                    x=alt.X("lower:Q", title="Bootstrap interval"),
+                    y=alt.Y("metric:N", sort=None, title=t("Metric")),
+                    x=alt.X("lower:Q", title=t("Bootstrap interval")),
                     x2="upper:Q",
                     color="animal_subset:N",
                     tooltip=["metric", "animal_subset", "lower", "estimate", "upper", "bootstrap_samples"],
@@ -348,15 +630,15 @@ with tabs[4]:
                 use_container_width=True,
             )
         if not limitations.empty:
-            st.subheader("Cohort Reliability Limits")
+            st.subheader(t("Cohort Reliability Limits"))
             reliable = limitations[~limitations["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in limitations.columns else limitations
             st.dataframe(reliable.head(30), use_container_width=True, hide_index=True)
             st.altair_chart(
                 alt.Chart(reliable.head(30))
                 .mark_bar()
                 .encode(
-                    x=alt.X("calibration_gap:Q", title="Calibration gap"),
-                    y=alt.Y("value:N", sort="-x", title="Cohort value"),
+                    x=alt.X("calibration_gap:Q", title=t("Calibration gap")),
+                    y=alt.Y("value:N", sort="-x", title=t("Cohort value")),
                     color="cohort:N",
                     tooltip=["cohort", "value", "records", "calibration_gap", "mae", "false_negative_rate"],
                 )
@@ -364,9 +646,9 @@ with tabs[4]:
                 use_container_width=True,
             )
         if not subgroup_reliability_table.empty:
-            st.subheader("Subgroup Explorer")
+            st.subheader(t("Subgroup Explorer"))
             subgroup_options = sorted(subgroup_reliability_table["cohort"].dropna().astype(str).unique().tolist())
-            subgroup_choice = st.selectbox("Reliability subgroup", subgroup_options)
+            subgroup_choice = st.selectbox(t("Reliability subgroup"), subgroup_options)
             subgroup_view = subgroup_reliability_table[subgroup_reliability_table["cohort"].astype(str).eq(subgroup_choice)]
             stable_view = subgroup_view[~subgroup_view["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in subgroup_view.columns else subgroup_view
             st.dataframe(stable_view, use_container_width=True, hide_index=True)
@@ -374,7 +656,7 @@ with tabs[4]:
                 alt.Chart(stable_view)
                 .mark_bar()
                 .encode(
-                    x=alt.X("calibration_gap:Q", title="Calibration gap"),
+                    x=alt.X("calibration_gap:Q", title=t("Calibration gap")),
                     y=alt.Y("value:N", sort="-x", title=subgroup_choice.replace("_", " ")),
                     tooltip=["value", "records", "observed_adoption_rate", "mean_predicted_adoption_probability", "calibration_gap", "mae"],
                 )
@@ -382,15 +664,15 @@ with tabs[4]:
                 use_container_width=True,
             )
         if not failure_modes.empty:
-            st.subheader("Where the Model Struggles")
+            st.subheader(t("Where the Model Struggles"))
             st.dataframe(failure_modes.head(40), use_container_width=True, hide_index=True)
         if not subgroup_intervals.empty:
-            st.subheader("Subgroup Metric Intervals")
+            st.subheader(t("Subgroup Metric Intervals"))
             interval_view = subgroup_intervals[subgroup_intervals["status"].eq("ok")] if "status" in subgroup_intervals.columns else subgroup_intervals
             st.dataframe(interval_view.head(50), use_container_width=True, hide_index=True)
         if not subgroup_milestones.empty:
-            st.subheader("Time-to-Adoption Milestones")
-            milestone_group = st.selectbox("Milestone subgroup", sorted(subgroup_milestones["cohort"].dropna().astype(str).unique().tolist()))
+            st.subheader(t("Time-to-Adoption Milestones"))
+            milestone_group = st.selectbox(t("Milestone subgroup"), sorted(subgroup_milestones["cohort"].dropna().astype(str).unique().tolist()))
             milestone_view = subgroup_milestones[subgroup_milestones["cohort"].astype(str).eq(milestone_group)].head(20)
             milestone_chart = milestone_view.melt(
                 id_vars=["value", "records", "adoptions", "adoption_rate_pct"],
@@ -403,15 +685,15 @@ with tabs[4]:
                 .mark_bar()
                 .encode(
                     x=alt.X("value:N", sort="-y", title=milestone_group.replace("_", " ")),
-                    y=alt.Y("share:Q", title="Adopted animals (%)"),
-                    color=alt.Color("milestone:N", title="Milestone"),
+                    y=alt.Y("share:Q", title=t("Adopted animals (%)")),
+                    color=alt.Color("milestone:N", title=t("Milestone")),
                     tooltip=[
-                        alt.Tooltip("value:N", title="Value"),
-                        alt.Tooltip("records:Q", title="Records"),
-                        alt.Tooltip("adoptions:Q", title="Adoptions"),
-                        alt.Tooltip("adoption_rate_pct:Q", title="Adoption rate"),
-                        alt.Tooltip("milestone:N", title="Milestone"),
-                        alt.Tooltip("share:Q", title="Adopted by day"),
+                        alt.Tooltip("value:N", title=t("Value")),
+                        alt.Tooltip("records:Q", title=t("Records")),
+                        alt.Tooltip("adoptions:Q", title=t("Adoptions")),
+                        alt.Tooltip("adoption_rate_pct:Q", title=t("Adoption rate")),
+                        alt.Tooltip("milestone:N", title=t("Milestone")),
+                        alt.Tooltip("share:Q", title=t("Adopted by day")),
                     ],
                 )
                 .properties(height=340),
@@ -419,12 +701,13 @@ with tabs[4]:
             )
             st.dataframe(milestone_view, use_container_width=True, hide_index=True)
         if not journey_examples.empty:
-            st.subheader("Animal Journey Evidence Examples")
+            st.subheader(t("Animal Journey Evidence Examples"))
             st.dataframe(journey_examples, use_container_width=True, hide_index=True)
 
 with tabs[5]:
-    st.subheader("SHAP Global Explanations")
-    st.caption("SHAP values describe factors associated with model predictions, not causal effects.")
+    st.subheader(t("SHAP Global Explanations"))
+    st.caption(t("SHAP values describe factors associated with model predictions, not causal effects."))
+    st.info(SHAP_DISCLAIMER)
     left_shap, right_shap = st.columns(2)
     with left_shap:
         figure(FIGURES_DIR / "shap_summary_classification.png", "Classification SHAP summary")
@@ -432,38 +715,38 @@ with tabs[5]:
     with right_shap:
         figure(FIGURES_DIR / "shap_summary_regression.png", "Regression SHAP summary")
         st.dataframe(tables["shap_regression"].head(20), use_container_width=True, hide_index=True)
-    st.subheader("Feature Family Scores")
+    st.subheader(t("Feature Family Scores"))
     family = tables["shap_family_classification"]
     if not family.empty:
         st.altair_chart(
             alt.Chart(family)
             .mark_bar()
             .encode(
-                x=alt.X("mean_abs_shap:Q", title="Sum mean absolute SHAP"),
-                y=alt.Y("feature_family:N", sort="-x", title="Feature family"),
+                x=alt.X("mean_abs_shap:Q", title=t("Sum mean absolute SHAP")),
+                y=alt.Y("feature_family:N", sort="-x", title=t("Feature family")),
                 tooltip=["feature_family", "mean_abs_shap", "features"],
             )
             .properties(height=340),
             use_container_width=True,
         )
     else:
-        st.info("Run diagnostics with `--include-shap` to populate interpretation artifacts.")
+        st.info(t("Run diagnostics with `--include-shap` to populate interpretation artifacts."))
 
 with tabs[6]:
-    st.subheader("Risk Threshold Simulator")
+    st.subheader(t("Risk Threshold Simulator"))
     thresholds = diagnostics["thresholds"]
     if thresholds.empty:
-        st.info("Run diagnostics to populate threshold tradeoffs.")
+        st.info(t("Run diagnostics to populate threshold tradeoffs."))
     else:
-        selected_threshold = st.slider("Adoption probability threshold", 0.05, 0.95, 0.50, 0.05)
+        selected_threshold = st.slider(t("Adoption probability threshold"), 0.05, 0.95, 0.50, 0.05)
         selected = thresholds.iloc[(thresholds["threshold"] - selected_threshold).abs().argsort()[:1]]
         if not selected.empty:
             row = selected.iloc[0]
             cols = st.columns(4)
-            cols[0].metric("Precision", f"{row['precision']:.3f}")
-            cols[1].metric("Recall", f"{row['recall']:.3f}")
-            cols[2].metric("F1", f"{row['f1']:.3f}")
-            cols[3].metric("Flagged share", f"{row['flagged_for_adoption_share']:.1%}")
+            cols[0].metric(t("Precision"), f"{row['precision']:.3f}")
+            cols[1].metric(t("Recall"), f"{row['recall']:.3f}")
+            cols[2].metric(t("F1"), f"{row['f1']:.3f}")
+            cols[3].metric(t("Flagged share"), f"{row['flagged_for_adoption_share']:.1%}")
         threshold_chart = thresholds.melt(
             id_vars=["threshold"],
             value_vars=["precision", "recall", "f1"],
@@ -474,20 +757,20 @@ with tabs[6]:
             alt.Chart(threshold_chart)
             .mark_line(point=True)
             .encode(
-                x=alt.X("threshold:Q", title="Threshold"),
-                y=alt.Y("value:Q", title="Metric value"),
-                color=alt.Color("metric:N", title="Metric"),
+                x=alt.X("threshold:Q", title=t("Threshold")),
+                y=alt.Y("value:Q", title=t("Metric value")),
+                color=alt.Color("metric:N", title=t("Metric")),
                 tooltip=[
-                    alt.Tooltip("threshold:Q", title="Threshold"),
-                    alt.Tooltip("metric:N", title="Metric"),
-                    alt.Tooltip("value:Q", title="Value"),
+                    alt.Tooltip("threshold:Q", title=t("Threshold")),
+                    alt.Tooltip("metric:N", title=t("Metric")),
+                    alt.Tooltip("value:Q", title=t("Value")),
                 ],
             )
             .properties(height=320),
             use_container_width=True,
         )
 
-    st.subheader("Placement Risk Quadrant")
+    st.subheader(t("Placement Risk Quadrant"))
     risk = diagnostics["risk_quadrants"]
     if not risk.empty:
         st.dataframe(risk, use_container_width=True, hide_index=True)
@@ -497,15 +780,15 @@ with tabs[6]:
             alt.Chart(predictions.sample(min(len(predictions), 2000), random_state=42))
             .mark_circle(size=45, opacity=0.35)
             .encode(
-                x=alt.X("predicted_adoption_probability:Q", title="Predicted adoption probability"),
-                y=alt.Y("predicted_days_to_outcome:Q", title="Predicted days to outcome"),
+                x=alt.X("predicted_adoption_probability:Q", title=t("Predicted adoption probability")),
+                y=alt.Y("predicted_days_to_outcome:Q", title=t("Predicted days to outcome")),
                 color="animal_type:N",
                 tooltip=["animal_type", "age_group", "intake_type", "predicted_adoption_probability", "predicted_days_to_outcome"],
             )
             .properties(height=360),
             use_container_width=True,
         )
-    st.subheader("Error Slice Explorer")
+    st.subheader(t("Error Slice Explorer"))
     st.dataframe(diagnostics["classification_slices"].head(20), use_container_width=True, hide_index=True)
     st.dataframe(diagnostics["regression_slices"].head(20), use_container_width=True, hide_index=True)
 
@@ -520,68 +803,74 @@ with tabs[7]:
         figure(FIGURES_DIR / "h3_age_group_median_days.png", "H3 median days by age group")
         figure(FIGURES_DIR / "h5_covid_period_median_days.png", "H5 median days by COVID period")
 
-    st.subheader("H1: Intake vs Appearance")
+    st.subheader(t("H1: Intake vs Appearance"))
     st.dataframe(tables["h1"], use_container_width=True, hide_index=True)
-    st.subheader("H3: Age and Adoption Speed")
+    st.subheader(t("H3: Age and Length of Stay"))
     st.dataframe(tables["h3"], use_container_width=True, hide_index=True)
-    st.subheader("H5: COVID-period Dynamics")
+    st.subheader(t("H5: COVID-period Dynamics"))
     st.dataframe(tables["h5"], use_container_width=True, hide_index=True)
 
 with tabs[8]:
-    st.subheader("Campaign Candidate Finder")
-    st.caption("Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.")
+    st.subheader(t("Campaign Candidate Finder"))
+    st.caption(t("Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic."))
     predictions = diagnostics["predictions"]
     if predictions.empty:
-        st.info("Run diagnostics to populate campaign cohorts.")
+        st.info(t("Run diagnostics to populate campaign cohorts."))
     else:
         filters = {}
         cols = st.columns(4)
         for col, field in zip(cols, ["animal_type", "age_group", "intake_type", "covid_period"]):
             options = ["All"] + sorted(predictions[field].dropna().astype(str).unique().tolist())
-            filters[field] = col.selectbox(field.replace("_", " ").title(), options)
+            filters[field] = col.selectbox(t(field.replace("_", " ").title()), options, format_func=t)
         cohort = predictions.copy()
         for field, value in filters.items():
             if value != "All":
                 cohort = cohort[cohort[field].astype(str).eq(value)]
         if cohort.empty:
-            st.warning("No records match this cohort.")
+            st.warning(t("No records match this cohort."))
         else:
             cols = st.columns(4)
-            cols[0].metric("Cohort size", f"{len(cohort):,}")
-            cols[1].metric("Observed adoption", f"{cohort['classification_target'].mean() * 100:.1f}%")
-            cols[2].metric("Mean predicted adoption", f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
-            cols[3].metric("Median predicted days", f"{cohort['predicted_days_to_outcome'].median():.1f}")
+            cols[0].metric(t("Cohort size"), f"{len(cohort):,}")
+            cols[1].metric(t("Observed adoption"), f"{cohort['classification_target'].mean() * 100:.1f}%")
+            cols[2].metric(t("Mean predicted adoption"), f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
+            cols[3].metric(t("Median predicted days"), f"{cohort['predicted_days_to_outcome'].median():.1f}")
             st.write(
-                "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low "
-                "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
+                t(
+                    "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low "
+                    "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
+                )
             )
             st.dataframe(cohort.head(100), use_container_width=True, hide_index=True)
 
 with tabs[9]:
-    st.subheader("What-if Prediction")
-    st.caption("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.")
+    st.subheader(t("Model Sensitivity Demo"))
+    st.warning(CAUSAL_WARNING)
+    st.caption(t("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule."))
 
     left, right = st.columns(2)
     with left:
-        animal_type = st.selectbox("Animal type", ["Dog", "Cat"])
+        animal_type = st.selectbox(t("Animal type"), ["Dog", "Cat"], format_func=t)
         intake_type = st.selectbox(
-            "Intake type",
+            t("Intake type"),
             ["Stray", "Owner Surrender", "Public Assist", "Abandoned", "Euthanasia Request"],
+            format_func=t,
         )
         intake_condition = st.selectbox(
-            "Intake condition",
+            t("Intake condition"),
             ["Normal", "Injured", "Sick", "Nursing", "Neonatal", "Aged", "Medical", "Behavior", "Other"],
+            format_func=t,
         )
         sex_upon_intake = st.selectbox(
-            "Sex upon intake",
+            t("Sex upon intake"),
             ["Intact Male", "Intact Female", "Neutered Male", "Spayed Female", "Unknown"],
+            format_func=t,
         )
-        has_name = st.toggle("Has name", value=True)
+        has_name = st.toggle(t("Has name"), value=True)
     with right:
-        age_years = st.slider("Age in years", min_value=0.0, max_value=20.0, value=2.0, step=0.25)
-        breed = st.text_input("Breed", value="Labrador Retriever Mix" if animal_type == "Dog" else "Domestic Shorthair Mix")
-        color = st.text_input("Color", value="Black/White")
-        intake_date = st.date_input("Intake date", value=date(2024, 6, 1))
+        age_years = st.slider(t("Age in years"), min_value=0.0, max_value=20.0, value=2.0, step=0.25)
+        breed = st.text_input(t("Breed"), value="Labrador Retriever Mix" if animal_type == "Dog" else "Domestic Shorthair Mix")
+        color = st.text_input(t("Color"), value="Black/White")
+        intake_date = st.date_input(t("Intake date"), value=date(2024, 6, 1))
 
     record = build_prediction_record(
         animal_type=animal_type,
@@ -595,30 +884,30 @@ with tabs[9]:
         intake_date=pd.Timestamp(intake_date),
     )
 
-    if st.button("Run prediction", type="primary"):
+    if st.button(t("Run prediction"), type="primary"):
         try:
             prediction = predict_from_record(record, MODELS_DIR)
             probability_pct = prediction["adoption_probability"] * 100
             days = prediction["predicted_days_to_outcome"]
             col1, col2 = st.columns(2)
-            col1.metric("Predicted adoption probability", f"{probability_pct:.1f}%")
-            col2.metric("Predicted days to outcome", f"{days:.1f}")
+            col1.metric(t("Predicted adoption probability"), f"{probability_pct:.1f}%")
+            col2.metric(t("Predicted days to outcome"), f"{days:.1f}")
             st.dataframe(record, use_container_width=True, hide_index=True)
             similar = similar_historical_cases(DATA_PATH, record)
             if not similar.empty:
-                st.subheader("Similar Historical Cases")
+                st.subheader(t("Similar Historical Cases"))
                 st.dataframe(similar, use_container_width=True, hide_index=True)
         except FileNotFoundError as error:
             st.error(str(error))
-            st.info("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.")
+            st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first."))
 
 with tabs[10]:
-    st.subheader("Adoption Timeline")
+    st.subheader(t("Adoption Timeline"))
     milestones = tables["milestones"]
     if milestones.empty:
-        st.info("Run diagnostics to generate adoption timeline milestones.")
+        st.info(t("Run diagnostics to generate adoption timeline milestones."))
     else:
-        group = st.selectbox("Timeline group", sorted(milestones["group"].unique()))
+        group = st.selectbox(t("Timeline group"), sorted(milestones["group"].unique()))
         view = milestones[milestones["group"].eq(group)].head(15)
         timeline_chart = view.melt(
             id_vars=["value", "adoptions"],
@@ -631,13 +920,13 @@ with tabs[10]:
             .mark_bar()
             .encode(
                 x=alt.X("value:N", sort="-y", title=group.replace("_", " ")),
-                y=alt.Y("share:Q", title="Share adopted (%)"),
-                color=alt.Color("milestone:N", title="Milestone"),
+                y=alt.Y("share:Q", title=t("Share adopted (%)")),
+                color=alt.Color("milestone:N", title=t("Milestone")),
                 tooltip=[
-                    alt.Tooltip("value:N", title="Value"),
-                    alt.Tooltip("adoptions:Q", title="Adoptions"),
-                    alt.Tooltip("milestone:N", title="Milestone"),
-                    alt.Tooltip("share:Q", title="Adopted by day"),
+                    alt.Tooltip("value:N", title=t("Value")),
+                    alt.Tooltip("adoptions:Q", title=t("Adoptions")),
+                    alt.Tooltip("milestone:N", title=t("Milestone")),
+                    alt.Tooltip("share:Q", title=t("Adopted by day")),
                 ],
             )
             .properties(height=360),
@@ -647,8 +936,8 @@ with tabs[10]:
         st.dataframe(milestones, use_container_width=True, hide_index=True)
 
 with tabs[11]:
-    st.subheader("Generated Artifacts")
-    st.write("Core commands:")
+    st.subheader(t("Generated Artifacts"))
+    st.write(t("Core commands:"))
     st.code(
         "\n".join(
             [
@@ -666,14 +955,14 @@ with tabs[11]:
         ),
         language="bash",
     )
-    st.write("Reports directory:", str(PROJECT_ROOT / "reports"))
-    st.write("Models directory:", str(MODELS_DIR))
+    st.write(t("Reports directory:"), str(PROJECT_ROOT / "reports"))
+    st.write(t("Models directory:"), str(MODELS_DIR))
 
 with tabs[12]:
-    st.subheader("External Context Feature Test")
+    st.subheader(t("External Context Feature Test"))
     context_comparison = tables["context_model_comparison"]
     if context_comparison.empty:
-        st.info("Run the commands below to populate `context_model_comparison.csv`.")
+        st.info(t("Run the commands below to populate `context_model_comparison.csv`."))
         st.code(
             "\n".join(
                 [
@@ -692,7 +981,7 @@ with tabs[12]:
             language="bash",
         )
     else:
-        st.caption("Context features use intake-date weather and prior-window 311/intake-volume counts only.")
+        st.caption(t("Context features use intake-date weather and prior-window 311/intake-volume counts only."))
         view = context_comparison.copy()
         view["direction"] = view.apply(
             lambda row: "improved"
@@ -700,17 +989,40 @@ with tabs[12]:
             else "worsened",
             axis=1,
         )
+        view["direction_label"] = view["direction"].map(t)
         st.dataframe(view, use_container_width=True, hide_index=True)
         st.altair_chart(
             alt.Chart(view)
             .mark_bar()
             .encode(
-                x=alt.X("delta:Q", title="Context minus base metric delta"),
-                y=alt.Y("model_name:N", title="Model"),
-                color=alt.Color("direction:N", title="Effect"),
-                column=alt.Column("task:N", title="Task"),
-                tooltip=["animal_subset", "model_name", "primary_metric", "base_score", "context_score", "delta", "direction"],
+                x=alt.X("delta:Q", title=t("Context minus base metric delta")),
+                y=alt.Y("model_name:N", title=t("Model")),
+                color=alt.Color("direction_label:N", title=t("Effect")),
+                column=alt.Column("task:N", title=t("Task")),
+                tooltip=["animal_subset", "model_name", "primary_metric", "base_score", "context_score", "delta", "direction_label"],
             )
             .properties(height=280),
             use_container_width=True,
         )
+
+with tabs[13]:
+    st.subheader(t("📖 Thesis Guide"))
+    st.markdown(
+        t(
+            "Follow this 7-step guided flow to review the thesis methodology, results, and outputs:\n\n"
+            "1. **Step 1: Data Pipeline Overview** (Go to **Story Mode** tab)\n"
+            "   - *What to look for:* The overall flow from raw shelter records to final model decisions, visualized via Sankey and workflow diagrams.\n"
+            "2. **Step 2: Target Definitions** (Go to **Artifacts** tab -> click `docs/target_definitions.md` link)\n"
+            "   - *What to look for:* The formal definition of binary adoption outcome and length-of-stay targets, including leakage audit considerations.\n"
+            "3. **Step 3: Best Model Results** (Go to **Model Quality** tab)\n"
+            "   - *What to look for:* Performance comparisons (ROC-AUC and MAE) across baselines, tree ensembles, and CatBoost models.\n"
+            "4. **Step 4: H1 / H3 / H5 Findings** (Go to **Hypothesis Lab** tab)\n"
+            "   - *What to look for:* Empirical and model evidence supporting the core thesis hypotheses regarding intake context, age, and COVID-period dynamics.\n"
+            "5. **Step 5: Trust & Limits** (Go to **Trust & Limits** tab)\n"
+            "   - *What to look for:* Methodological disclaimers, external validity warnings, and subgroup reliability red flags.\n"
+            "6. **Step 6: Animal Stories** (Go to **Animal Stories** tab)\n"
+            "   - *What to look for:* Representative animal journey cards displaying global/local SHAP feature contributions and similar historical cases.\n"
+            "7. **Step 7: Model Sensitivity Demo** (Go to **Model Sensitivity Demo** tab)\n"
+            "   - *What to look for:* Interactive what-if predictions showing how changing input parameters affects predicted adoption probability and stay duration."
+        )
+    )

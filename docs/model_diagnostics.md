@@ -35,11 +35,11 @@ The diagnostics layer creates:
 
 ## Interpretation Rules
 
-The model identifies predictive associations. SHAP values and feature-importance scores do not prove causal effects.
+SHAP values explain how features contributed to this model's prediction. They do not prove that changing a feature would causally change adoption probability.
 
 Recommended thesis phrasing:
 
-> The interpretability outputs show which intake-time characteristics are most associated with the model predictions. These associations help explain predictive behavior, but they should not be interpreted as direct causal effects on adoption.
+> The interpretability outputs show which intake-time characteristics are most associated with the model predictions. These associations help explain predictive behavior, but they should not be interpreted as direct causal effects on adoption. SHAP values explain how features contributed to this model's prediction. They do not prove that changing a feature would causally change adoption probability.
 
 ## Dashboard Views
 

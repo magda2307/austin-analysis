@@ -9,3 +9,4 @@ altair>=5
 catboost>=1.2
 shap>=0.45
 plotly>=5.20
+lifelines>=0.27

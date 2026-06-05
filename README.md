@@ -4,6 +4,29 @@ Code foundation for the thesis project:
 
 **Life-Saving Data: Analyzing Factors Affecting Adoptions at the Austin Animal Center via Machine Learning and Visualization**
 
+## Scope and Claim
+
+This thesis builds a **reproducible, leakage-safe, interpretable supervised machine learning pipeline** for analyzing adoption likelihood and length-of-stay patterns in Austin Animal Center dog and cat records using **intake-time features only**.
+
+**What this project claims:**
+- Intake-time predictors (breed, color, age, intake type, covid period, etc.) are **associated with** adoption likelihood and length-of-stay patterns in AAC records.
+- The ML models demonstrate **predictive association**, not causal effects.
+- Findings are **descriptive evidence** for the AAC dataset (2013–2025) and do not generalize beyond AAC without replication.
+- The Streamlit dashboard is a **thesis demo and presentation layer**. It is not the main scientific contribution. The scientific contribution is the pipeline, the feature study, and the reproducible evidence pack.
+
+**What this project does NOT claim:**
+- That intake features *cause* adoption outcomes.
+- That COVID *caused* adoption rates to change.
+- That dark-colored animals are *discriminated against* (framed as descriptive association only).
+- That the regression output is *adoption speed* — it is length of stay until any matched outcome.
+
+**Required terminology:**
+- Use: `predictive association`, `associated with`, `linked to model output`, `intake-time predictors`, `length of stay`, `time to outcome`, `descriptive time-to-adoption evidence`.
+- Avoid: `causes adoption`, `proves`, `adoption speed` (unless subset is adopted animals only), `days to adoption` (unless explicitly filtered to adopted episodes).
+
+See `docs/target_definitions.md` for formal target variable definitions.
+See `docs/methodology_notes.md` for regression and causal-framing justifications.
+
 This repository focuses first on a clean, reproducible data and ML pipeline for Austin Animal Center dog/cat adoption analysis.
 
 ## Current Status
@@ -54,13 +77,13 @@ Do not treat all thesis hypotheses as equal implementation priorities.
 Central analytical threads:
 
 - **H1:** intake type vs breed/color/appearance,
-- **H3:** age and adoption speed,
-- **H5:** COVID-period change.
+- **H3:** age and length-of-stay / time-to-outcome patterns (descriptive adoption timing among adopted animals),
+- **H5:** COVID-period change in adoption rates and outcome patterns.
 
 Secondary descriptive threads:
 
 - **H2:** seasonality,
-- **H4:** black dog/cat syndrome.
+- **H4:** black dog/cat syndrome (dark coloring and adoption rate — descriptive association only).
 
 The code should first support robust dataset construction, baseline modeling, and clean outputs for H1/H3/H5. H2 and H4 should remain available through prepared variables such as `intake_month`, `intake_season`, `color`, and `color_group`, but they should not dominate the first modeling work.
 
@@ -420,26 +443,6 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
 - Trust & Limits evidence-pack view with subgroup selector, calibration-gap chart, confidence intervals, model-struggle table, and adoption milestone chart,
 - a simple what-if prediction form using combined CatBoost artifacts.
-
-## Current Results Snapshot
-
-Current full-data model comparison:
-
-- best classification model by ROC-AUC: `hist_gradient_boosting`,
-- combined classification ROC-AUC: about `0.840`,
-- dogs classification ROC-AUC: about `0.813` with CatBoost,
-- cats classification ROC-AUC: about `0.865`,
-- best regression model by MAE: `catboost`,
-- combined regression MAE: about `18.55` days,
-- dogs regression MAE: about `21.56` days,
-- cats regression MAE: about `15.79` days.
-
-Use these numbers as current pipeline outputs, not final thesis conclusions. Models show predictive association, not causality.
-
-## Full Reproduction Flow
-
-```bash
-python scripts/download_raw_data.py --source historical --output-dir data/raw --overwrite
 python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/raw/outcomes.csv --output data/processed/modeling_dataset.csv
 python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
@@ -510,6 +513,13 @@ The processed modeling dataset includes, where available:
 - `age_upon_intake`
 - `breed`
 - `color`
+- `found_location_kind`
+- `found_location_area`
+- `is_austin_found_location`
+- `is_outside_jurisdiction`
+- `is_intersection_location`
+- `is_address_like_location`
+- `is_airport_location`
 - `has_name`
 - `is_named`
 - `age_in_days`

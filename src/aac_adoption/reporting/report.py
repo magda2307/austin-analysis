@@ -149,6 +149,8 @@ def _best_rows(df: pd.DataFrame, metric: str, ascending: bool) -> pd.DataFrame:
     return ranked.groupby("animal_subset", as_index=False).head(1).drop(columns=["subset_order"])
 
 
+
+
 def _summary_lines(
     classification: pd.DataFrame,
     regression: pd.DataFrame,
@@ -180,7 +182,7 @@ def _summary_lines(
         for _, row in best_classification.iterrows():
             lines.append(
                 f"- {row['animal_subset']}: {row['model_name']} "
-                f"(ROC-AUC {_format_number(row.get('roc_auc'))}, F1 {_format_number(row.get('f1'))})"
+                f"(ROC-AUC {_format_number(row.get('roc_auc'))}, PR-AUC {_format_number(row.get('pr_auc'))}, F1 {_format_number(row.get('f1'))})"
             )
 
     lines.append("")

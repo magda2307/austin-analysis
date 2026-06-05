@@ -42,6 +42,7 @@ INTAKE_COLUMNS_TO_KEEP = [
     "age_upon_intake",
     "breed",
     "color",
+    "found_location",
 ]
 
 OUTCOME_COLUMNS_TO_KEEP = [
@@ -109,6 +110,13 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         "age_upon_outcome",
         "breed",
         "color",
+        "found_location_kind",
+        "found_location_area",
+        "is_austin_found_location",
+        "is_outside_jurisdiction",
+        "is_intersection_location",
+        "is_address_like_location",
+        "is_airport_location",
         "has_name",
         "is_named",
         "age_in_days",

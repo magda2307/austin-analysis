@@ -78,7 +78,7 @@ def test_hypothesis_support_tables_are_created(tmp_path):
 
     create_hypothesis_support_tables(data_path, tables_dir)
 
-    for filename in ["h1_intake_vs_appearance.csv", "h3_age_adoption_speed.csv", "h5_covid_period.csv"]:
+    for filename in ["h1_intake_vs_appearance.csv", "h3_age_length_of_stay.csv", "h5_covid_period.csv"]:
         table = pd.read_csv(tables_dir / filename)
         assert {"records", "adoption_rate_pct", "median_days_to_outcome"}.issubset(table.columns)
 

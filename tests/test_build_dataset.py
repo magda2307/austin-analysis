@@ -24,6 +24,7 @@ def _sample_intakes() -> pd.DataFrame:
                     "Age upon Intake": "2 years",
                     "Breed": "Labrador Retriever Mix",
                     "Color": "Black/White",
+                    "Found Location": "Austin (TX)",
                 },
                 {
                     "Animal ID": "A2",
@@ -36,6 +37,7 @@ def _sample_intakes() -> pd.DataFrame:
                     "Age upon Intake": "7 months",
                     "Breed": "Domestic Shorthair",
                     "Color": "Brown Tabby",
+                    "Found Location": "Airport And Denson in Austin (TX)",
                 },
                 {
                     "Animal ID": "A3",
@@ -48,6 +50,7 @@ def _sample_intakes() -> pd.DataFrame:
                     "Age upon Intake": "1 year",
                     "Breed": "Rabbit",
                     "Color": "White",
+                    "Found Location": "Outside Jurisdiction",
                 },
             ]
         )
@@ -100,6 +103,10 @@ def test_build_modeling_dataset_filters_and_creates_targets():
     assert dataset.loc[dataset["animal_id"] == "A1", "classification_target"].item() == 1
     assert dataset.loc[dataset["animal_id"] == "A2", "classification_target"].item() == 0
     assert dataset.loc[dataset["animal_id"] == "A1", "simplified_color_group"].item() == "black_or_dark"
+    assert dataset.loc[dataset["animal_id"] == "A1", "found_location_kind"].item() == "austin_city"
+    assert dataset.loc[dataset["animal_id"] == "A2", "found_location_kind"].item() == "intersection"
+    assert bool(dataset.loc[dataset["animal_id"] == "A2", "is_airport_location"].item()) is True
+    assert "found_location" not in dataset.columns
     assert bool(dataset.loc[dataset["animal_id"] == "A1", "is_black_or_dark"].item()) is True
     assert bool(dataset.loc[dataset["animal_id"] == "A2", "has_name"].item()) is False
 
@@ -191,4 +198,5 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
     assert "daily_temp_max" in dataset.columns
     assert dataset.loc[dataset["animal_id"] == "A1", "daily_temp_max"].item() == 96
     assert dataset.loc[dataset["animal_id"] == "A1", "animal_311_requests_7d"].item() == 3
+    assert "found_location_kind" in dataset.columns
     assert (tmp_path / "processed" / "context_feature_columns.json").exists()

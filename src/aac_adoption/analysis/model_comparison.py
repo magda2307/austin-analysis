@@ -1,7 +1,11 @@
-"""Model comparison tables for baseline and boosting runs."""
+"""Model comparison tables and plots for baseline and boosting runs."""
+
+from __future__ import annotations
 
 from pathlib import Path
-
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 import pandas as pd
 
 
@@ -61,6 +65,45 @@ def _context_delta_table(classification: pd.DataFrame, regression: pd.DataFrame)
     return pd.DataFrame(rows)
 
 
+def _plot_pr_auc(df: pd.DataFrame, out_path: Path) -> None:
+    if df.empty or "pr_auc" not in df.columns:
+        return
+
+    plot_df = df.dropna(subset=["pr_auc"]).copy()
+    if plot_df.empty:
+        return
+
+    subsets = ["combined", "dogs", "cats"]
+    present_subsets = [s for s in subsets if s in plot_df["animal_subset"].unique()]
+    models = list(dict.fromkeys(plot_df["model_name"].astype(str)))
+    width = 0.8 / max(len(models), 1)
+    x_positions = list(range(len(present_subsets)))
+
+    fig, ax = plt.subplots(figsize=(10, 5.5))
+    for index, model in enumerate(models):
+        values = []
+        for subset in present_subsets:
+            match = plot_df[
+                (plot_df["animal_subset"].astype(str) == subset)
+                & (plot_df["model_name"].astype(str) == model)
+            ]
+            values.append(float(match.iloc[0]["pr_auc"]) if not match.empty else 0.0)
+        offset = (index - (len(models) - 1) / 2) * width
+        ax.bar([x + offset for x in x_positions], values, width=width, label=model.replace("_", " "))
+
+    ax.set_title("Classification PR-AUC by model and subset")
+    ax.set_ylabel("PR-AUC")
+    ax.set_xticks(x_positions)
+    ax.set_xticklabels(present_subsets)
+    ax.legend(loc="best", fontsize=8)
+    ax.set_ylim(bottom=0, top=1.0)
+    ax.grid(axis="y", alpha=0.25)
+    fig.tight_layout()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+
+
 def create_model_comparison_tables(
     metrics_dir: str | Path = "reports/metrics",
     tables_dir: str | Path = "reports/tables",
@@ -90,15 +133,29 @@ def create_model_comparison_tables(
             ascending=False,
             method="min",
         )
+        if "pr_auc" in classification.columns:
+            classification["pr_auc_rank"] = classification.groupby("animal_subset")["pr_auc"].rank(
+                ascending=False,
+                method="min",
+            )
         classification["f1_rank"] = classification.groupby("animal_subset")["f1"].rank(
             ascending=False,
             method="min",
         )
+        sort_cols = ["animal_subset", "roc_auc", "f1"]
+        sort_asc = [True, False, False]
+        if "pr_auc" in classification.columns:
+            sort_cols = ["animal_subset", "roc_auc", "pr_auc", "f1"]
+            sort_asc = [True, False, False, False]
         classification = classification.sort_values(
-            ["animal_subset", "roc_auc", "f1"],
-            ascending=[True, False, False],
+            sort_cols,
+            ascending=sort_asc,
         )
         classification.to_csv(tables / "model_comparison_classification.csv", index=False)
+
+        # Plot PR-AUC
+        figures_dir = tables.parent / "figures"
+        _plot_pr_auc(classification, figures_dir / "model_comparison_classification_pr_auc.png")
 
     if not regression.empty:
         regression["mae_rank"] = regression.groupby("animal_subset")["mae"].rank(
