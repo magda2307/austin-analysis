@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from aac_adoption.data.clean_data import clean_intakes, clean_outcomes
+from aac_adoption.data.context_data import CONTEXT_FEATURES, add_context_features_from_dir
 from aac_adoption.data.load_data import load_intakes, load_outcomes
 from aac_adoption.data.match_records import match_intakes_to_future_outcomes
 from aac_adoption.features.feature_engineering import add_intake_features
@@ -174,9 +175,18 @@ def build_modeling_dataset_from_files(
     intakes_path: str | Path,
     outcomes_path: str | Path,
     output_path: str | Path,
+    context_data_dir: str | Path | None = None,
 ) -> DatasetBuildResult:
     """Load raw CSVs, build modeling dataset, and write processed CSV."""
     result = build_modeling_dataset(load_intakes(intakes_path), load_outcomes(outcomes_path))
+    dataset = result.dataset
+    if context_data_dir is not None:
+        dataset = add_context_features_from_dir(dataset, context_data_dir)
+        result = DatasetBuildResult(
+            dataset=dataset,
+            matched_rows=result.matched_rows,
+            unmatched_intakes=result.unmatched_intakes,
+        )
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -194,4 +204,10 @@ def build_modeling_dataset_from_files(
         json.dumps(target_columns, indent=2),
         encoding="utf-8",
     )
+    if context_data_dir is not None:
+        context_columns = [column for column in CONTEXT_FEATURES if column in result.dataset.columns]
+        (output.parent / "context_feature_columns.json").write_text(
+            json.dumps(context_columns, indent=2),
+            encoding="utf-8",
+        )
     return result

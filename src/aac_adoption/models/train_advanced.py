@@ -11,7 +11,12 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 import pandas as pd
 
 from aac_adoption.config import RANDOM_STATE
-from aac_adoption.features.feature_sets import INTAKE_TIME_FEATURES, available_intake_features, validate_no_leakage
+from aac_adoption.features.feature_sets import (
+    INTAKE_TIME_FEATURES,
+    available_intake_features,
+    feature_set_label,
+    validate_no_leakage,
+)
 from aac_adoption.models.artifacts import save_model_artifact
 from aac_adoption.models.evaluate import classification_metrics, regression_metrics
 from aac_adoption.models.split import DatasetSplit, make_time_split
@@ -75,7 +80,7 @@ def _base_metadata(
         "train_period": split.train_period,
         "validation_period": split.validation_period,
         "test_period": split.test_period,
-        "feature_set": "intake_time_v1",
+        "feature_set": feature_set_label(feature_columns),
         "random_state": RANDOM_STATE,
         "run_timestamp": run_timestamp,
         "train_rows": len(split.train),

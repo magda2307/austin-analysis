@@ -31,6 +31,15 @@ def _small_modeling_dataset() -> pd.DataFrame:
                         "intake_quarter": 1,
                         "intake_season": "winter",
                         "covid_period": "pre_covid" if year < 2020 else "post_covid",
+                        "daily_temp_max": 80 + i,
+                        "daily_temp_min": 50 + i,
+                        "daily_precipitation": 0.1 if i == 0 else 0.0,
+                        "is_extreme_heat": i == 3,
+                        "is_rainy_day": i == 0,
+                        "animal_311_requests_7d": float(i + 1),
+                        "animal_311_requests_30d": float(i + 10),
+                        "intake_volume_7d": float(i + 2),
+                        "intake_volume_30d": float(i + 20),
                         "classification_target": adopted,
                         "regression_target_days": float(5 + i + (year - 2018)),
                     }
@@ -66,6 +75,7 @@ def test_train_all_baselines_writes_metadata_rich_outputs(tmp_path):
     assert required_columns.issubset(outputs.classification_metrics.columns)
     assert required_columns.issubset(outputs.regression_metrics.columns)
     assert set(outputs.classification_metrics["animal_subset"]) == {"combined", "dogs", "cats"}
+    assert set(outputs.classification_metrics["feature_set"]) == {"intake_time_context_v1"}
     assert (metrics_dir / "classification_metrics.csv").exists()
     assert (metrics_dir / "regression_metrics.csv").exists()
     assert list(models_dir.rglob("*.joblib"))

@@ -115,6 +115,21 @@ Available sources:
 - `historical`: 2013-10-01 to 2025-05-05 AAC records.
 - `current`: ShelterBuddy records from 2025-05-05 onward.
 
+## Download External Context Data
+
+Optional context features add intake-date weather, prior Austin 311 animal-service demand, and prior shelter intake volume. They remain intake-time-only and are used for predictive association, not causal claims.
+
+```bash
+python scripts/download_context_data.py --output-dir data/raw/context
+```
+
+This creates:
+
+```text
+data/raw/context/austin_weather_daily.csv
+data/raw/context/austin_311_animal_requests.csv
+```
+
 ## Build Modeling Dataset
 
 Install dependencies:
@@ -135,6 +150,31 @@ Output:
 data/processed/modeling_dataset.csv
 data/processed/feature_columns.json
 data/processed/target_columns.json
+```
+
+To build a context-enriched dataset:
+
+```bash
+python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/raw/outcomes.csv --output data/processed/modeling_dataset_context.csv --context-data-dir data/raw/context
+```
+
+Context feature metadata is saved to:
+
+```text
+data/processed/context_feature_columns.json
+```
+
+To compare base and context-enriched models without overwriting metrics, train into separate metric/model folders and then create the context comparison table:
+
+```bash
+python scripts/train_baseline.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_baseline --tables-dir reports/tables_base --output reports/metrics_base/baseline_metrics.csv
+python scripts/train_boosting.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_boosting --tables-dir reports/tables_base
+python scripts/train_advanced.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_advanced
+python scripts/train_baseline.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_baseline --tables-dir reports/tables_context --output reports/metrics_context/baseline_metrics.csv
+python scripts/train_boosting.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_boosting --tables-dir reports/tables_context
+python scripts/train_advanced.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_advanced
+python scripts/compare_context_models.py --base-metrics-dir reports/metrics_base --context-metrics-dir reports/metrics_context --tables-dir reports/tables
+python scripts/generate_report_outputs.py
 ```
 
 ## Train Baseline Models

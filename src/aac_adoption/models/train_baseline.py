@@ -17,6 +17,7 @@ from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
     INTAKE_TIME_FEATURES,
     available_intake_features,
+    feature_set_label,
     validate_no_leakage,
 )
 from aac_adoption.interpretation.explain import (
@@ -38,6 +39,13 @@ NUMERIC_FEATURES = [
     "intake_year",
     "intake_month",
     "intake_quarter",
+    "daily_temp_max",
+    "daily_temp_min",
+    "daily_precipitation",
+    "animal_311_requests_7d",
+    "animal_311_requests_30d",
+    "intake_volume_7d",
+    "intake_volume_30d",
 ]
 CATEGORICAL_FEATURES = [
     "animal_type",
@@ -53,6 +61,8 @@ CATEGORICAL_FEATURES = [
     "is_named",
     "intake_season",
     "covid_period",
+    "is_extreme_heat",
+    "is_rainy_day",
 ]
 ANIMAL_SUBSETS = ["combined", "dogs", "cats"]
 
@@ -167,7 +177,7 @@ def _fit_and_save(
         model_name=model_name,
         task=task,
         split=split,
-        feature_set="intake_time_v1",
+        feature_set=feature_set_label(feature_columns),
         run_timestamp=run_timestamp,
     )
     path = save_model_artifact(

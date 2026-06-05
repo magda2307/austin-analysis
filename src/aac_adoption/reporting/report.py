@@ -152,6 +152,7 @@ def _best_rows(df: pd.DataFrame, metric: str, ascending: bool) -> pd.DataFrame:
 def _summary_lines(
     classification: pd.DataFrame,
     regression: pd.DataFrame,
+    context_comparison: pd.DataFrame,
     h1: pd.DataFrame,
     h3: pd.DataFrame,
     h5: pd.DataFrame,
@@ -195,7 +196,30 @@ def _summary_lines(
                 f"(MAE {_format_days(row.get('mae'))}, RMSE {_format_days(row.get('rmse'))})"
             )
 
-    lines.extend(["", "## Hypothesis Signals", ""])
+    if not context_comparison.empty and {"task", "animal_subset", "model_name", "delta", "higher_is_better"}.issubset(context_comparison.columns):
+        lines.extend(["## External Context Feature Test", ""])
+        lines.append(
+            "Context features use intake-date weather plus prior-window 311 and shelter intake volumes; rolling counts use only dates before intake."
+        )
+        lines.append("Overall, context effects should be treated as small unless the metric delta is large enough to matter operationally.")
+        lines.append("")
+        for task, task_rows in context_comparison.sort_values(["task", "animal_subset", "model_name"]).groupby("task"):
+            lines.append(f"{task.title()} context deltas:")
+            lines.append("")
+            for _, row in task_rows.head(8).iterrows():
+                if abs(float(row["delta"])) < 0.0005:
+                    direction = "changed negligibly"
+                elif (row["delta"] > 0 and row["higher_is_better"]) or (row["delta"] < 0 and not row["higher_is_better"]):
+                    direction = "improved"
+                else:
+                    direction = "worsened"
+                lines.append(
+                    f"- {row['animal_subset']} / {row['model_name']}: "
+                    f"context {direction} {row['primary_metric']} by {_format_number(abs(row['delta']))}."
+                )
+            lines.append("")
+
+    lines.extend(["## Hypothesis Signals", ""])
 
     if not h1.empty and {"variable", "records", "adoption_rate_pct"}.issubset(h1.columns):
         intake_rows = h1[h1["variable"] == "intake_type"].sort_values("records", ascending=False)
@@ -307,6 +331,7 @@ def create_report_outputs(
 
     classification = _read_table(tables / "model_comparison_classification.csv")
     regression = _read_table(tables / "model_comparison_regression.csv")
+    context_comparison = _read_table(tables / "context_model_comparison.csv")
     h1 = _read_table(tables / "h1_intake_vs_appearance.csv")
     h3 = _read_table(tables / "h3_age_adoption_speed.csv")
     h5 = _read_table(tables / "h5_covid_period.csv")
@@ -338,6 +363,14 @@ def create_report_outputs(
         figures / "model_comparison_regression_mae.png",
         "Regression MAE by model and subset",
         "MAE in days",
+        lower_is_better=True,
+    )
+    _save_grouped_metric_plot(
+        context_comparison,
+        "delta",
+        figures / "context_model_delta.png",
+        "Context feature delta by model and subset",
+        "Context minus base metric delta",
         lower_is_better=True,
     )
     _save_grouped_metric_plot(
@@ -406,6 +439,7 @@ def create_report_outputs(
             _summary_lines(
                 classification,
                 regression,
+                context_comparison,
                 h1,
                 h3,
                 h5,

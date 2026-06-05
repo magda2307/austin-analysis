@@ -73,6 +73,7 @@ def cached_tables() -> dict[str, pd.DataFrame]:
         "subgroup_adoption_milestones": load_table(TABLES_DIR, "subgroup_adoption_milestones"),
         "model_failure_modes": load_table(TABLES_DIR, "model_failure_modes"),
         "animal_journey_examples": load_table(TABLES_DIR, "animal_journey_examples"),
+        "context_model_comparison": load_table(TABLES_DIR, "context_model_comparison"),
         "shap_classification": load_optional_csv(TABLES_DIR, "shap_global_classification.csv"),
         "shap_regression": load_optional_csv(TABLES_DIR, "shap_global_regression.csv"),
         "shap_family_classification": load_optional_csv(TABLES_DIR, "shap_feature_families_classification.csv"),
@@ -138,6 +139,7 @@ tabs = st.tabs(
         "What-if Prediction",
         "Adoption Timeline",
         "Artifacts",
+        "Context Data",
     ]
 )
 
@@ -666,3 +668,49 @@ with tabs[11]:
     )
     st.write("Reports directory:", str(PROJECT_ROOT / "reports"))
     st.write("Models directory:", str(MODELS_DIR))
+
+with tabs[12]:
+    st.subheader("External Context Feature Test")
+    context_comparison = tables["context_model_comparison"]
+    if context_comparison.empty:
+        st.info("Run the commands below to populate `context_model_comparison.csv`.")
+        st.code(
+            "\n".join(
+                [
+                    "python scripts/download_context_data.py --output-dir data/raw/context",
+                    "python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/raw/outcomes.csv --output data/processed/modeling_dataset_context.csv --context-data-dir data/raw/context",
+                    "python scripts/train_baseline.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_baseline --tables-dir reports/tables_base --output reports/metrics_base/baseline_metrics.csv",
+                    "python scripts/train_boosting.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_boosting --tables-dir reports/tables_base",
+                    "python scripts/train_advanced.py --data data/processed/modeling_dataset.csv --metrics-dir reports/metrics_base --models-dir models/base_advanced",
+                    "python scripts/train_baseline.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_baseline --tables-dir reports/tables_context --output reports/metrics_context/baseline_metrics.csv",
+                    "python scripts/train_boosting.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_boosting --tables-dir reports/tables_context",
+                    "python scripts/train_advanced.py --data data/processed/modeling_dataset_context.csv --metrics-dir reports/metrics_context --models-dir models/context_advanced",
+                    "python scripts/compare_context_models.py --base-metrics-dir reports/metrics_base --context-metrics-dir reports/metrics_context --tables-dir reports/tables",
+                    "python scripts/generate_report_outputs.py",
+                ]
+            ),
+            language="bash",
+        )
+    else:
+        st.caption("Context features use intake-date weather and prior-window 311/intake-volume counts only.")
+        view = context_comparison.copy()
+        view["direction"] = view.apply(
+            lambda row: "improved"
+            if (row["delta"] > 0 and bool(row["higher_is_better"])) or (row["delta"] < 0 and not bool(row["higher_is_better"]))
+            else "worsened",
+            axis=1,
+        )
+        st.dataframe(view, use_container_width=True, hide_index=True)
+        st.altair_chart(
+            alt.Chart(view)
+            .mark_bar()
+            .encode(
+                x=alt.X("delta:Q", title="Context minus base metric delta"),
+                y=alt.Y("model_name:N", title="Model"),
+                color=alt.Color("direction:N", title="Effect"),
+                column=alt.Column("task:N", title="Task"),
+                tooltip=["animal_subset", "model_name", "primary_metric", "base_score", "context_score", "delta", "direction"],
+            )
+            .properties(height=280),
+            use_container_width=True,
+        )

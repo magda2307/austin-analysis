@@ -53,15 +53,31 @@ def test_create_report_outputs_writes_summary_and_figures(tmp_path):
             {"value": "covid", "records": 40, "adoption_rate_pct": 57.0, "median_days_to_outcome": 8.0},
         ]
     ).to_csv(tables_dir / "h5_covid_period.csv", index=False)
+    pd.DataFrame(
+        [
+            {
+                "task": "classification",
+                "animal_subset": "combined",
+                "model_name": "hist_gradient_boosting",
+                "primary_metric": "roc_auc",
+                "base_score": 0.84,
+                "context_score": 0.85,
+                "delta": 0.01,
+                "higher_is_better": True,
+            }
+        ]
+    ).to_csv(tables_dir / "context_model_comparison.csv", index=False)
 
     summary_path = create_report_outputs(tables_dir, figures_dir, summary_dir)
 
     assert summary_path.exists()
     summary_text = summary_path.read_text(encoding="utf-8")
     assert "Best classification models by ROC-AUC" in summary_text
+    assert "External Context Feature Test" in summary_text
     assert "H3 age-group patterns" in summary_text
     assert (figures_dir / "model_comparison_classification_roc_auc.png").exists()
     assert (figures_dir / "model_comparison_regression_mae.png").exists()
     assert (figures_dir / "h1_intake_type_adoption_rate.png").exists()
     assert (figures_dir / "h3_age_group_adoption_rate.png").exists()
     assert (figures_dir / "h5_covid_period_adoption_rate.png").exists()
+    assert (figures_dir / "context_model_delta.png").exists()

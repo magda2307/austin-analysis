@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 
-from aac_adoption.data.build_dataset import build_modeling_dataset, validate_modeling_dataset
+from aac_adoption.data.build_dataset import (
+    build_modeling_dataset,
+    build_modeling_dataset_from_files,
+    validate_modeling_dataset,
+)
 from aac_adoption.data.load_data import standardize_column_names
 
 
@@ -161,3 +165,30 @@ def test_repeated_animal_matches_each_intake_to_next_unused_outcome():
 
     assert dataset["days_to_outcome"].tolist() == [2.0, 9.0]
     assert dataset["classification_target"].tolist() == [0, 1]
+
+
+def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
+    intakes_path = tmp_path / "intakes.csv"
+    outcomes_path = tmp_path / "outcomes.csv"
+    output_path = tmp_path / "processed" / "modeling_dataset.csv"
+    context_dir = tmp_path / "context"
+    context_dir.mkdir()
+
+    _sample_intakes().to_csv(intakes_path, index=False)
+    _sample_outcomes().to_csv(outcomes_path, index=False)
+    pd.DataFrame({"DATE": ["2021-01-01", "2021-02-01"], "TMAX": [96, 70], "TMIN": [55, 40], "PRCP": [0.2, 0]}).to_csv(
+        context_dir / "austin_weather_daily.csv",
+        index=False,
+    )
+    pd.DataFrame({"request_date": ["2020-12-31", "2021-01-31"], "animal_311_requests": [3, 4]}).to_csv(
+        context_dir / "austin_311_animal_requests.csv",
+        index=False,
+    )
+
+    result = build_modeling_dataset_from_files(intakes_path, outcomes_path, output_path, context_data_dir=context_dir)
+    dataset = result.dataset
+
+    assert "daily_temp_max" in dataset.columns
+    assert dataset.loc[dataset["animal_id"] == "A1", "daily_temp_max"].item() == 96
+    assert dataset.loc[dataset["animal_id"] == "A1", "animal_311_requests_7d"].item() == 3
+    assert (tmp_path / "processed" / "context_feature_columns.json").exists()

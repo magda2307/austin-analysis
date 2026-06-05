@@ -1,6 +1,6 @@
 """Feature-set definitions and leakage checks."""
 
-INTAKE_TIME_FEATURES = [
+BASE_INTAKE_TIME_FEATURES = [
     "animal_type",
     "intake_type",
     "intake_condition",
@@ -26,6 +26,20 @@ INTAKE_TIME_FEATURES = [
     "intake_season",
     "covid_period",
 ]
+
+CONTEXT_FEATURES = [
+    "daily_temp_max",
+    "daily_temp_min",
+    "daily_precipitation",
+    "is_extreme_heat",
+    "is_rainy_day",
+    "animal_311_requests_7d",
+    "animal_311_requests_30d",
+    "intake_volume_7d",
+    "intake_volume_30d",
+]
+
+INTAKE_TIME_FEATURES = BASE_INTAKE_TIME_FEATURES + CONTEXT_FEATURES
 
 TARGET_COLUMNS = [
     "adopted",
@@ -60,6 +74,20 @@ def available_intake_features(columns: list[str] | set[str]) -> list[str]:
 def validate_no_leakage(feature_columns: list[str]) -> None:
     """Raise when outcome-derived columns are used as model features."""
     leakage = sorted(set(feature_columns) & LEAKAGE_COLUMNS)
+    leakage.extend(
+        sorted(
+            column
+            for column in set(feature_columns)
+            if "future" in column.lower() or "_next_" in column.lower() or column.lower().startswith("next_")
+        )
+    )
     if leakage:
         raise ValueError(f"Leakage columns cannot be model features: {leakage}")
 
+
+def feature_set_label(feature_columns: list[str] | set[str]) -> str:
+    """Return stable feature-set label for model metadata."""
+    columns = set(feature_columns)
+    if columns & set(CONTEXT_FEATURES):
+        return "intake_time_context_v1"
+    return "intake_time_v1"

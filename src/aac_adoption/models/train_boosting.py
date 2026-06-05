@@ -16,6 +16,7 @@ from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
     INTAKE_TIME_FEATURES,
     available_intake_features,
+    feature_set_label,
     validate_no_leakage,
 )
 from aac_adoption.interpretation.explain import append_table
@@ -77,6 +78,7 @@ def _base_metadata(
     model_name: str,
     task: str,
     split: DatasetSplit,
+    feature_columns: list[str],
     run_timestamp: str,
 ) -> dict:
     return {
@@ -87,7 +89,7 @@ def _base_metadata(
         "train_period": split.train_period,
         "validation_period": split.validation_period,
         "test_period": split.test_period,
-        "feature_set": "intake_time_v1",
+        "feature_set": feature_set_label(feature_columns),
         "random_state": RANDOM_STATE,
         "run_timestamp": run_timestamp,
         "train_rows": len(split.train),
@@ -113,7 +115,7 @@ def _fit_and_save(
         ]
     )
     pipeline.fit(split.train[feature_columns], split.train[target_column])
-    metadata = _base_metadata(model_name, task, split, run_timestamp)
+    metadata = _base_metadata(model_name, task, split, feature_columns, run_timestamp)
     path = save_model_artifact(pipeline, models_dir, task, split.animal_subset, model_name, metadata)
     metadata["artifact_path"] = str(path)
     return pipeline, metadata

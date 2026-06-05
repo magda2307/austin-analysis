@@ -72,6 +72,7 @@ TABLE_FILES = {
     "subgroup_adoption_milestones": "subgroup_adoption_milestones.csv",
     "model_failure_modes": "model_failure_modes.csv",
     "animal_journey_examples": "animal_journey_examples.csv",
+    "context_model_comparison": "context_model_comparison.csv",
 }
 
 DIAGNOSTIC_FILES = {
@@ -188,6 +189,15 @@ def build_prediction_record(
         "intake_quarter": intake_date.quarter,
         "intake_season": season_from_month(intake_date.month),
         "covid_period": covid_period_from_date(intake_date),
+        "daily_temp_max": pd.NA,
+        "daily_temp_min": pd.NA,
+        "daily_precipitation": pd.NA,
+        "is_extreme_heat": False,
+        "is_rainy_day": False,
+        "animal_311_requests_7d": 0.0,
+        "animal_311_requests_30d": 0.0,
+        "intake_volume_7d": 0.0,
+        "intake_volume_30d": 0.0,
     }
     return pd.DataFrame([{column: record[column] for column in INTAKE_TIME_FEATURES}])
 

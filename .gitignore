@@ -25,6 +25,8 @@ reports/tables/*
 reports/metrics/*
 reports/summary/*
 reports/diagnostics/*
+reports/metrics_*/
+reports/tables_*/
 !reports/figures/.gitkeep
 !reports/tables/.gitkeep
 !reports/metrics/.gitkeep
@@ -35,6 +37,9 @@ reports/diagnostics/*
 models/baseline/*
 models/boosting/*
 models/advanced/*
+models/base_*/
+models/context_*/
+models/smoke_*/
 catboost_info/
 !models/baseline/.gitkeep
 !models/boosting/.gitkeep
