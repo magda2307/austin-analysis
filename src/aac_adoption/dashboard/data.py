@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import json
 from typing import Any
 
 import joblib
@@ -230,6 +231,29 @@ def load_model(models_dir: str | Path, task: str, subset: str = "combined", mode
     return joblib.load(path)
 
 
+def load_model_metadata(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost") -> dict[str, Any]:
+    """Load sidecar model metadata when available."""
+    path = artifact_path(models_dir, task, subset, model_name).with_suffix(".json")
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def model_feature_columns(
+    record: pd.DataFrame,
+    models_dir: str | Path,
+    task: str,
+    subset: str = "combined",
+    model_name: str = "catboost",
+) -> list[str]:
+    """Return feature columns expected by a saved model."""
+    metadata = load_model_metadata(models_dir, task, subset, model_name)
+    expected = metadata.get("feature_columns")
+    if expected:
+        return [column for column in expected if column in record.columns]
+    return list(record.columns)
+
+
 def predict_from_record(
     record: pd.DataFrame,
     models_dir: str | Path = "models/advanced",
@@ -238,9 +262,12 @@ def predict_from_record(
     """Predict adoption probability and expected days to outcome for one row."""
     classifier = load_model(models_dir, "classification", subset)
     regressor = load_model(models_dir, "regression", subset)
-    catboost_record = prepare_catboost_frame(record, list(record.columns))
-    probability = float(classifier.predict_proba(catboost_record)[:, 1][0])
-    days = max(0.0, float(regressor.predict(catboost_record)[0]))
+    classification_features = model_feature_columns(record, models_dir, "classification", subset)
+    regression_features = model_feature_columns(record, models_dir, "regression", subset)
+    classification_record = prepare_catboost_frame(record, classification_features)
+    regression_record = prepare_catboost_frame(record, regression_features)
+    probability = float(classifier.predict_proba(classification_record)[:, 1][0])
+    days = max(0.0, float(regressor.predict(regression_record)[0]))
     return {
         "adoption_probability": probability,
         "predicted_days_to_outcome": days,
@@ -274,7 +301,8 @@ def local_shap_explanations(
         return pd.DataFrame()
 
     model = load_model(models_dir, task, subset)
-    catboost_record = prepare_catboost_frame(record, list(record.columns))
+    feature_columns = model_feature_columns(record, models_dir, task, subset)
+    catboost_record = prepare_catboost_frame(record, feature_columns)
     explainer = shap.TreeExplainer(model)
     shap_values = explainer.shap_values(catboost_record)
     if isinstance(shap_values, list):
@@ -282,13 +310,13 @@ def local_shap_explanations(
     values = np.asarray(shap_values)
     if values.ndim == 1:
         values = values.reshape(1, -1)
-    if values.shape[1] == len(record.columns) + 1:
+    if values.shape[1] == len(feature_columns) + 1:
         values = values[:, :-1]
     row_values = values[0]
     table = pd.DataFrame(
         {
-            "feature": list(record.columns),
-            "value": [record.iloc[0][column] for column in record.columns],
+            "feature": feature_columns,
+            "value": [record.iloc[0][column] for column in feature_columns],
             "shap_value": row_values,
             "abs_shap": np.abs(row_values),
         }

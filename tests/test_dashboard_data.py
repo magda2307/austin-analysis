@@ -5,6 +5,7 @@ from aac_adoption.dashboard.data import (
     best_model_rows,
     build_prediction_record,
     build_profile_prediction_record,
+    model_feature_columns,
     profile_global_shap_reasons,
     similar_historical_cases,
     visibility_need_from_prediction,
@@ -50,6 +51,7 @@ def test_build_prediction_record_creates_model_features():
     assert record.loc[0, "simplified_color_group"] == "black_or_dark"
     assert record.loc[0, "covid_period"] == "post_covid"
     assert record.loc[0, "intake_season"] == "summer"
+    assert "is_extreme_heat" in record.columns
 
 
 def test_build_profile_prediction_record_uses_representative_values():
@@ -72,6 +74,32 @@ def test_build_profile_prediction_record_uses_representative_values():
     assert record.loc[0, "simplified_breed_group"] == "pit_bull_type"
     assert record.loc[0, "simplified_color_group"] == "brown_tan"
     assert bool(record.loc[0, "is_named"]) is True
+
+
+def test_model_feature_columns_uses_artifact_metadata(tmp_path):
+    models_dir = tmp_path / "models"
+    metadata_path = models_dir / "classification" / "combined" / "catboost.json"
+    metadata_path.parent.mkdir(parents=True)
+    metadata_path.write_text(
+        '{"feature_columns": ["animal_type", "intake_type", "age_days"]}',
+        encoding="utf-8",
+    )
+    record = pd.DataFrame(
+        [
+            {
+                "animal_type": "Cat",
+                "intake_type": "Stray",
+                "age_days": 100,
+                "is_extreme_heat": False,
+            }
+        ]
+    )
+
+    assert model_feature_columns(record, models_dir, "classification") == [
+        "animal_type",
+        "intake_type",
+        "age_days",
+    ]
 
 
 def test_similar_historical_cases_returns_outcome_mix(tmp_path):
