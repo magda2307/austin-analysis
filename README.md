@@ -11,14 +11,14 @@ This thesis builds a **reproducible, leakage-safe, interpretable supervised mach
 **What this project claims:**
 - Intake-time predictors (breed, color, age, intake type, covid period, etc.) are **associated with** adoption likelihood and length-of-stay patterns in AAC records.
 - The ML models demonstrate **predictive association**, not causal effects.
-- Findings are **descriptive evidence** for the AAC dataset (2013–2025) and do not generalize beyond AAC without replication.
+- Findings are **descriptive evidence** for the AAC dataset (2013-2025) and do not generalize beyond AAC without replication.
 - The Streamlit dashboard is a **thesis demo and presentation layer**. It is not the main scientific contribution. The scientific contribution is the pipeline, the feature study, and the reproducible evidence pack.
 
 **What this project does NOT claim:**
 - That intake features *cause* adoption outcomes.
 - That COVID *caused* adoption rates to change.
 - That dark-colored animals are *discriminated against* (framed as descriptive association only).
-- That the regression output is *adoption speed* — it is length of stay until any matched outcome.
+- That the regression output is *adoption speed* - it is length of stay until any matched outcome.
 
 **Required terminology:**
 - Use: `predictive association`, `associated with`, `linked to model output`, `intake-time predictors`, `length of stay`, `time to outcome`, `descriptive time-to-adoption evidence`.
@@ -36,28 +36,63 @@ Implemented:
 - raw data downloader from Austin Open Data,
 - reproducible modeling dataset builder,
 - intake-time-only feature set,
+- deterministic Found Location taxonomy and flags,
+- optional intake-time context features from weather, 311 demand, and shelter volume,
 - time-aware train/validation/test split,
 - baseline models,
 - histogram gradient boosting models,
+- CatBoost advanced models,
 - dog/cat/combined evaluation,
 - model artifacts,
 - EDA tables and figures,
 - model comparison tables,
-- H1/H3/H5 support tables,
-- first-level interpretability outputs,
-- CatBoost advanced models,
+- H1/H2/H3/H4/H5 support tables,
+- hypothesis evidence matrix and interpretation reports,
+- first-level and SHAP-based interpretability outputs,
 - calibration, threshold, residual, and risk diagnostics,
 - SHAP and feature-family summaries,
 - animal-centered profile research,
 - model evidence pack with confidence intervals and cohort limitations,
 - subgroup reliability and descriptive time-to-adoption evidence,
+- data audit, target-definition audit, leakage audit, matching examples, feature-quality audit, and environment snapshot artifacts,
+- artifact manifest for thesis deliverables,
 - Streamlit thesis dashboard,
-- formal report-generation script.
+- formal report-generation scripts,
+- full-pipeline runners for Python, PowerShell, and shell workflows.
 
 Not implemented yet:
 
 - Docker/DVC/MLflow,
 - survival models beyond descriptive adoption-timeline views.
+
+## Current Repository Structure
+
+The project is now organized as a full thesis evidence pipeline:
+
+```text
+src/aac_adoption/data/              data loading, cleaning, matching, context features
+src/aac_adoption/features/          leakage-safe intake-time feature engineering and feature lists
+src/aac_adoption/models/            baseline, boosting, CatBoost training, splitting, metrics, artifacts
+src/aac_adoption/analysis/          hypothesis tables, H1/H3/H5 evidence, H2/H4 checks, model selection, thresholds, calibration
+src/aac_adoption/diagnostics/       model diagnostics, SHAP summaries, feature-family diagnostics
+src/aac_adoption/interpretation/    feature importance and explanation helpers
+src/aac_adoption/reporting/         evidence-pack and thesis summary generation
+src/aac_adoption/dashboard/         Streamlit data helpers, story visuals, trust/limits page
+scripts/                            command-line entrypoints and full-pipeline runners
+docs/                               thesis plans, methodology notes, target definitions, technical guide
+reports/                            generated tables, figures, summaries, diagnostics, artifact manifest
+models/                             generated model artifacts
+tests/                              regression tests for data, features, models, reports, audits, dashboard helpers
+```
+
+Important local structure changes from recent multi-agent work:
+
+- `scripts/run_full_pipeline.py`, `scripts/run_full_pipeline.ps1`, and `scripts/run_full_pipeline.sh` orchestrate the end-to-end workflow.
+- `scripts/generate_artifact_manifest.py` records generated thesis deliverables and whether they exist on disk.
+- `scripts/generate_data_audit.py`, `scripts/generate_leakage_audit.py`, `scripts/generate_matching_examples.py`, `scripts/generate_environment_snapshot.py`, and `scripts/generate_feature_quality_audit.py` create reproducibility and methodology artifacts.
+- `src/aac_adoption/analysis/` now contains dedicated modules for hypothesis evidence, final model selection, threshold analysis, calibration summaries, and reliability red flags.
+- `streamlit_app.py` now presents generated artifacts, methodology reports, trust/limits evidence, animal stories, risk exploration, campaign candidates, and a model sensitivity demo.
+- `reports/artifact_manifest.csv` is a lightweight tracked manifest of generated thesis artifacts; large raw data, processed data, and model binaries remain local/generated assets.
 
 ## Project Scope
 
@@ -83,7 +118,7 @@ Central analytical threads:
 Secondary descriptive threads:
 
 - **H2:** seasonality,
-- **H4:** black dog/cat syndrome (dark coloring and adoption rate — descriptive association only).
+- **H4:** black dog/cat syndrome (dark coloring and adoption rate - descriptive association only).
 
 The code should first support robust dataset construction, baseline modeling, and clean outputs for H1/H3/H5. H2 and H4 should remain available through prepared variables such as `intake_month`, `intake_season`, `color`, and `color_group`, but they should not dominate the first modeling work.
 
@@ -316,9 +351,22 @@ Outputs:
 reports/tables/model_comparison_classification.csv
 reports/tables/model_comparison_regression.csv
 reports/tables/h1_intake_vs_appearance.csv
+reports/tables/h2_seasonality_summary.csv
 reports/tables/h3_age_adoption_speed.csv
+reports/tables/h3_age_evidence_matrix.csv
+reports/tables/h4_dark_color_summary.csv
 reports/tables/h5_covid_period.csv
+reports/tables/h5_covid_evidence_matrix.csv
+reports/tables/hypothesis_evidence_matrix.csv
+reports/summary/h1_interpretation.md
+reports/summary/h2_interpretation.md
+reports/summary/h3_interpretation.md
+reports/summary/h4_interpretation.md
+reports/summary/h5_interpretation.md
+reports/summary/hypothesis_evidence_matrix.md
 ```
+
+H1, H3, and H5 remain the central thesis hypotheses. H2 and H4 are generated as supporting descriptive checks.
 
 ## Generate Model Diagnostics and Interpretability
 
@@ -425,6 +473,60 @@ reports/figures/h5_covid_period_adoption_rate.png
 reports/figures/h5_covid_period_median_days.png
 ```
 
+## Generate Audit, Reproducibility, and Manifest Artifacts
+
+Recent local work added audit and manifest scripts that make the thesis easier to defend and reproduce:
+
+```bash
+python scripts/generate_data_audit.py --data data/processed/modeling_dataset.csv
+python scripts/generate_leakage_audit.py
+python scripts/generate_matching_examples.py
+python scripts/generate_environment_snapshot.py
+python scripts/generate_feature_quality_audit.py --data data/processed/modeling_dataset.csv
+python scripts/generate_artifact_manifest.py
+```
+
+Typical outputs include:
+
+```text
+reports/tables/data_audit.csv
+reports/tables/leakage_audit.csv
+reports/tables/matching_logic_examples.csv
+reports/tables/environment_snapshot.csv
+reports/tables/feature_quality_audit.csv
+reports/artifact_manifest.csv
+reports/summary/data_audit.md
+reports/summary/leakage_audit.md
+reports/summary/matching_logic_examples.md
+reports/summary/environment_snapshot.md
+reports/summary/feature_quality_audit.md
+reports/summary/artifact_manifest.md
+```
+
+The manifest uses `present` / `missing` status values and is displayed in the Streamlit Artifacts tab.
+
+## Run Full Pipeline
+
+For a full local refresh, use one of the orchestration scripts:
+
+```bash
+python scripts/run_full_pipeline.py
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\run_full_pipeline.ps1
+```
+
+Shell:
+
+```bash
+./scripts/run_full_pipeline.sh
+```
+
+The full pipeline builds data, trains models, generates diagnostics, creates evidence packs, writes audit artifacts, and refreshes the artifact manifest. It does not change raw data unless the download step is run separately.
+
 ## Run Streamlit Thesis Demo
 
 After the dataset, models, analysis tables, and report figures exist, run:
@@ -440,9 +542,17 @@ The demo reads existing artifacts instead of retraining models. It includes:
 - overview of current generated results,
 - model comparison figures and tables,
 - H1/H3/H5 hypothesis figures and tables,
+- H2/H4 supporting descriptive hypothesis checks,
 - reliability diagnostics, SHAP interpretability, risk explorer, campaign finder, and adoption timeline,
 - Trust & Limits evidence-pack view with subgroup selector, calibration-gap chart, confidence intervals, model-struggle table, and adoption milestone chart,
+- generated artifact manifest and thesis/methodology report reader,
 - a simple model sensitivity form using combined CatBoost artifacts.
+
+The dashboard uses model sensitivity language instead of causal "what-if" claims. Changing form inputs shows how the trained model responds to different records; it does not prove that changing a real animal's characteristic would change the outcome.
+
+## Recommended Local Reproduction Order
+
+```bash
 python scripts/build_dataset.py --intakes data/raw/intakes.csv --outcomes data/raw/outcomes.csv --output data/processed/modeling_dataset.csv
 python scripts/run_eda.py --data data/processed/modeling_dataset.csv
 python scripts/train_baseline.py --data data/processed/modeling_dataset.csv
@@ -453,6 +563,12 @@ python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.cs
 python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv
 python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv
 python scripts/generate_report_outputs.py
+python scripts/generate_data_audit.py --data data/processed/modeling_dataset.csv
+python scripts/generate_leakage_audit.py
+python scripts/generate_matching_examples.py
+python scripts/generate_environment_snapshot.py
+python scripts/generate_feature_quality_audit.py --data data/processed/modeling_dataset.csv
+python scripts/generate_artifact_manifest.py
 pytest
 ```
 
