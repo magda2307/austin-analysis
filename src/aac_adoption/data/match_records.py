@@ -85,6 +85,14 @@ def match_intakes_to_future_outcomes(
             row["is_reintake"] = episode_info.get("is_reintake", False)
             row["days_since_last_stay"] = episode_info.get("days_since_last_stay")
             
+            # Check for ambiguity: does another intake happen before this outcome?
+            animal_intakes_list = animal_intakes.to_dict("records")
+            row["is_ambiguous_match"] = False
+            for next_intake in animal_intakes_list:
+                if next_intake["intake_datetime"] > intake["intake_datetime"] and next_intake["intake_datetime"] < outcome["outcome_datetime"]:
+                    row["is_ambiguous_match"] = True
+                    break
+            
             rows.append(row)
 
     return pd.DataFrame(rows), unmatched_intakes
