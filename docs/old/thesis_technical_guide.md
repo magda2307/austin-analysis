@@ -669,6 +669,7 @@ The repository currently generates or documents the following important outputs:
 - processed modeling dataset in `data/processed/modeling_dataset.csv`,
 - feature metadata in `data/processed/feature_columns.json`,
 - target metadata in `data/processed/target_columns.json`,
+- data attrition and horizon followup audits in `reports/tables/` and `reports/summary/`,
 - baseline metrics in `reports/metrics/baseline_metrics.csv`,
 - boosting metrics in `reports/metrics/boosting_metrics.csv`,
 - advanced metrics in `reports/metrics/advanced_metrics.csv`,
@@ -724,9 +725,10 @@ The most recent work in the repository is centered around turning model outputs 
 - evidence pack generation,
 - subgroup reliability analysis,
 - adoption milestone reporting,
+- data audit and horizon censoring metrics,
 - dashboard pages for trust, limits, and interpretability.
 
-The codebase is no longer only about predicting adoption. It is also about explaining where the model is reliable, where it struggles, and how to present those findings clearly.
+The codebase is no longer only about predicting adoption. It is also about explaining where the model is reliable, where it struggles, auditing the data flow, and how to present those findings clearly.
 
 ## 18. What Still Needs Work
 

@@ -10,9 +10,18 @@ def verify_reintake_patterns(
     """Verify re-intake patterns and track episodes."""
     episodes = []
     
-    for animal_id in intakes["animal_id"].unique():
-        animal_intakes = intakes[intakes["animal_id"] == animal_id].sort_values("intake_datetime")
-        animal_outcomes = outcomes[outcomes["animal_id"] == animal_id].sort_values("outcome_datetime")
+    intakes_grouped = {
+        animal_id: group.sort_values("intake_datetime")
+        for animal_id, group in intakes.groupby("animal_id", sort=False)
+    }
+    outcomes_grouped = {
+        animal_id: group.sort_values("outcome_datetime")
+        for animal_id, group in outcomes.groupby("animal_id", sort=False)
+    }
+
+    empty_outcomes = pd.DataFrame(columns=outcomes.columns)
+    for animal_id, animal_intakes in intakes_grouped.items():
+        animal_outcomes = outcomes_grouped.get(animal_id, empty_outcomes)
         
         for idx, intake in animal_intakes.iterrows():
             intake_time = intake["intake_datetime"]
@@ -54,6 +63,11 @@ def match_intakes_to_future_outcomes(
         animal_id: group.sort_values("outcome_datetime").to_dict("records")
         for animal_id, group in outcomes.groupby("animal_id", sort=False)
     }
+    
+    episodes_grouped = {
+        animal_id: group
+        for animal_id, group in episodes.groupby("animal_id", sort=False)
+    }
 
     for animal_id, animal_intakes in intakes.sort_values("intake_datetime").groupby(
         "animal_id", sort=False
@@ -61,7 +75,15 @@ def match_intakes_to_future_outcomes(
         outcome_records = outcomes_by_animal.get(animal_id, [])
         outcome_index = 0
 
-        for intake in animal_intakes.to_dict("records"):
+        animal_episodes = episodes_grouped.get(animal_id, pd.DataFrame())
+        episodes_by_time = {
+            row["intake_datetime"]: row 
+            for _, row in animal_episodes.iterrows()
+        }
+        
+        animal_intakes_list = animal_intakes.to_dict("records")
+
+        for intake in animal_intakes_list:
             while (
                 outcome_index < len(outcome_records)
                 and outcome_records[outcome_index]["outcome_datetime"] < intake["intake_datetime"]
@@ -80,13 +102,12 @@ def match_intakes_to_future_outcomes(
                 if key != "animal_id":
                     row[key] = value
             
-            episode_info = episodes[episodes["intake_datetime"] == intake["intake_datetime"]].iloc[0].to_dict()
+            episode_info = episodes_by_time.get(intake["intake_datetime"], {})
             row["episode_number"] = episode_info.get("episode_number", 1)
             row["is_reintake"] = episode_info.get("is_reintake", False)
             row["days_since_last_stay"] = episode_info.get("days_since_last_stay")
             
             # Check for ambiguity: does another intake happen before this outcome?
-            animal_intakes_list = animal_intakes.to_dict("records")
             row["is_ambiguous_match"] = False
             for next_intake in animal_intakes_list:
                 if next_intake["intake_datetime"] > intake["intake_datetime"] and next_intake["intake_datetime"] < outcome["outcome_datetime"]:

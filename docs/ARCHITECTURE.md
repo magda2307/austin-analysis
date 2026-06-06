@@ -57,13 +57,14 @@ reports/          generated tables, figures, summaries, diagnostics (gitignored,
 ### Layer 2: Data Preparation
 
 **Module:** `src/aac_adoption/data/`  
-**Script:** `scripts/build_dataset.py`
+**Script:** `scripts/build_dataset.py`, `scripts/generate_data_audit.py`
 
 Steps:
 1. **Column normalization** — raw AAC column names converted to `snake_case` in `load_data.py`. `DateTime` becomes `intake_datetime` / `outcome_datetime`. Raw files are not modified.
 2. **Cleaning** — required columns validated, duplicates removed, restricted to dogs and cats, mixed datetime formats parsed without shifting local shelter clock.
 3. **Episode matching** — each intake matched to nearest unused future outcome for same `animal_id` (greedy nearest-future-match). Negative `days_to_outcome` rejected. Unmatched intakes counted.
 4. **Target creation** — classification target (`classification_target`), regression target (`regression_target_days`), adoption-only timing (`days_to_adoption`).
+5. **Data Audit Generation** — tracking data attrition across stages (`reports/tables/data_audit_attrition.csv`), calculating followup windows (`followup_days_available`), and auditing censoring logic (`reports/tables/horizon_followup_audit.csv`).
 
 **Required intake columns:** `animal_id`, `animal_type`, `intake_datetime`  
 **Required outcome columns:** `animal_id`, `animal_type`, `outcome_datetime`, `outcome_type`
