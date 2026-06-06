@@ -133,23 +133,41 @@ def _fit_and_save(
     target_column: str,
     models_dir: Path,
     run_timestamp: str,
+    winsorize_target: bool = False,
+    lower_quantile: float = 0.01,
+    upper_quantile: float = 0.99,
 ):
+    from aac_adoption.features.feature_engineering import winsorize_outliers
+    from sklearn.base import clone
+    
+    # Train-only winsorization: compute quantiles on train set and apply only during training
+    train_target = split.train[target_column].copy()
+    metadata = {}
+    if winsorize_target and "regression" in task:
+        lower = train_target.quantile(lower_quantile)
+        upper = train_target.quantile(upper_quantile)
+        train_target = winsorize_outliers(train_target, lower_quantile, upper_quantile)
+        metadata["winsorization_lower_quantile"] = lower_quantile
+        metadata["winsorization_upper_quantile"] = upper_quantile
+        metadata["winsorization_lower_value"] = lower
+        metadata["winsorization_upper_value"] = upper
+    
     preprocessor = make_preprocessor(split.train[feature_columns])
-    pipeline = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
+    pipeline = Pipeline(steps=[("preprocess", preprocessor), ("model", clone(model))])
     
     fit_params = {}
     if "sample_weight" in split.train.columns and "dummy" not in model_name:
         fit_params["model__sample_weight"] = split.train["sample_weight"]
 
-    pipeline.fit(split.train[feature_columns], split.train[target_column], **fit_params)
+    pipeline.fit(split.train[feature_columns], train_target, **fit_params)
 
-    metadata = base_training_metadata(
+    metadata.update(base_training_metadata(
         model_name=model_name,
         task=task,
         split=split,
         feature_columns=feature_columns,
         run_timestamp=run_timestamp,
-    )
+    ))
     path = save_model_artifact(
         pipeline=pipeline,
         base_dir=models_dir,
@@ -200,7 +218,7 @@ def train_classification_baselines(
             predictions = pipeline.predict(split.test[feature_columns])
             scores = (
                 pipeline.predict_proba(split.test[feature_columns])[:, 1]
-                if hasattr(pipeline, "predict_proba")
+                if hasattr(pipeline, "predict_proba") and pipeline.predict_proba(split.test[feature_columns]).shape[1] == 2
                 else None
             )
             metrics = classification_metrics(
@@ -256,6 +274,7 @@ def train_regression_baselines(
                 target_column="regression_target_days",
                 models_dir=models_dir,
                 run_timestamp=run_timestamp,
+                winsorize_target=True,
             )
             predictions = pipeline.predict(split.test[feature_columns])
             metrics = regression_metrics(

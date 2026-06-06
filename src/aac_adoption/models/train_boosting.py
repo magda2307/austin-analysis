@@ -84,11 +84,27 @@ def _fit_and_save(
     target_column: str,
     models_dir: Path,
     run_timestamp: str,
+    winsorize_target: bool = False,
+    lower_quantile: float = 0.01,
+    upper_quantile: float = 0.99,
 ):
+    from aac_adoption.features.feature_engineering import winsorize_outliers
+    from sklearn.base import clone
+    
+    # Train-only winsorization for regression tasks
+    train_y = split.train[target_column].copy()
+    metadata = {}
+    if winsorize_target and "regression" in task:
+        train_y = winsorize_outliers(train_y, lower_quantile, upper_quantile)
+        metadata["winsorization_lower_quantile"] = lower_quantile
+        metadata["winsorization_upper_quantile"] = upper_quantile
+        metadata["winsorization_lower_value"] = float(train_y.quantile(lower_quantile))
+        metadata["winsorization_upper_value"] = float(train_y.quantile(upper_quantile))
+    
     pipeline = Pipeline(
         steps=[
             ("preprocess", make_boosting_preprocessor(split.train[feature_columns])),
-            ("model", model),
+            ("model", clone(model)),
         ]
     )
     
@@ -96,14 +112,14 @@ def _fit_and_save(
     if "sample_weight" in split.train.columns:
         fit_params["model__sample_weight"] = split.train["sample_weight"]
         
-    pipeline.fit(split.train[feature_columns], split.train[target_column], **fit_params)
-    metadata = base_training_metadata(
+    pipeline.fit(split.train[feature_columns], train_y, **fit_params)
+    metadata.update(base_training_metadata(
         model_name=model_name,
         task=task,
         split=split,
         feature_columns=feature_columns,
         run_timestamp=run_timestamp,
-    )
+    ))
     path = save_model_artifact(pipeline, models_dir, task, split.animal_subset, model_name, metadata)
     metadata["artifact_path"] = str(path)
     return pipeline, metadata
@@ -232,6 +248,7 @@ def train_boosting_regression(
             target_column="regression_target_days",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
+            winsorize_target=True,
         )
         predictions = pipeline.predict(split.test[feature_columns])
         metrics = regression_metrics(

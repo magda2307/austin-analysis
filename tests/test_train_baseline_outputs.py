@@ -51,13 +51,14 @@ def test_train_all_baselines_winsorization_train_only(tmp_path):
     """Test that regression target winsorization happens train-only (not in build_dataset)."""
     import numpy as np
     
-    # Create dataset with extreme outliers (1000 days)
+    # Create dataset with extreme outliers (1000 days) and both species
     rows = []
     for i in range(50):
+        animal_type = "Dog" if i < 25 else "Cat"
         rows.append(
             {
-                "animal_id": f"A{i}",
-                "animal_type": "Dog",
+                "animal_id": f"{animal_type[0]}{i}",
+                "animal_type": animal_type,
                 "intake_type": "Stray",
                 "intake_condition": "Normal",
                 "sex_upon_intake": "Spayed Female",
@@ -65,8 +66,8 @@ def test_train_all_baselines_winsorization_train_only(tmp_path):
                 "age_months": (100 + i * 10) / 30.4375,
                 "age_years": (100 + i * 10) / 365.25,
                 "age_group": "adult",
-                "primary_breed": "labrador_retriever",
-                "simplified_breed_group": "retriever_type",
+                "primary_breed": "labrador_retriever" if animal_type == "Dog" else "domestic_shorthair",
+                "simplified_breed_group": "retriever_type" if animal_type == "Dog" else "domestic_cat",
                 "primary_color": "black",
                 "simplified_color_group": "black_or_dark",
                 "is_black_or_dark": True,
@@ -85,7 +86,7 @@ def test_train_all_baselines_winsorization_train_only(tmp_path):
                 "animal_311_requests_30d": float(i + 10),
                 "intake_volume_7d": float(i + 2),
                 "intake_volume_30d": float(i + 20),
-                "classification_target": 1,
+                "classification_target": int(i % 2 == 0),  # Balanced 0/1 (25 each)
                 "regression_target_days": 5 if i < 49 else 1000,  # Extreme outlier
             }
         )
@@ -110,8 +111,10 @@ def test_train_all_baselines_winsorization_train_only(tmp_path):
         metadata = json.load(f)
     
     # Winsorization should be stored in metadata
-    assert "winzorization_lower_quantile" in metadata or "winsorization_lower_quantile" in metadata
-    assert "winzorization_upper_quantile" in metadata or "winsorization_upper_quantile" in metadata
+    assert "winsorization_lower_quantile" in metadata
+    assert "winsorization_upper_quantile" in metadata
+    assert "winsorization_lower_value" in metadata
+    assert "winsorization_upper_value" in metadata
 
 
 def test_train_all_baselines_writes_metadata_rich_outputs(tmp_path):

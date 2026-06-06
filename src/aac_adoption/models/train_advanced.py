@@ -61,13 +61,29 @@ def _fit_and_save(
     models_dir: Path,
     run_timestamp: str,
     params: dict[str, Any],
+    winsorize_target: bool = False,
+    lower_quantile: float = 0.01,
+    upper_quantile: float = 0.99,
 ) -> tuple[Any, dict[str, Any]]:
+    from aac_adoption.features.feature_engineering import winsorize_outliers
+    
     categorical_features = categorical_features_for(feature_columns)
     train_x = prepare_catboost_frame(split.train, feature_columns)
     validation_x = prepare_catboost_frame(split.validation, feature_columns) if not split.validation.empty else None
+    
+    # Train-only winsorization for regression tasks
+    train_y = split.train[target_column].copy()
+    metadata = {}
+    if winsorize_target and "regression" in task:
+        train_y = winsorize_outliers(train_y, lower_quantile, upper_quantile)
+        metadata["winsorization_lower_quantile"] = lower_quantile
+        metadata["winsorization_upper_quantile"] = upper_quantile
+        metadata["winsorization_lower_value"] = float(train_y.quantile(lower_quantile))
+        metadata["winsorization_upper_value"] = float(train_y.quantile(upper_quantile))
+    
     fit_kwargs: dict[str, Any] = {
         "X": train_x,
-        "y": split.train[target_column],
+        "y": train_y,
         "cat_features": categorical_features,
         "verbose": False,
     }
@@ -78,7 +94,7 @@ def _fit_and_save(
         fit_kwargs["use_best_model"] = True
     model.fit(**fit_kwargs)
 
-    metadata = base_training_metadata(
+    metadata.update(base_training_metadata(
         model_name="catboost",
         task=task,
         split=split,
@@ -86,7 +102,7 @@ def _fit_and_save(
         run_timestamp=run_timestamp,
         categorical_features=categorical_features,
         params=params,
-    )
+    ))
     metadata["feature_columns"] = feature_columns
     path = save_model_artifact(model, models_dir, task, split.animal_subset, "catboost", metadata)
     metadata["artifact_path"] = str(path)
@@ -272,6 +288,7 @@ def train_advanced_regression(
             models_dir=models_dir,
             run_timestamp=run_timestamp,
             params=params,
+            winsorize_target=True,
         )
         test_x = prepare_catboost_frame(split.test, feature_columns)
         predictions = model.predict(test_x)
