@@ -35,6 +35,22 @@ def format_train_period(start: int, end: int) -> str:
     return f"{start}-{end}"
 
 
+def _detect_categorical_features(df: pd.DataFrame, exclude_cols: list[str] | None = None) -> list[str]:
+    """Detect categorical columns in DataFrame."""
+    exclude_cols = exclude_cols or []
+    TARGET_KEYWORDS = ["target", "label", "outcome", "class", "y_", "days", "datetime", "date", "time"]
+    categorical_cols = []
+    for col in df.columns:
+        if col in exclude_cols:
+            continue
+        # Skip columns that look like targets or datetime
+        if any(kw in col.lower() for kw in TARGET_KEYWORDS):
+            continue
+        if df[col].dtype == "object" or df[col].dtype.name == "string":
+            categorical_cols.append(col)
+    return categorical_cols
+
+
 def _train_classifier(
     model_type: str,
     X_train: pd.DataFrame,
@@ -159,6 +175,10 @@ def run_yearly_backtesting(
         X_test = test_df.drop(columns=[target_column, "animal_id", "intake_year"])
         y_test = test_df[target_column]
         
+        # Detect categorical features
+        categorical_features = _detect_categorical_features(X_train, exclude_cols=[])
+        cat_indices = [X_train.columns.get_loc(c) for c in categorical_features if c in X_train.columns]
+        
         is_classification = len(y_train.unique()) <= 2 and y_train.dtype in [np.int64, np.int32, bool]
         
         if is_classification:
@@ -183,7 +203,7 @@ def run_yearly_backtesting(
                         random_state=RANDOM_STATE,
                         auto_class_weights="Balanced",
                     )
-                    model.fit(X_train, y_train, cat_features=[])
+                    model.fit(X_train, y_train, cat_features=cat_indices if cat_indices else None)
                     y_pred = model.predict(X_test)
                     if hasattr(model, "predict_proba"):
                         y_score = model.predict_proba(X_test)[:, 1]
@@ -240,7 +260,7 @@ def run_yearly_backtesting(
                         verbose=0,
                         random_state=RANDOM_STATE,
                     )
-                    model.fit(X_train, y_train, cat_features=[])
+                    model.fit(X_train, y_train, cat_features=cat_indices if cat_indices else None)
                     y_pred = model.predict(X_test)
                     metrics = regression_metrics(y_test, y_pred, compute_ci=False)
                     
