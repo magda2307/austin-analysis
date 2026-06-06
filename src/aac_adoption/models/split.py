@@ -48,8 +48,11 @@ def make_time_split(
     df: pd.DataFrame,
     target_column: str,
     animal_subset: str | None = None,
+    recency_weighting: bool = True,
+    censoring_safeguards: bool = True,
+    max_los_days: int = 90,
 ) -> DatasetSplit:
-    """Create thesis default split, fallback to fixed random split if years missing."""
+    """Create thesis default split with recency weighting and censoring safeguards."""
     if target_column not in df.columns:
         raise ValueError(f"target column missing: {target_column}")
     if "intake_year" not in df.columns:
@@ -60,10 +63,21 @@ def make_time_split(
     if subset_df.empty:
         raise ValueError(f"no rows available for subset={subset_name}, target={target_column}")
 
+    if censoring_safeguards and "days_to_outcome" in subset_df.columns:
+        subset_df = subset_df.copy()
+        subset_df["censoring_flag"] = subset_df["days_to_outcome"] >= max_los_days
+    
     if _has_time_split(subset_df):
         train = subset_df.loc[subset_df["intake_year"].between(2013, 2021)].copy()
         validation = subset_df.loc[subset_df["intake_year"].between(2022, 2023)].copy()
         test = subset_df.loc[subset_df["intake_year"].between(2024, 2025)].copy()
+        
+        if recency_weighting and not train.empty:
+            train = train.copy()
+            train["sample_weight"] = train["intake_datetime"].apply(
+                lambda x: 1.0 + 0.5 * (2021 - x.year) / (2021 - 2013)
+            )
+        
         if not train.empty and not test.empty:
             return DatasetSplit(
                 full_data=subset_df,

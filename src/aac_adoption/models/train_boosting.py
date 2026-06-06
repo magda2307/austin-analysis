@@ -44,6 +44,20 @@ def make_boosting_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     """Create dense preprocessing compatible with HistGradientBoosting."""
     numeric_features = available_features_for_df(df, NUMERIC_FEATURES)
     categorical_features = available_features_for_df(df, CATEGORICAL_FEATURES)
+    
+    native_categorical = [
+        "intake_type",
+        "intake_condition", 
+        "sex_upon_intake",
+        "age_group",
+        "simplified_breed_group",
+        "simplified_color_group",
+        "found_location_kind",
+        "intake_season",
+        "covid_period",
+    ]
+    categorical_features = [c for c in categorical_features if c in native_categorical]
+    
     numeric_pipeline = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
     categorical_pipeline = Pipeline(
         steps=[
@@ -129,18 +143,23 @@ def train_boosting_classification(
     run_timestamp: str,
     permutation_repeats: int,
     permutation_max_rows: int,
+    **kwargs,
 ) -> list[dict]:
     rows: list[dict] = []
+    
+    model_params = {
+        "learning_rate": 0.08,
+        "max_iter": 100,
+        "max_leaf_nodes": 31,
+        "random_state": RANDOM_STATE,
+    }
+    model_params.update(kwargs)
+
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
         pipeline, metadata = _fit_and_save(
-            model=HistGradientBoostingClassifier(
-                learning_rate=0.08,
-                max_iter=100,
-                max_leaf_nodes=31,
-                random_state=RANDOM_STATE,
-            ),
+            model=HistGradientBoostingClassifier(**model_params),
             model_name="hist_gradient_boosting",
             task="classification",
             split=split,
@@ -151,7 +170,13 @@ def train_boosting_classification(
         )
         predictions = pipeline.predict(split.test[feature_columns])
         scores = pipeline.predict_proba(split.test[feature_columns])[:, 1]
-        rows.append({**metadata, **classification_metrics(split.test["classification_target"], predictions, scores)})
+        metrics = classification_metrics(
+            split.test["classification_target"], 
+            predictions, 
+            scores,
+            compute_ci=(subset in ["dogs", "cats"])
+        )
+        rows.append({**metadata, **metrics})
         append_table(
             _permutation_table(
                 pipeline,
@@ -175,18 +200,23 @@ def train_boosting_regression(
     run_timestamp: str,
     permutation_repeats: int,
     permutation_max_rows: int,
+    **kwargs,
 ) -> list[dict]:
     rows: list[dict] = []
+
+    model_params = {
+        "learning_rate": 0.08,
+        "max_iter": 100,
+        "max_leaf_nodes": 31,
+        "random_state": RANDOM_STATE,
+    }
+    model_params.update(kwargs)
+
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
         pipeline, metadata = _fit_and_save(
-            model=HistGradientBoostingRegressor(
-                learning_rate=0.08,
-                max_iter=100,
-                max_leaf_nodes=31,
-                random_state=RANDOM_STATE,
-            ),
+            model=HistGradientBoostingRegressor(**model_params),
             model_name="hist_gradient_boosting",
             task="regression",
             split=split,
@@ -196,7 +226,12 @@ def train_boosting_regression(
             run_timestamp=run_timestamp,
         )
         predictions = pipeline.predict(split.test[feature_columns])
-        rows.append({**metadata, **regression_metrics(split.test["regression_target_days"], predictions)})
+        metrics = regression_metrics(
+            split.test["regression_target_days"], 
+            predictions,
+            compute_ci=(subset in ["dogs", "cats"])
+        )
+        rows.append({**metadata, **metrics})
         append_table(
             _permutation_table(
                 pipeline,
@@ -221,6 +256,7 @@ def train_all_boosting(
     max_rows: int | None = None,
     permutation_repeats: int = 3,
     permutation_max_rows: int = 3000,
+    tuned_params_path: str | Path | None = None,
 ) -> BoostingTrainingOutputs:
     """Train all sklearn gradient boosting models and save outputs."""
     header = pd.read_csv(data_path, nrows=0)
@@ -240,6 +276,19 @@ def train_all_boosting(
         if stale.exists():
             stale.unlink()
 
+    clf_kwargs = {}
+    reg_kwargs = {}
+    
+    if tuned_params_path is not None:
+        import json
+        p = Path(tuned_params_path)
+        if p.exists():
+            d = json.loads(p.read_text(encoding="utf-8"))
+            if "hist_gradient_boosting_classification" in d:
+                clf_kwargs.update(d["hist_gradient_boosting_classification"])
+            if "hist_gradient_boosting_regression" in d:
+                reg_kwargs.update(d["hist_gradient_boosting_regression"])
+
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(
         train_boosting_classification(
@@ -249,6 +298,7 @@ def train_all_boosting(
             run_timestamp,
             permutation_repeats,
             permutation_max_rows,
+            **clf_kwargs
         )
     )
     regression = pd.DataFrame(
@@ -259,6 +309,7 @@ def train_all_boosting(
             run_timestamp,
             permutation_repeats,
             permutation_max_rows,
+            **reg_kwargs
         )
     )
 

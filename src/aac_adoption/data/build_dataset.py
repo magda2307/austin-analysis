@@ -11,7 +11,7 @@ from aac_adoption.data.clean_data import clean_intakes, clean_outcomes
 from aac_adoption.data.context_data import CONTEXT_FEATURES, add_context_features_from_dir
 from aac_adoption.data.load_data import load_intakes, load_outcomes
 from aac_adoption.data.match_records import match_intakes_to_future_outcomes
-from aac_adoption.features.feature_engineering import add_intake_features
+from aac_adoption.features.feature_engineering import add_intake_features, winsorize_outliers
 from aac_adoption.features.feature_sets import (
     TARGET_COLUMNS,
     available_intake_features,
@@ -94,6 +94,10 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         dataset["days_to_outcome"],
         np.nan,
     )
+    
+    dataset["length_of_stay"] = winsorize_outliers(dataset["length_of_stay"], 0.01, 0.99)
+    dataset["days_to_outcome"] = dataset["length_of_stay"]
+    dataset["regression_target_days"] = dataset["length_of_stay"]
 
     ordered_columns = [
         "animal_id",
@@ -184,10 +188,19 @@ def build_modeling_dataset_from_files(
     outcomes_path: str | Path,
     output_path: str | Path,
     context_data_dir: str | Path | None = None,
+    max_intake_volume_threshold: float | None = 100.0,
 ) -> DatasetBuildResult:
     """Load raw CSVs, build modeling dataset, and write processed CSV."""
     result = build_modeling_dataset(load_intakes(intakes_path), load_outcomes(outcomes_path))
     dataset = result.dataset
+    if max_intake_volume_threshold is not None:
+        if "intake_volume_7d" in dataset.columns:
+            dataset = dataset[dataset["intake_volume_7d"] <= max_intake_volume_threshold]
+            result = DatasetBuildResult(
+                dataset=dataset,
+                matched_rows=len(dataset),
+                unmatched_intakes=result.unmatched_intakes,
+            )
     if context_data_dir is not None:
         dataset = add_context_features_from_dir(dataset, context_data_dir)
         result = DatasetBuildResult(

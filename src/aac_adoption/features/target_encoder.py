@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import StratifiedKFold
+from aac_adoption.features.feature_sets import LEAKAGE_COLUMNS
 
 
 class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
@@ -15,6 +16,8 @@ class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
         S_j = (n_j * mean_j + m * global_mean) / (n_j + m)
     where m is the prior weight (smoothing parameter).
     """
+    
+    HIGH_CARDINALITY_THRESHOLD = 5
 
     def __init__(
         self,
@@ -22,29 +25,35 @@ class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
         smoothing: float = 10.0,
         n_splits: int = 5,
         random_state: int | None = 42,
+        handle_unknown: str = "return_nan",
     ):
-        self.columns = columns
+        self.columns = [c for c in columns if c not in LEAKAGE_COLUMNS]
         self.smoothing = smoothing
         self.n_splits = n_splits
         self.random_state = random_state
+        self.handle_unknown = handle_unknown
         self.global_mean_ = 0.0
         self.encoding_map_ = {}
+        self.high_cardinality_cols_ = []
 
     def fit(self, X: pd.DataFrame, y: pd.Series) -> OOFBayesianTargetEncoder:
         """Fit target encoder and compute global mappings."""
         self.global_mean_ = float(y.mean())
         self.encoding_map_ = {}
+        self.high_cardinality_cols_ = []
 
         for col in self.columns:
             if col not in X.columns:
                 continue
             
-            # Compute target encoding on the whole training set for future transform calls
+            cardinality = X[col].nunique()
+            if cardinality > self.HIGH_CARDINALITY_THRESHOLD:
+                self.high_cardinality_cols_.append(col)
+            
             stats = pd.DataFrame({"feat": X[col], "target": y}).groupby("feat")["target"].agg(["count", "mean"])
             counts = stats["count"]
             means = stats["mean"]
             
-            # Apply empirical Bayes shrinkage formula
             encoded_vals = (counts * means + self.smoothing * self.global_mean_) / (counts + self.smoothing)
             self.encoding_map_[col] = encoded_vals.to_dict()
 
@@ -58,8 +67,10 @@ class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
                 continue
             
             mapping = self.encoding_map_.get(col, {})
-            # Map categories to their encoded values, filling unseen values with the global mean
-            X_out[col] = X_out[col].map(mapping).fillna(self.global_mean_).astype(float)
+            if self.handle_unknown == "return_nan":
+                X_out[col] = X_out[col].map(mapping)
+            else:
+                X_out[col] = X_out[col].map(mapping).fillna(self.global_mean_).astype(float)
             
         return X_out
 

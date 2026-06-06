@@ -9,6 +9,7 @@ from typing import Any
 
 from catboost import CatBoostClassifier, CatBoostRegressor
 import pandas as pd
+import numpy as np
 
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
@@ -21,6 +22,8 @@ from aac_adoption.models.evaluate import classification_metrics, regression_metr
 from aac_adoption.models.split import DatasetSplit, make_time_split
 from aac_adoption.models.train_baseline import ANIMAL_SUBSETS, CATEGORICAL_FEATURES, limit_rows
 from aac_adoption.models.metadata import base_training_metadata
+from aac_adoption.analysis.survival_analysis import log_transform_LOS, compute_kaplan_meier_survival
+from aac_adoption.features.feature_engineering import winsorize_outliers
 
 
 @dataclass(frozen=True)
@@ -33,7 +36,7 @@ class AdvancedTrainingOutputs:
 
 def categorical_features_for(feature_columns: list[str]) -> list[str]:
     """Return categorical feature names for CatBoost."""
-    configured = set(CATEGORICAL_FEATURES + ["is_mixed_breed"])
+    configured = set(CATEGORICAL_FEATURES + ["is_mixed_breed", "intake_condition", "sex_upon_intake"])
     return [column for column in feature_columns if column in configured]
 
 
@@ -126,7 +129,13 @@ def train_advanced_classification(
         test_x = prepare_catboost_frame(split.test, feature_columns)
         predictions = model.predict(test_x).astype(int)
         scores = model.predict_proba(test_x)[:, 1]
-        rows.append({**metadata, **classification_metrics(split.test["classification_target"], predictions, scores)})
+        metrics = classification_metrics(
+            split.test["classification_target"], 
+            predictions, 
+            scores,
+            compute_ci=(subset in ["dogs", "cats"])
+        )
+        rows.append({**metadata, **metrics})
     return rows
 
 
@@ -140,7 +149,7 @@ def train_advanced_regression(
     depth: int,
     early_stopping_rounds: int,
 ) -> list[dict[str, Any]]:
-    """Train CatBoost days-to-outcome regressors."""
+    """Train CatBoost days-to-outcome regressors with log-transform and adopted-only filtering."""
     rows: list[dict[str, Any]] = []
     params = {
         "loss_function": "MAE",
@@ -154,19 +163,39 @@ def train_advanced_regression(
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
+        
+        filter_df = split.train.copy()
+        filter_df = filter_df[filter_df["adopted"]].copy()
+        filter_df = log_transform_LOS(filter_df, "regression_target_days")
+        filter_df = filter_df.copy()
+        
+        split_train = split.train.copy()
+        split_train["regression_target_days"] = filter_df["log_regression_target_days"]
+        
         model, metadata = _fit_and_save(
             model=CatBoostRegressor(**params),
             task="regression",
-            split=split,
+            split=DatasetSplit(
+                full_data=split.full_data,
+                train=split_train,
+                validation=split.validation,
+                test=split.test,
+                strategy=split.strategy,
+                train_period=split.train_period,
+                validation_period=split.validation_period,
+                test_period=split.test_period,
+                animal_subset=split.animal_subset,
+            ),
             feature_columns=feature_columns,
-            target_column="regression_target_days",
+            target_column="log_regression_target_days",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
             params=params,
         )
         test_x = prepare_catboost_frame(split.test, feature_columns)
         predictions = model.predict(test_x)
-        rows.append({**metadata, **regression_metrics(split.test["regression_target_days"], predictions)})
+        predictions_exp = np.exp(predictions) - 1
+        rows.append({**metadata, **regression_metrics(split.test["regression_target_days"], predictions_exp)})
     return rows
 
 
@@ -179,6 +208,7 @@ def train_all_advanced(
     learning_rate: float = 0.05,
     depth: int = 6,
     early_stopping_rounds: int = 50,
+    tuned_params_path: str | Path | None = None,
 ) -> AdvancedTrainingOutputs:
     """Train all advanced CatBoost models and save metric outputs."""
     header = pd.read_csv(data_path, nrows=0)
@@ -189,6 +219,19 @@ def train_all_advanced(
     metrics_output_dir = Path(metrics_dir)
     model_output_dir = Path(models_dir)
     metrics_output_dir.mkdir(parents=True, exist_ok=True)
+    
+    clf_kwargs = {"iterations": iterations, "learning_rate": learning_rate, "depth": depth}
+    reg_kwargs = {"iterations": iterations, "learning_rate": learning_rate, "depth": depth}
+    
+    if tuned_params_path is not None:
+        import json
+        p = Path(tuned_params_path)
+        if p.exists():
+            d = json.loads(p.read_text(encoding="utf-8"))
+            if "catboost_classification" in d:
+                clf_kwargs.update(d["catboost_classification"])
+            if "catboost_regression" in d:
+                reg_kwargs.update(d["catboost_regression"])
 
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(
@@ -196,10 +239,8 @@ def train_all_advanced(
             df,
             model_output_dir,
             run_timestamp,
-            iterations=iterations,
-            learning_rate=learning_rate,
-            depth=depth,
             early_stopping_rounds=early_stopping_rounds,
+            **clf_kwargs
         )
     )
     regression = pd.DataFrame(
@@ -207,10 +248,8 @@ def train_all_advanced(
             df,
             model_output_dir,
             run_timestamp,
-            iterations=iterations,
-            learning_rate=learning_rate,
-            depth=depth,
             early_stopping_rounds=early_stopping_rounds,
+            **reg_kwargs
         )
     )
 

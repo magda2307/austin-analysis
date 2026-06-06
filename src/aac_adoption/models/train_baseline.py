@@ -198,7 +198,12 @@ def train_classification_baselines(
                 if hasattr(pipeline, "predict_proba")
                 else None
             )
-            metrics = classification_metrics(split.test["classification_target"], predictions, scores)
+            metrics = classification_metrics(
+                split.test["classification_target"], 
+                predictions, 
+                scores,
+                compute_ci=(subset in ["dogs", "cats"]),
+            )
             rows.append({**metadata, **metrics})
 
             if model_name == "logistic_regression":
@@ -248,7 +253,11 @@ def train_regression_baselines(
                 run_timestamp=run_timestamp,
             )
             predictions = pipeline.predict(split.test[feature_columns])
-            metrics = regression_metrics(split.test["regression_target_days"], predictions)
+            metrics = regression_metrics(
+                split.test["regression_target_days"], 
+                predictions,
+                compute_ci=(subset in ["dogs", "cats"]),
+            )
             rows.append({**metadata, **metrics})
     return rows
 

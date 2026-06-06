@@ -41,6 +41,13 @@ def parse_age_to_days(value: object) -> float:
     return amount * AGE_UNIT_TO_DAYS[unit]
 
 
+def winsorize_outliers(series: pd.Series, lower_quantile: float = 0.01, upper_quantile: float = 0.99) -> pd.Series:
+    """Winsorize extreme outliers using quantile-based capping."""
+    lower = series.quantile(lower_quantile)
+    upper = series.quantile(upper_quantile)
+    return series.clip(lower=lower, upper=upper)
+
+
 def season_from_month(month: int) -> str:
     """Map month number to meteorological season."""
     if month in {12, 1, 2}:

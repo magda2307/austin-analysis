@@ -3,6 +3,38 @@
 import pandas as pd
 
 
+def verify_reintake_patterns(
+    intakes: pd.DataFrame,
+    outcomes: pd.DataFrame,
+) -> pd.DataFrame:
+    """Verify re-intake patterns and track episodes."""
+    episodes = []
+    
+    for animal_id in intakes["animal_id"].unique():
+        animal_intakes = intakes[intakes["animal_id"] == animal_id].sort_values("intake_datetime")
+        animal_outcomes = outcomes[outcomes["animal_id"] == animal_id].sort_values("outcome_datetime")
+        
+        for idx, intake in animal_intakes.iterrows():
+            intake_time = intake["intake_datetime"]
+            
+            prev_outcomes = animal_outcomes[animal_outcomes["outcome_datetime"] < intake_time]
+            if len(prev_outcomes) > 0:
+                last_outcome = prev_outcomes.iloc[-1]
+                days_since_last_stay = (intake_time - last_outcome["outcome_datetime"]).days
+            else:
+                days_since_last_stay = None
+            
+            episodes.append({
+                "animal_id": animal_id,
+                "intake_datetime": intake_time,
+                "episode_number": len(prev_outcomes) + 1,
+                "days_since_last_stay": days_since_last_stay,
+                "is_reintake": len(prev_outcomes) > 0,
+            })
+    
+    return pd.DataFrame(episodes)
+
+
 def match_intakes_to_future_outcomes(
     intakes: pd.DataFrame,
     outcomes: pd.DataFrame,
@@ -15,6 +47,8 @@ def match_intakes_to_future_outcomes(
     """
     rows: list[dict] = []
     unmatched_intakes = 0
+
+    episodes = verify_reintake_patterns(intakes, outcomes)
 
     outcomes_by_animal = {
         animal_id: group.sort_values("outcome_datetime").to_dict("records")
@@ -45,6 +79,12 @@ def match_intakes_to_future_outcomes(
             for key, value in outcome.items():
                 if key != "animal_id":
                     row[key] = value
+            
+            episode_info = episodes[episodes["intake_datetime"] == intake["intake_datetime"]].iloc[0].to_dict()
+            row["episode_number"] = episode_info.get("episode_number", 1)
+            row["is_reintake"] = episode_info.get("is_reintake", False)
+            row["days_since_last_stay"] = episode_info.get("days_since_last_stay")
+            
             rows.append(row)
 
     return pd.DataFrame(rows), unmatched_intakes

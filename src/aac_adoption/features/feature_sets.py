@@ -65,6 +65,47 @@ METADATA_COLUMNS = [
 
 LEAKAGE_COLUMNS = set(TARGET_COLUMNS + METADATA_COLUMNS) - {"animal_id", "intake_datetime"}
 
+INTAKE_CONDITION = "intake_condition"
+SEX_UPON_INTAKE = "sex_upon_intake"
+
+NUMERIC_FEATURES = [
+    "age_days",
+    "age_in_days",
+    "age_in_months",
+    "age_in_years",
+    "age_months",
+    "age_years",
+    "daily_temp_max",
+    "daily_temp_min",
+    "daily_precipitation",
+    "animal_311_requests_7d",
+    "animal_311_requests_30d",
+    "intake_volume_7d",
+    "intake_volume_30d",
+    "days_to_outcome",
+    "length_of_stay",
+    "regression_target_days",
+    "days_to_adoption",
+]
+
+CATEGORICAL_FEATURES = [
+    "animal_type",
+    "intake_type",
+    "intake_condition",
+    "sex_upon_intake",
+    "primary_breed",
+    "simplified_breed_group",
+    "primary_color",
+    "simplified_color_group",
+    "found_location_kind",
+    "found_location_area",
+    "age_group",
+    "intake_season",
+    "covid_period",
+    "color_group",
+    "simplified_color_group",
+]
+
 
 def available_intake_features(columns: list[str] | set[str]) -> list[str]:
     """Return configured intake-time features present in a dataset."""

@@ -8,6 +8,8 @@ from urllib.request import Request, urlopen
 
 import pandas as pd
 
+from aac_adoption.features.rolling_features_cache import RollingFeaturesCache, compute_rolling_features_decoupled
+
 
 NCEI_DAILY_SUMMARIES_URL = "https://www.ncei.noaa.gov/access/services/data/v1"
 AUSTIN_311_DATASET_ID = "xwdj-i9he"
@@ -191,6 +193,8 @@ def add_context_features(
     *,
     weather: pd.DataFrame | None = None,
     animal_requests: pd.DataFrame | None = None,
+    use_cache: bool = True,
+    cache: RollingFeaturesCache | None = None,
 ) -> pd.DataFrame:
     """Add external and internal prior-window context features."""
     result = dataset.copy()
@@ -211,7 +215,12 @@ def add_context_features(
         .size()
         .reset_index(name="intake_volume")
     )
-    intake_rollups = _rolling_prior_counts(intake_daily, "intake_volume", [7, 30], target_dates=intake_dates)
+    
+    if use_cache and cache is not None:
+        intake_rollups = compute_rolling_features_decoupled(intake_daily, [7, 30])
+    else:
+        intake_rollups = _rolling_prior_counts(intake_daily, "intake_volume", [7, 30], target_dates=intake_dates)
+    
     result = result.merge(intake_rollups, on="context_date", how="left")
 
     result["is_extreme_heat"] = result["daily_temp_max"].fillna(-999).ge(95)
@@ -224,11 +233,12 @@ def add_context_features(
     return result
 
 
-def add_context_features_from_dir(dataset: pd.DataFrame, context_data_dir: str | Path) -> pd.DataFrame:
+def add_context_features_from_dir(dataset: pd.DataFrame, context_data_dir: str | Path, use_cache: bool = True) -> pd.DataFrame:
     """Load cached context CSVs from a directory and enrich dataset."""
     context_dir = Path(context_data_dir)
     weather_path = context_dir / "austin_weather_daily.csv"
     requests_path = context_dir / "austin_311_animal_requests.csv"
     weather = pd.read_csv(weather_path) if weather_path.exists() else pd.DataFrame()
     requests = pd.read_csv(requests_path) if requests_path.exists() else pd.DataFrame()
-    return add_context_features(dataset, weather=weather, animal_requests=requests)
+    cache = RollingFeaturesCache() if use_cache else None
+    return add_context_features(dataset, weather=weather, animal_requests=requests, use_cache=use_cache, cache=cache)

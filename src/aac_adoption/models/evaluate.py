@@ -37,7 +37,40 @@ def expected_calibration_error(y_true, y_score, bins: int = 10) -> float:
     return float(ece)
 
 
-def classification_metrics(y_true, y_pred, y_score=None) -> dict[str, float | int | None]:
+from aac_adoption.config import RANDOM_STATE
+
+def bootstrap_ci(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    metric_func: callable,
+    y_score: np.ndarray | None = None,
+    n_bootstraps: int = 1000,
+    random_state: int = RANDOM_STATE,
+) -> tuple[float, float]:
+    """Calculate 95% confidence interval for a metric using bootstrapping."""
+    rng = np.random.default_rng(random_state)
+    indices = np.arange(len(y_true))
+    scores = []
+    y_true_arr = np.asarray(y_true)
+    y_pred_arr = np.asarray(y_pred)
+    y_score_arr = np.asarray(y_score) if y_score is not None else None
+    
+    for _ in range(n_bootstraps):
+        idx = rng.choice(indices, size=len(indices), replace=True)
+        if len(np.unique(y_true_arr[idx])) < 2:
+            continue
+        if y_score_arr is not None:
+            score = metric_func(y_true_arr[idx], y_score_arr[idx])
+        else:
+            score = metric_func(y_true_arr[idx], y_pred_arr[idx])
+        scores.append(score)
+        
+    if not scores:
+        return (np.nan, np.nan)
+    return float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))
+
+
+def classification_metrics(y_true, y_pred, y_score=None, compute_ci=False) -> dict[str, float | int | None]:
     """Return standard binary classification metrics."""
     metrics: dict[str, float | int | None] = {
         "accuracy": accuracy_score(y_true, y_pred),
@@ -56,17 +89,32 @@ def classification_metrics(y_true, y_pred, y_score=None) -> dict[str, float | in
         metrics["brier_score"] = brier_score_loss(y_true, y_score)
         metrics["expected_calibration_error"] = expected_calibration_error(y_true, y_score)
 
+        if compute_ci:
+            ci_roc = bootstrap_ci(y_true, y_pred, roc_auc_score, y_score=y_score)
+            ci_pr = bootstrap_ci(y_true, y_pred, average_precision_score, y_score=y_score)
+            metrics["roc_auc_lower"] = ci_roc[0]
+            metrics["roc_auc_upper"] = ci_roc[1]
+            metrics["pr_auc_lower"] = ci_pr[0]
+            metrics["pr_auc_upper"] = ci_pr[1]
+
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
     metrics.update({"tn": int(tn), "fp": int(fp), "fn": int(fn), "tp": int(tp)})
     return metrics
 
 
-def regression_metrics(y_true, y_pred) -> dict[str, float]:
+def regression_metrics(y_true, y_pred, compute_ci=False) -> dict[str, float]:
     """Return standard regression metrics for LOS/time prediction."""
     mse = mean_squared_error(y_true, y_pred)
-    return {
+    metrics = {
         "mae": mean_absolute_error(y_true, y_pred),
         "rmse": float(np.sqrt(mse)),
         "median_absolute_error": median_absolute_error(y_true, y_pred),
         "r2": r2_score(y_true, y_pred),
     }
+    
+    if compute_ci:
+        ci_mae = bootstrap_ci(y_true, y_pred, mean_absolute_error)
+        metrics["mae_lower"] = ci_mae[0]
+        metrics["mae_upper"] = ci_mae[1]
+        
+    return metrics

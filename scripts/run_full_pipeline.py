@@ -63,24 +63,42 @@ STEPS = [
     ),
     (
         5,
-        "Train boosting models",
-        [sys.executable, "scripts/train_boosting.py", "--data", DATA_ARG],
+        "Train adopted animals regression",
+        [sys.executable, "scripts/train_adopted_regression.py", "--data", DATA_ARG],
         None,
     ),
     (
         6,
-        "Train advanced models (CatBoost)",
-        [sys.executable, "scripts/train_advanced.py", "--data", DATA_ARG],
+        "Tune hyperparameters",
+        [sys.executable, "scripts/tune_models.py", "--data-path", DATA_ARG],
         "expensive",
     ),
     (
         7,
+        "Train boosting models",
+        [sys.executable, "scripts/train_boosting.py", "--data", DATA_ARG, "--tuned-params-path", "models/tuning/best_params.json"],
+        None,
+    ),
+    (
+        8,
+        "Train advanced models (CatBoost)",
+        [sys.executable, "scripts/train_advanced.py", "--data", DATA_ARG, "--tuned-params-path", "models/tuning/best_params.json"],
+        "expensive",
+    ),
+    (
+        9,
+        "Calibrate classifiers",
+        [sys.executable, "scripts/calibrate_classifiers.py", "--data-path", DATA_ARG],
+        None,
+    ),
+    (
+        10,
         "Run analysis",
         [sys.executable, "scripts/run_analysis.py", "--data", DATA_ARG],
         None,
     ),
     (
-        8,
+        11,
         "Generate diagnostics (with SHAP)",
         [
             sys.executable,
@@ -91,37 +109,37 @@ STEPS = [
         "shap",
     ),
     (
-        9,
+        12,
         "Generate animal research",
         [sys.executable, "scripts/generate_animal_research.py", "--data", DATA_ARG],
         None,
     ),
     (
-        10,
+        13,
         "Generate evidence pack",
         [sys.executable, "scripts/generate_evidence_pack.py", "--data", DATA_ARG],
         None,
     ),
     (
-        11,
+        14,
         "Generate report outputs",
         [sys.executable, "scripts/generate_report_outputs.py"],
         None,
     ),
     (
-        12,
+        15,
         "Generate feature family importance",
         [sys.executable, "scripts/generate_feature_family_importance.py"],
         "shap",
     ),
     (
-        13,
+        16,
         "Generate artifact manifest",
         [sys.executable, "scripts/generate_artifact_manifest.py"],
         None,
     ),
     (
-        14,
+        17,
         "Run test suite",
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
         None,
@@ -156,18 +174,18 @@ Examples:
     parser.add_argument(
         "--skip-shap",
         action="store_true",
-        help="Skip SHAP-heavy steps (8, 12).",
+        help="Skip SHAP-heavy steps (11, 15).",
     )
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Quick mode: skip download (1), SHAP (8, 12), and tests (14).",
+        help="Quick mode: skip download (1), SHAP (11, 15), and tests (17).",
     )
     parser.add_argument(
         "--steps",
         type=str,
         default="",
-        help="Comma-separated list of step numbers to run (e.g. --steps 4,5,6). Overrides skip flags.",
+        help="Comma-separated list of step numbers to run (e.g. 4,5,6). Overrides skip flags.",
     )
     parser.add_argument(
         "--log-file",
@@ -185,7 +203,7 @@ def should_skip(step_number: int, tag: str | None, args: argparse.Namespace, onl
         return True
     if tag == "shap" and (args.skip_shap or args.quick):
         return True
-    if step_number == 14 and args.quick:
+    if step_number == 17 and args.quick:
         return True
     return False
 

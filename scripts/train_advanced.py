@@ -24,13 +24,25 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--learning-rate", type=float, default=0.05)
     parser.add_argument("--depth", type=int, default=6)
     parser.add_argument("--early-stopping-rounds", type=int, default=50)
+    parser.add_argument(
+        "--tuned-params-path",
+        type=Path,
+        default=None,
+        help="Path to JSON file with tuned hyperparameters",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+
+    if not args.data_path.exists():
+        print(f"Error: {args.data_path} not found.")
+        sys.exit(1)
+
+    print(f"Training advanced models using {args.data_path}...")
     outputs = train_all_advanced(
-        data_path=args.data,
+        data_path=args.data_path,
         metrics_dir=args.metrics_dir,
         models_dir=args.models_dir,
         max_rows=args.max_rows if args.max_rows > 0 else None,
@@ -38,6 +50,7 @@ def main() -> None:
         learning_rate=args.learning_rate,
         depth=args.depth,
         early_stopping_rounds=args.early_stopping_rounds,
+        tuned_params_path=args.tuned_params_path,
     )
     print(f"Wrote advanced metrics to {args.metrics_dir}")
     print(f"Wrote advanced model artifacts to {args.models_dir}")
