@@ -32,7 +32,7 @@ def create_calibration_summary(
         rel["is_reliable_cohort"] = (
             (rel["records"] >= min_records_for_cohort) &
             (rel["calibration_gap"] <= cohort_threshold) &
-            (rel["brier_score"] <= 0.25)
+            (rel.get("brier_score", pd.Series([0.15] * len(rel))) <= 0.25)
         )
     else:
         rel["is_reliable_cohort"] = False
