@@ -1,12 +1,13 @@
 # BRIEFING — 2026-06-06T21:25:07+02:00
 
 ## Mission
-Harden AAC Adoption ML pipeline across 5 slices (R1-R5): fix blockers, restore calibration, train-only winsorization, fix recency weights, yearly backtesting.
+Complete final 8 slices (10–17) of AAC Adoption ML thesis pipeline: recency comparison, LOS buckets, tuning leakage fix, permutation/ensemble fix, dashboard alignment, report regen, context pipeline, and final acceptance checklist.
 
 ## 🔒 My Identity
 - Archetype: sentinel
 - Working directory: c:\Users\paula\Documents\mgr pjatk\.agents\sentinel
-- Orchestrator: 69d59147-68f5-4fd4-aeae-63492804987a
+- Previous Orchestrator: 69d59147-68f5-4fd4-aeae-63492804987a (prior mission, retired)
+- New Orchestrator: TBD (to be spawned for slices 10–17)
 - Victory Auditor: to be spawned on victory claim
 
 ## 🔒 Key Constraints
@@ -16,12 +17,13 @@ Harden AAC Adoption ML pipeline across 5 slices (R1-R5): fix blockers, restore c
 - Working directory: c:\Users\paula\Documents\mgr pjatk
 
 ## User Context
-- **Last user request**: Harden AAC Adoption ML pipeline — 5 slices (R1-R5: blockers, calibration, winsorization, recency weights, backtesting)
+- **Last user request**: Complete final 8 thesis pipeline slices (R1–R8, slices 10–17) for full submission readiness
+- **Prior delivered**: Slices 0,6,7,8,9 (assumed complete per user request)
 - **Pending clarifications**: none
-- **Delivered results**: none yet
+- **Delivered results**: none yet (new mission)
 
 ## Project Status
-- **Phase**: in progress (orchestrator spawned 2026-06-06T21:26)
+- **Phase**: in progress — spawning new orchestrator for slices 10–17 (2026-06-06T21:27)
 
 ## Victory Audit Status
 - **Triggered**: no

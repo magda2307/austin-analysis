@@ -123,3 +123,45 @@ Update `docs/ROADMAP.md` to mark item 10 DONE.
 ### Overall
 - [ ] `python -m pytest -q` full suite passes after all slices
 - [ ] `docs/ROADMAP.md` updated to reflect completed slices
+
+## Follow-up — 2026-06-06T21:25:07+02:00
+
+Complete the final 8 slices of the AAC Adoption ML thesis pipeline
+(`c:\Users\paula\Documents\mgr pjatk`), bringing the project to full thesis-submission
+readiness: recency strategy comparison, duration uncertainty outputs, tuning leakage cleanup,
+permutation importance fix, ensemble OOF fix, dashboard model alignment, full report
+regeneration, and a final acceptance checklist pass.
+
+Working directory: `c:\Users\paula\Documents\mgr pjatk`
+Integrity mode: development
+
+**Prerequisite:** Slices 0, 6, 7, 8, 9 are assumed complete (blockers fixed, calibration
+pipeline working, winsorization train-only, recency weights wired, backtesting implemented).
+Verify with `python -m pytest -q` before starting any slice here.
+
+### R1. Slice 10 — Recency Strategy Comparison
+Compare four training strategies on 2024–2025 test period: `full_history`, `recent_5yr`, `recent_3yr`, `recency_weighted`.
+Create `src/aac_adoption/analysis/recency_comparison.py` with `compare_recency_strategies()`.
+Output: `reports/tables/recency_strategy_comparison.csv`.
+
+### R2. Slice 11 — Duration Uncertainty / LOS Wait-Time Buckets
+Add `los_days_to_bucket()` helper, add `los_bucket` to `predict_from_record()`, update dashboard phrasing.
+Bucket definitions: `0–7d`, `8–30d`, `31–60d`, `61–90d`, `90+d`.
+
+### R3. Slice 12 — Hyperparameter Tuning Leakage Fix
+Separate `X_clf` and `X_reg` feature matrices, in-fold preprocessor fitting, clarify fold strategy in tune.py.
+
+### R4. Slice 13 — Permutation Importance to Validation + Ensemble OOF Fix
+Move permutation importance from test→validation. Fix ensemble meta-learner to use OOF predictions.
+
+### R5. Slice 14 — Dashboard Model Selection Alignment
+Fix `best_model_rows()` to sort by PR-AUC primary. Prefer calibrated artifacts in `predict_from_record()`.
+
+### R6. Slice 15 — Report Regeneration + RESULTS.md Update
+Regenerate all stale reports; update RESULTS.md primary metric to PR-AUC.
+
+### R7. Slice 16 — Context Pipeline Integration + Intake Volume Fix
+Add context steps to `run_full_pipeline.py`. Fix intake volume aggregation in `context_data.py`.
+
+### R8. Slice 17 — Final Acceptance Checklist Pass
+Fix terminology ("days to adoption" vs "days to outcome"), add bootstrap limitation note, tick all ROADMAP checklist boxes.

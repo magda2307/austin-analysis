@@ -170,6 +170,15 @@ Required output: a yearly backtesting table showing whether performance changes 
 - When row-level bootstrap is used, generated evidence explicitly states that episodes are not fully independent animal-level observations.
 - Code: `src/aac_adoption/models/bootstrap.py` or similar cluster-aware utilities.
 
+### DONE 18. Target winsorization train-only
+
+- Winsorization is now train-only: compute quantiles on training set, apply to training target before fitting, do NOT apply to validation/test targets.
+- Rationale: target winsorization is a training-time regularization, not a data cleaning step.
+- Metadata stores winsorization quantiles (0.01/0.99), lower/upper values, and applies only during model training for regression tasks.
+- Code: `_fit_and_save()` in `train_baseline.py`, `train_advanced.py`, `train_boosting.py`.
+- Evidence: classification metrics unchanged, regression metrics use internally capped targets during training only.
+- Tests: `test_train_all_baselines_winsorization_train_only` verifies winsorization metadata is stored.
+
 ---
 
 ## Nice To Have
@@ -194,7 +203,7 @@ Required output: a yearly backtesting table showing whether performance changes 
 | RISK | LOS distribution | `regression_target_days` is non-negative, right-skewed, censored, outlier-heavy, and outcome-dependent. Standard MAE/MSE training is suboptimal. |
 | RISK | Right-censoring bias | Dataset-end censoring can make recent animals look like they had shorter waits. |
 | DONE | Duplicate features | Duplicate aliases have been removed from model-training features, but reports/dashboard aliases may still exist for compatibility. |
-| RISK | Calibration reproducibility | Calibrated artifacts exist, but the current calibration CLI cannot reproduce them because a called function is missing. |
+| DONE | Calibration reproducibility | **DONE 3b**: Calibration CLI fully works. `scripts/calibrate_classifiers.py` correctly imports `calibrate_classifiers()` and produces output CSV with ROC-AUC, PR-AUC, Brier score, ECE. Tests verify: --help exits 0, synthetic calibration, CSV format, Platt uses sigmoid. |
 | RISK | Chronological split not sufficient | A chronological split is necessary but not enough; yearly backtesting gives stronger evidence of temporal stability. |
 | RISK | Subgroup sample sizes | Subgroup results need minimum sample-size rules. Small cohorts should not be strongly interpreted. |
 | RISK | Episode-level independence | Episode-level records are not always independent when the same animal appears multiple times. Bootstrap by `animal_id` is more correct than row-level bootstrap. |
