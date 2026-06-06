@@ -165,12 +165,16 @@ def train_advanced_regression(
         feature_columns = model_feature_columns(split.train)
         
         filter_df = split.train.copy()
-        filter_df = filter_df[filter_df["adopted"]].copy()
-        filter_df = log_transform_LOS(filter_df, "regression_target_days")
-        filter_df = filter_df.copy()
+        filter_col = "adopted" if "adopted" in split.train.columns else "classification_target"
         
         split_train = split.train.copy()
-        split_train["regression_target_days"] = filter_df["log_regression_target_days"]
+        split_train = log_transform_LOS(split_train, "regression_target_days")
+        
+        split_val = split.validation.copy()
+        split_val = log_transform_LOS(split_val, "regression_target_days")
+        
+        split_test = split.test.copy()
+        split_test = log_transform_LOS(split_test, "regression_target_days")
         
         model, metadata = _fit_and_save(
             model=CatBoostRegressor(**params),
@@ -178,8 +182,8 @@ def train_advanced_regression(
             split=DatasetSplit(
                 full_data=split.full_data,
                 train=split_train,
-                validation=split.validation,
-                test=split.test,
+                validation=split_val,
+                test=split_test,
                 strategy=split.strategy,
                 train_period=split.train_period,
                 validation_period=split.validation_period,

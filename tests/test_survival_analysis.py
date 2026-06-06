@@ -46,9 +46,10 @@ def test_kaplan_meier_empty():
 
 
 def test_cox_proportional_hazards_fitting(sample_los_data):
+    df_encoded = pd.get_dummies(sample_los_data, columns=["animal_type", "age_group"], drop_first=True, dtype=float)
     cph, summary = fit_cox_proportional_hazards(
-        sample_los_data,
-        feature_cols=["animal_type", "age_group"],
+        df_encoded,
+        feature_cols=[col for col in df_encoded.columns if col not in ["days_to_outcome", "adopted"]],
     )
     
     assert cph is not None

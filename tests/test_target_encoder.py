@@ -100,3 +100,51 @@ def test_target_encoder_unknown_handling(sample_data):
     
     assert pd.isna(result["high_card_col"].iloc[0])
     assert not pd.isna(result["high_card_col"].iloc[1])
+
+
+def test_target_encoder_unseen_categories_global_mean(sample_data):
+    df, target = sample_data
+    encoder = OOFBayesianTargetEncoder(
+        columns=["high_card_col"],
+        smoothing=10.0,
+        handle_unknown="value",
+    )
+    
+    encoder.fit(df, target)
+    global_mean = target.mean()
+    
+    new_df = pd.DataFrame({
+        "high_card_col": ["completely_unseen_category"],
+    })
+    
+    result = encoder.transform(new_df)
+    
+    assert np.isclose(result["high_card_col"].iloc[0], global_mean)
+
+
+def test_target_encoder_rare_categories_smoothing(sample_data):
+    df, target = sample_data
+    
+    # Introduce a very rare category with a deterministic target
+    df.loc[0, "high_card_col"] = "rare_cat_1"
+    target.loc[0] = 1  # 100% success for this rare cat
+    
+    encoder = OOFBayesianTargetEncoder(
+        columns=["high_card_col"],
+        smoothing=100.0,  # High smoothing
+    )
+    
+    encoder.fit(df, target)
+    global_mean = target.mean()
+    
+    new_df = pd.DataFrame({
+        "high_card_col": ["rare_cat_1"],
+    })
+    
+    result = encoder.transform(new_df)
+    
+    # Because of high smoothing, the encoded value should be pulled heavily towards the global mean
+    # rather than being 1.0
+    encoded_val = result["high_card_col"].iloc[0]
+    assert encoded_val < 0.9  # Shouldn't be 1.0 due to smoothing
+    assert encoded_val > global_mean  # But should be higher than average

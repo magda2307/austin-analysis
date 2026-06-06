@@ -16,8 +16,8 @@ def sample_data():
     n_samples = 100
     
     df = pd.DataFrame({
-        "feature1": np.random.randn(n_samples),
-        "feature2": np.random.randn(n_samples),
+        "age_upon_intake_days": np.random.randn(n_samples) * 100,
+        "intake_condition": np.random.choice(["Normal", "Injured"], n_samples),
         "intake_year": np.random.choice([2020, 2021, 2022, 2023, 2024], n_samples),
         "classification_target": np.random.choice([0, 1], n_samples),
         "regression_target_days": np.random.randint(1, 30, n_samples),
@@ -29,7 +29,7 @@ def sample_data():
 def test_tune_histgradient_classification(sample_data):
     result = tune_histgradient_boosting_classification(
         sample_data,
-        n_splits=2,
+        n_splits=3,
         max_iter_options=[10, 20],
         max_leaf_nodes_options=[5, 10],
         learning_rate_options=[0.05, 0.1],
@@ -59,7 +59,8 @@ def test_tune_histgradient_regression(sample_data):
 
 def test_tune_empty_data():
     empty_df = pd.DataFrame({
-        "feature1": pd.Series([], dtype="float64"),
+        "age_upon_intake_days": pd.Series([], dtype="float64"),
+        "intake_condition": pd.Series([], dtype="object"),
         "intake_year": pd.Series([], dtype="int64"),
         "classification_target": pd.Series([], dtype="int64"),
     })

@@ -65,6 +65,14 @@ def tune_histgradient_boosting_classification(
     feature_columns = list(split.train.columns)
     if target_column in feature_columns:
         feature_columns.remove(target_column)
+    if "days_to_outcome" in feature_columns:
+        feature_columns.remove("days_to_outcome")
+    if "length_of_stay" in feature_columns:
+        feature_columns.remove("length_of_stay")
+    if "days_to_adoption" in feature_columns:
+        feature_columns.remove("days_to_adoption")
+    if "regression_target_days" in feature_columns:
+        feature_columns.remove("regression_target_days")
     
     preprocessor = make_boosting_preprocessor(split.train[feature_columns])
     
