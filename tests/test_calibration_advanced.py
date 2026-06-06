@@ -40,7 +40,7 @@ def test_calibration_improves_brier_score(sample_classification_data):
     uncalibrated_probs = model.predict_proba(X_test)[:, 1]
     uncalibrated_brier = brier_score_loss(y_test, uncalibrated_probs)
     
-    # Train calibrated model (uses CV internally)
+    # Train calibrated wrapper on the holdout calibration split.
     calibrated_model = apply_calibration_to_predictions(model, X_train, y_train, X_val, y_val)
     
     calibrated_probs = calibrated_model.predict_proba(X_test)[:, 1]

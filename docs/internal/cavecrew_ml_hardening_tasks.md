@@ -26,81 +26,7 @@ path:line: severity: problem. fix.
 totals: N bug N risk N nit N q
 ```
 
-## Task A - Verify Clean Calibration Stage
-
-Use: `cavecrew-investigator`, then `cavecrew-reviewer`.
-
-Priority: P0
-
-Own files for investigation:
-
-- `src/aac_adoption/models/calibrate.py`
-- `src/aac_adoption/models/train_advanced.py`
-- `scripts/calibrate_classifiers.py`
-- `tests/test_calibration.py`
-- `tests/test_calibration_advanced.py`
-
-Problem:
-
-- Calibration exists now, but roadmap/review status disagrees.
-- Need prove no stale issues remain: Platt stays sigmoid, calibrator uses fitted model, validation is split between early stopping and calibration, calibrated metrics are not mixed with uncalibrated metrics.
-
-Acceptance:
-
-- `python scripts/calibrate_classifiers.py --help` exits 0.
-- Tests prove Platt/sigmoid path is preserved.
-- Advanced training emits coherent calibrated vs uncalibrated rows.
-- Roadmap status can be updated from evidence, not optimism.
-
-Suggested command:
-
-```powershell
-python scripts/calibrate_classifiers.py --help
-python -m pytest tests/test_calibration.py tests/test_calibration_advanced.py tests/test_train_advanced_outputs.py -q
-```
-
-Review focus:
-
-```text
-src/aac_adoption/models/train_advanced.py:170: risk: calibrated and uncalibrated metrics may mix. Verify separate rows.
-```
-
-## Task B - Resolve LOS Target Leakage
-
-Use: `cavecrew-investigator`, then `cavecrew-builder`.
-
-Priority: P0
-
-Own files:
-
-- `src/aac_adoption/data/build_dataset.py`
-- `src/aac_adoption/models/train_advanced.py`
-- tests only if needed: `tests/test_build_dataset.py`
-
-Problem:
-
-- Original review flagged full-dataset target winsorization.
-- Current dataset builder appears to preserve raw `days_to_outcome`, but need verify no target caps happen before split elsewhere.
-
-Acceptance:
-
-- No pre-split cap/winsor transform touches `length_of_stay`, `days_to_outcome`, or `regression_target_days`.
-- If target capping exists, caps are fit on train only and stored in model metadata.
-- Test proves extreme test-period target cannot change train target transform.
-
-Investigator query:
-
-```text
-Find all winsor/cap/clip/log target transforms for LOS/regression targets. Return path:line only.
-```
-
-Commit:
-
-```text
-fix(regression): prevent target leakage
-```
-
-## Task C - Finish Censoring Summary
+## Task A - Refresh Censoring Summary Artifacts
 
 Use: `cavecrew-builder`.
 
@@ -108,31 +34,28 @@ Priority: P0
 
 Own files:
 
-- `src/aac_adoption/data/build_dataset.py`
 - `scripts/generate_data_audit.py`
 - `docs/ROADMAP.md`
-- tests only if needed: `tests/test_horizon_targets.py`
 
 Problem:
 
-- Horizon columns now use `followup_days_available`.
-- Roadmap still marks end-of-dataset censoring/follow-up summary incomplete.
-- Need included/excluded row counts per horizon and cutoff date.
+- Horizon follow-up audit code exists, but real reports may not be refreshed.
+- Roadmap still marks end-of-dataset censoring/follow-up summary incomplete until artifact is regenerated.
 
 Acceptance:
 
-- Artifact/table records rows included, censored, fast-adopted despite short follow-up, and excluded per 7/30/60/90 day horizon.
-- Output includes extract/end date used for follow-up.
-- Test verifies late-tail unresolved rows become `NaN` for unsafe horizons.
-- `docs/ROADMAP.md` status updated only after generated output exists.
+- Run `python scripts/generate_data_audit.py`.
+- Confirm `reports/tables/horizon_followup_audit.csv` exists and is nonempty.
+- Confirm `reports/summary/data_audit.md` includes Horizon Follow-Up Audit section.
+- Update `docs/ROADMAP.md` status from TODO/PARTIAL only after artifact exists.
 
 Commit:
 
 ```text
-fix(targets): summarize horizon censoring
+docs(ml): refresh censoring status
 ```
 
-## Task D - Audit Re-Intake Ambiguity
+## Task B - Audit Re-Intake Ambiguity
 
 Use: `cavecrew-investigator`, then `cavecrew-builder`.
 
@@ -161,7 +84,7 @@ Commit:
 fix(data): audit reintake ambiguity
 ```
 
-## Task E - Add Yearly Backtesting Artifact
+## Task C - Add Yearly Backtesting Artifact
 
 Use: `cavecrew-builder`.
 
@@ -191,7 +114,7 @@ Commit:
 feat(validation): add yearly backtesting
 ```
 
-## Task F - Compare Recency Strategies
+## Task D - Compare Recency Strategies
 
 Use: `cavecrew-builder`.
 
@@ -219,7 +142,7 @@ Commit:
 feat(validation): compare recency strategies
 ```
 
-## Task G - Align Dashboard LOS Language
+## Task E - Align Dashboard LOS Language
 
 Use: `cavecrew-investigator`, then `cavecrew-builder`.
 
@@ -255,7 +178,7 @@ Commit:
 fix(copy): separate LOS and adoption timing
 ```
 
-## Task H - Enforce Subgroup Reliability Rules
+## Task F - Enforce Subgroup Reliability Rules
 
 Use: `cavecrew-builder`.
 
@@ -284,7 +207,7 @@ Commit:
 fix(reliability): guard subgroup interpretation
 ```
 
-## Task I - Cluster-Aware Confidence Intervals
+## Task G - Cluster-Aware Confidence Intervals
 
 Use: `cavecrew-builder`.
 
@@ -313,7 +236,7 @@ Commit:
 fix(stats): bootstrap by animal
 ```
 
-## Task J - Clean Roadmap Status Drift
+## Task H - Clean Roadmap Status Drift
 
 Use: `cavecrew-builder`.
 
@@ -346,22 +269,20 @@ docs(ml): reconcile hardening status
 
 Round 1:
 
-- Task A: calibration verification.
-- Task B: LOS target leakage.
-- Task C: censoring summary.
+- Task A: refresh censoring artifacts.
+- Task B: re-intake ambiguity.
+- Task C: yearly backtesting.
 
 Round 2:
 
-- Task D: re-intake ambiguity.
-- Task E: yearly backtesting.
-- Task G: dashboard LOS language.
+- Task D: recency strategy comparison.
+- Task E: dashboard LOS language.
+- Task F: subgroup reliability.
 
 Round 3:
 
-- Task F: recency strategy comparison.
-- Task H: subgroup reliability.
-- Task I: cluster-aware CI.
-- Task J: roadmap drift cleanup.
+- Task G: cluster-aware CI.
+- Task H: roadmap drift cleanup.
 
 Final gate:
 

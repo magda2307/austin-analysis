@@ -162,6 +162,7 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
         "classification_target",
         "regression_target_days",
         "days_to_adoption",
+        "followup_days_available",
         "adopted_in_7d",
         "adopted_in_30d",
         "adopted_in_60d",
@@ -207,7 +208,17 @@ def build_modeling_dataset_from_files(
     max_intake_volume_threshold: float | None = 100.0,
 ) -> DatasetBuildResult:
     """Load raw CSVs, build modeling dataset, and write processed CSV."""
-    result = build_modeling_dataset(load_intakes(intakes_path), load_outcomes(outcomes_path))
+    intakes = load_intakes(intakes_path)
+    outcomes = load_outcomes(outcomes_path)
+    extract_dates = []
+    if "intake_datetime" in intakes.columns:
+        extract_dates.append(pd.to_datetime(intakes["intake_datetime"], errors="coerce", utc=True).dt.tz_localize(None).max())
+    if "outcome_datetime" in outcomes.columns:
+        extract_dates.append(pd.to_datetime(outcomes["outcome_datetime"], errors="coerce", utc=True).dt.tz_localize(None).max())
+    extract_dates = [date for date in extract_dates if pd.notna(date)]
+    extract_end_date = max(extract_dates) if extract_dates else None
+
+    result = build_modeling_dataset(intakes, outcomes, extract_end_date=extract_end_date)
     dataset = result.dataset
     if max_intake_volume_threshold is not None:
         if "intake_volume_7d" in dataset.columns:

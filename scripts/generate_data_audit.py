@@ -25,6 +25,8 @@ from aac_adoption.data.clean_data import clean_intakes, clean_outcomes
 from aac_adoption.data.load_data import load_intakes, load_outcomes
 from aac_adoption.data.match_records import match_intakes_to_future_outcomes
 
+HORIZON_DAYS = (7, 30, 60, 90)
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Generate data attrition audit table")
@@ -169,6 +171,29 @@ def build_attrition_table(
     # Stage 7: final modeling dataset
     if Path(final_data_path).exists():
         final = pd.read_csv(final_data_path)
+
+        ambiguous = final["is_ambiguous_match"].sum() if "is_ambiguous_match" in final.columns else 0
+        records.append({
+            "stage": "reintake_ambiguity_audit",
+            "rows": len(final),
+            "rows_removed": 0,
+            "reason": f"Found {ambiguous:,} ambiguous episodes where another intake occurs before the outcome.",
+            **{k: None for k in ["dog_rows", "cat_rows", "unique_animals", "duplicate_animal_ids", "min_intake_date", "max_intake_date"]},
+        })
+
+        if "followup_days_available" in final.columns:
+            censored_7d = (final["followup_days_available"] < 7).sum()
+            censored_30d = (final["followup_days_available"] < 30).sum()
+            censored_60d = (final["followup_days_available"] < 60).sum()
+
+            records.append({
+                "stage": "horizon_censoring_audit",
+                "rows": len(final),
+                "rows_removed": 0,
+                "reason": f"Censoring exclusions if active: {censored_7d:,} (7d), {censored_30d:,} (30d), {censored_60d:,} (60d) dropped near dataset end.",
+                **{k: None for k in ["dog_rows", "cat_rows", "unique_animals", "duplicate_animal_ids", "min_intake_date", "max_intake_date"]},
+            })
+
         s7 = _count_stats(final)
         records.append({
             "stage": "final_modeling_dataset",
@@ -188,6 +213,76 @@ def build_attrition_table(
         })
 
     return pd.DataFrame(records)
+
+
+def build_horizon_followup_audit(final_data_path: str) -> pd.DataFrame:
+    """Summarize horizon-label inclusion and censoring counts."""
+    path = Path(final_data_path)
+    columns = [
+        "horizon_days",
+        "extract_end_date",
+        "total_rows",
+        "included_rows",
+        "censored_rows",
+        "excluded_rows",
+        "full_followup_rows",
+        "short_followup_rows",
+        "fast_adopted_short_followup_rows",
+    ]
+    if not path.exists():
+        return pd.DataFrame(columns=columns)
+
+    final = pd.read_csv(path, parse_dates=["intake_datetime", "outcome_datetime"])
+    if final.empty:
+        return pd.DataFrame(columns=columns)
+
+    if "followup_days_available" not in final.columns:
+        snapshot_date = max(final["intake_datetime"].max(), final["outcome_datetime"].max())
+        final["followup_days_available"] = (
+            snapshot_date - final["intake_datetime"]
+        ).dt.total_seconds() / 86400
+    else:
+        inferred_snapshot = final["intake_datetime"] + pd.to_timedelta(
+            final["followup_days_available"], unit="D"
+        )
+        snapshot_date = inferred_snapshot.max()
+
+    rows = []
+    for horizon in HORIZON_DAYS:
+        target_col = f"adopted_in_{horizon}d"
+        if target_col not in final.columns:
+            rows.append({
+                "horizon_days": horizon,
+                "extract_end_date": snapshot_date.date().isoformat(),
+                "total_rows": len(final),
+                "included_rows": 0,
+                "censored_rows": len(final),
+                "excluded_rows": len(final),
+                "full_followup_rows": 0,
+                "short_followup_rows": len(final),
+                "fast_adopted_short_followup_rows": 0,
+            })
+            continue
+
+        full_followup = final["followup_days_available"] >= horizon
+        adopted = final.get("adopted", pd.Series(False, index=final.index)).astype(bool)
+        fast_adopted = adopted & (final["days_to_outcome"] <= horizon)
+        observed_target = final[target_col].notna()
+        censored = ~observed_target
+
+        rows.append({
+            "horizon_days": horizon,
+            "extract_end_date": snapshot_date.date().isoformat(),
+            "total_rows": len(final),
+            "included_rows": int(observed_target.sum()),
+            "censored_rows": int(censored.sum()),
+            "excluded_rows": int(censored.sum()),
+            "full_followup_rows": int(full_followup.sum()),
+            "short_followup_rows": int((~full_followup).sum()),
+            "fast_adopted_short_followup_rows": int(((~full_followup) & fast_adopted).sum()),
+        })
+
+    return pd.DataFrame(rows, columns=columns)
 
 
 def write_summary_md(df: pd.DataFrame, output_path: Path) -> None:
@@ -235,6 +330,31 @@ def write_summary_md(df: pd.DataFrame, output_path: Path) -> None:
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def append_horizon_summary(output_path: Path, horizon_df: pd.DataFrame) -> None:
+    """Append horizon censoring summary to the data audit Markdown."""
+    lines = output_path.read_text(encoding="utf-8").splitlines()
+    lines += [
+        "",
+        "## Horizon Follow-Up Audit",
+        "",
+        "Horizon adoption targets are observed only when an intake has enough possible follow-up time,",
+        "unless the animal was adopted within the horizon before the snapshot boundary.",
+        "",
+        "| Horizon | Included | Censored / Excluded | Fast adopted with short follow-up | Extract end date |",
+        "|---:|---:|---:|---:|---|",
+    ]
+    if horizon_df.empty:
+        lines.append("| ? | 0 | 0 | 0 | unavailable |")
+    else:
+        for _, row in horizon_df.iterrows():
+            lines.append(
+                f"| {int(row['horizon_days'])}d | {int(row['included_rows'])} | "
+                f"{int(row['censored_rows'])} | {int(row['fast_adopted_short_followup_rows'])} | "
+                f"{row['extract_end_date']} |"
+            )
+    output_path.write_text("\n".join(lines), encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
 
@@ -252,6 +372,11 @@ def main() -> None:
 
     out_md = summary_dir / "data_audit.md"
     write_summary_md(df, out_md)
+    horizon_df = build_horizon_followup_audit(args.data)
+    horizon_csv = tables_dir / "horizon_followup_audit.csv"
+    horizon_df.to_csv(horizon_csv, index=False)
+    append_horizon_summary(out_md, horizon_df)
+    print(f"Wrote {horizon_csv}")
     print(f"Wrote {out_md}")
 
     # Print summary to console

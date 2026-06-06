@@ -95,9 +95,17 @@ Evidence:
 - `tests/test_calibration_advanced.py`
 - `src/aac_adoption/models/calibrate.py`
 
+Verification on 2026-06-06:
+
+- Cavecrew investigator confirmed CLI help exits 0.
+- Platt maps to sigmoid.
+- Prefit calibrator uses `base_model.predict_proba`; base model is not refit.
+- Advanced CatBoost validation is split into early-stop and calibration halves.
+- Uncalibrated and calibrated metric rows are separate.
+
 Residual:
 
-- Verify full clean design end to end: separate early stop/calibration/test roles, no metric mixing, real artifact regeneration.
+- Regenerate real calibrated artifacts/metrics if current report outputs are stale.
 
 ## DONE - Duplicate Feature Cleanup
 
@@ -180,6 +188,29 @@ Residual:
 
 - Add/confirm tiny fixture test for regression frame/index alignment.
 
+## DONE - LOS Target Leakage Verification
+
+Source review concern:
+
+- `length_of_stay`, `days_to_outcome`, and `regression_target_days` might be capped with full-dataset quantiles before split.
+
+Current state:
+
+- `src/aac_adoption/data/build_dataset.py` keeps LOS targets as raw aliases from `days_to_outcome`.
+- No caller was found using `winsorize_outliers()` on LOS targets.
+- Advanced regression log transforms happen on train/validation/test split frames, not in pre-split dataset build.
+
+Evidence:
+
+- Cavecrew investigator scan on 2026-06-06.
+- `src/aac_adoption/data/build_dataset.py`
+- `src/aac_adoption/models/train_advanced.py`
+- `src/aac_adoption/models/train_adopted_regression.py`
+
+Residual:
+
+- If future target capping is added, fit caps on train only and store cap metadata.
+
 ## DONE - Permutation Importance Uses Validation First
 
 Source review concern:
@@ -207,15 +238,19 @@ Current state:
 - `src/aac_adoption/data/build_dataset.py` creates `followup_days_available`.
 - `adopted_in_7d`, `adopted_in_30d`, `adopted_in_60d`, and `adopted_in_90d` become `NaN` when unsafe.
 - Fast observed adoptions remain valid even with short remaining follow-up.
+- `followup_days_available` is preserved in the output modeling dataset.
+- `scripts/generate_data_audit.py` writes `reports/tables/horizon_followup_audit.csv`.
+- `reports/summary/data_audit.md` gets a Horizon Follow-Up Audit section.
 
 Evidence:
 
 - `tests/test_horizon_targets.py`
 - README recent improvements mention horizon censoring.
+- Targeted verification on 2026-06-06: `python -m pytest tests/test_horizon_targets.py -q` passed.
 
 Residual:
 
-- Need included/excluded row-count artifact per horizon and cutoff date.
+- Run data audit on real files to refresh checked-in/generated artifacts.
 
 ## DONE - Leakage Risk Classification Foundation
 
