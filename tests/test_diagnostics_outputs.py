@@ -2,6 +2,7 @@ import pandas as pd
 import joblib
 
 from aac_adoption.diagnostics.feature_families import feature_family
+from aac_adoption.interpretation.feature_families import assign_feature_family
 from aac_adoption.diagnostics.model_diagnostics import (
     _load_model,
     calibration_table,
@@ -92,7 +93,15 @@ def test_feature_family_mapping():
     assert feature_family("age_days") == "age"
     assert feature_family("intake_type") == "intake_circumstances"
     assert feature_family("simplified_color_group") == "color"
+    assert feature_family("daily_temp_max") == "weather_context"
+    assert feature_family("animal_311_requests_7d") == "shelter_demand_context"
+    assert feature_family("intake_volume_30d") == "shelter_demand_context"
     assert feature_family("surprise_column") == "other"
+
+
+def test_interpretation_feature_family_mapping_splits_context():
+    assert assign_feature_family("daily_precipitation") == "weather_context"
+    assert assign_feature_family("intake_volume_7d") == "shelter_demand_context"
 
 
 def test_classification_metrics_include_pr_auc_and_calibration_metrics():

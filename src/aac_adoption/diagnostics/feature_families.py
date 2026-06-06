@@ -13,6 +13,8 @@ FEATURE_FAMILY_TERMS = {
     "name_identity": ["has_name", "is_named"],
     "timing_seasonality": ["intake_year", "intake_month", "intake_quarter", "intake_season"],
     "covid_period": ["covid_period"],
+    "weather_context": ["daily_temp", "daily_precipitation", "is_extreme_heat", "is_rainy_day"],
+    "shelter_demand_context": ["animal_311_requests", "intake_volume"],
     "animal_type": ["animal_type"],
 }
 

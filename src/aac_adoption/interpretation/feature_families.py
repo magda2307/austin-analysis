@@ -70,12 +70,14 @@ FEATURE_FAMILY_MAP: dict[str, list[str]] = {
     "animal_type": [
         "animal_type",
     ],
-    "external_context": [
+    "weather_context": [
         "daily_temp_max",
         "daily_temp_min",
         "daily_precipitation",
         "is_extreme_heat",
         "is_rainy_day",
+    ],
+    "shelter_demand_context": [
         "animal_311_requests_7d",
         "animal_311_requests_30d",
         "intake_volume_7d",
@@ -103,7 +105,8 @@ FAMILY_LABELS: dict[str, str] = {
     "timing_seasonality": "Timing & Seasonality",
     "covid_period": "COVID Period",
     "animal_type": "Animal Type",
-    "external_context": "External Context (weather / shelter load)",
+    "weather_context": "Weather Context",
+    "shelter_demand_context": "Shelter Demand Context",
 }
 
 
