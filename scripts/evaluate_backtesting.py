@@ -18,8 +18,8 @@ def get_train_test_years(df):
     splits = []
     # Train up to X, test X+1
     for i in range(len(years) - 1):
-        if years[i] < 2018:
-            continue # At least 2013-2018 for first window
+        if years[i+1] < 2019:
+            continue
         train_years = years[:i+1]
         test_year = years[i+1]
         splits.append((train_years, test_year))
