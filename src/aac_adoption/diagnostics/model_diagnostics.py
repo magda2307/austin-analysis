@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -26,7 +27,8 @@ from aac_adoption.config import RANDOM_STATE
 from aac_adoption.diagnostics.feature_families import feature_family
 from aac_adoption.models.artifacts import artifact_path
 from aac_adoption.models.split import make_time_split
-from aac_adoption.models.train_advanced import feature_columns_for, prepare_catboost_frame
+from aac_adoption.features.feature_sets import model_feature_columns
+from aac_adoption.models.train_advanced import prepare_catboost_frame
 
 
 DIAGNOSTIC_COLUMNS = [
@@ -45,11 +47,151 @@ DIAGNOSTIC_COLUMNS = [
 ]
 
 
-def _load_model(models_dir: str | Path, task: str, subset: str = "combined"):
-    path = artifact_path(models_dir, task, subset, "catboost")
-    if not path.exists():
-        raise FileNotFoundError(f"Missing advanced model artifact: {path}")
-    return joblib.load(path)
+_MODEL_ROOTS = {
+    "catboost": "advanced",
+    "hist_gradient_boosting": "boosting",
+    "random_forest": "baseline",
+    "logistic_regression": "baseline",
+    "ridge": "baseline",
+    "dummy_most_frequent": "baseline",
+    "dummy_median": "baseline",
+}
+
+
+def _models_root(models_dir: str | Path) -> Path:
+    base = Path(models_dir)
+    return base.parent if base.name in {"advanced", "boosting", "baseline"} else base
+
+
+def _selected_model_row(
+    tables_dir: str | Path,
+    task: str,
+    subset: str,
+) -> pd.Series | None:
+    selection_path = Path(tables_dir) / "final_model_selection.csv"
+    if not selection_path.exists():
+        return None
+    selected = pd.read_csv(selection_path)
+    if selected.empty or "selected" not in selected.columns:
+        return None
+    subset_column = "subset" if "subset" in selected.columns else "animal_subset"
+    if subset_column not in selected.columns:
+        return None
+    mask = (
+        selected["task"].astype(str).eq(task)
+        & selected[subset_column].astype(str).eq(subset)
+        & selected["selected"].astype(str).str.lower().isin(["true", "1", "yes"])
+    )
+    rows = selected[mask]
+    if rows.empty:
+        return None
+    return rows.iloc[0]
+
+
+def _candidate_artifact_paths(
+    models_dir: str | Path,
+    task: str,
+    subset: str,
+    model_name: str,
+    selected_row: pd.Series | None,
+) -> list[Path]:
+    candidates: list[Path] = []
+    if selected_row is not None and "artifact_path" in selected_row and pd.notna(selected_row["artifact_path"]):
+        candidates.append(Path(str(selected_row["artifact_path"])))
+
+    base = Path(models_dir)
+    root = _models_root(base)
+    preferred = _MODEL_ROOTS.get(model_name)
+    if preferred:
+        candidates.append(artifact_path(root / preferred, task, subset, model_name))
+    candidates.append(artifact_path(base, task, subset, model_name))
+    for family_dir in ["advanced", "boosting", "baseline"]:
+        candidates.append(artifact_path(root / family_dir, task, subset, model_name))
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for path in candidates:
+        key = str(path)
+        if key not in seen:
+            unique.append(path)
+            seen.add(key)
+    return unique
+
+
+def _load_model(
+    models_dir: str | Path,
+    task: str,
+    subset: str = "combined",
+    tables_dir: str | Path = "reports/tables",
+) -> tuple[Any, dict[str, Any]]:
+    selected_row = _selected_model_row(tables_dir, task, subset)
+    model_name = str(selected_row["model_name"]) if selected_row is not None else "catboost"
+    tried = _candidate_artifact_paths(models_dir, task, subset, model_name, selected_row)
+    for path in tried:
+        if path.exists():
+            metadata_path = path.with_suffix(".json")
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+            metadata.update(
+                {
+                    "model_name": model_name,
+                    "task": task,
+                    "animal_subset": subset,
+                    "artifact_path": str(path),
+                    "selection_source": str(Path(tables_dir) / "final_model_selection.csv")
+                    if selected_row is not None
+                    else "fallback_catboost",
+                    "validation_tactic": (
+                        "Resolve selected model from final_model_selection.csv, load matching artifact, "
+                        "and record artifact path in diagnostics_model_selection.csv."
+                    ),
+                }
+            )
+            return joblib.load(path), metadata
+    searched = ", ".join(str(path) for path in tried)
+    raise FileNotFoundError(f"Missing selected model artifact for {task}/{subset}/{model_name}. Tried: {searched}")
+
+
+def _feature_columns_from_metadata(metadata: dict[str, Any], fallback: list[str]) -> list[str]:
+    columns = metadata.get("feature_columns")
+    if isinstance(columns, list) and columns:
+        return [str(column) for column in columns]
+    return fallback
+
+
+def _model_frame(model_name: str, df: pd.DataFrame, feature_columns: list[str]) -> pd.DataFrame:
+    if model_name == "catboost":
+        return prepare_catboost_frame(df, feature_columns)
+    return df[feature_columns].copy()
+
+
+def _model_selection_table(rows: list[dict[str, Any]]) -> pd.DataFrame:
+    columns = [
+        "task",
+        "animal_subset",
+        "model_name",
+        "artifact_path",
+        "selection_source",
+        "validation_tactic",
+    ]
+    return pd.DataFrame(rows)[columns]
+
+
+def diagnostics_validation_tactics(include_shap: bool) -> pd.DataFrame:
+    """Return validation tactics for every generated diagnostics part."""
+    rows = [
+        ("selected_model_resolution", "Check diagnostics_model_selection.csv lists one loaded artifact per task/subset."),
+        ("prediction_frame", "Check predictions use test-period rows from make_time_split and selected model artifacts."),
+        ("classification_curves", "Check ROC/PR curves use predicted probabilities and classification_target from the same test rows."),
+        ("threshold_grid", "Check threshold metrics are diagnostic only; final operating thresholds must come from validation-period analysis."),
+        ("calibration_table", "Check observed adoption rate is compared with mean predicted probability by fixed probability bins."),
+        ("error_slices", "Check slices below min_slice_records are excluded from interpretation."),
+        ("risk_quadrants", "Check quadrants are descriptive summaries of selected classification and regression outputs."),
+        ("regression_residuals", "Check residual artifacts compare predicted days to held-out regression_target_days."),
+        ("adoption_milestones", "Check milestones use observed adopted-only timelines, not model predictions."),
+    ]
+    if include_shap:
+        rows.append(("shap_outputs", "Generate SHAP only for selected CatBoost models; otherwise write an explicit skip note."))
+    return pd.DataFrame(rows, columns=["diagnostic_part", "validation_tactic"])
 
 
 def _save_table(df: pd.DataFrame, path: Path) -> None:
@@ -94,25 +236,33 @@ def _save_bar_plot(df: pd.DataFrame, label: str, value: str, path: Path, title: 
 def _prediction_frame(
     data_path: str | Path,
     models_dir: str | Path,
+    tables_dir: str | Path,
     subset: str,
-) -> pd.DataFrame:
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     header = pd.read_csv(data_path, nrows=0)
     parse_dates = [col for col in ["intake_datetime", "outcome_datetime"] if col in header.columns]
     df = pd.read_csv(data_path, parse_dates=parse_dates)
 
     classification_split = make_time_split(df, "classification_target", animal_subset=subset)
     regression_split = make_time_split(df, "regression_target_days", animal_subset=subset)
-    feature_columns = feature_columns_for(classification_split.train)
-    classifier = _load_model(models_dir, "classification", subset)
-    regressor = _load_model(models_dir, "regression", subset)
+    fallback_features = model_feature_columns(classification_split.train)
+    classifier, classifier_metadata = _load_model(models_dir, "classification", subset, tables_dir)
+    regressor, regressor_metadata = _load_model(models_dir, "regression", subset, tables_dir)
+    classification_features = _feature_columns_from_metadata(classifier_metadata, fallback_features)
+    regression_features = _feature_columns_from_metadata(regressor_metadata, fallback_features)
 
     test = classification_split.test.copy()
-    test_x = prepare_catboost_frame(test, feature_columns)
+    test_x = _model_frame(classifier_metadata["model_name"], test, classification_features)
     test["predicted_adoption_probability"] = classifier.predict_proba(test_x)[:, 1]
     test["predicted_adopted"] = (test["predicted_adoption_probability"] >= 0.5).astype(int)
-    regression_x = prepare_catboost_frame(regression_split.test, feature_columns)
-    test["predicted_days_to_outcome"] = np.maximum(0.0, regressor.predict(regression_x))
-    test["regression_residual"] = test["regression_target_days"] - test["predicted_days_to_outcome"]
+    regression_test = regression_split.test.copy()
+    regression_x = _model_frame(regressor_metadata["model_name"], regression_test, regression_features)
+    regression_test["predicted_days_to_outcome"] = np.maximum(0.0, regressor.predict(regression_x))
+    regression_test["regression_residual"] = (
+        regression_test["regression_target_days"] - regression_test["predicted_days_to_outcome"]
+    )
+    regression_outputs = regression_test[["predicted_days_to_outcome", "regression_residual"]]
+    test[["predicted_days_to_outcome", "regression_residual"]] = regression_outputs.reindex(test.index)
     test["absolute_error"] = test["regression_residual"].abs()
     keep = [column for column in DIAGNOSTIC_COLUMNS + [
         "predicted_adoption_probability",
@@ -121,7 +271,8 @@ def _prediction_frame(
         "regression_residual",
         "absolute_error",
     ] if column in test.columns]
-    return test[keep].copy()
+    model_selection = _model_selection_table([classifier_metadata, regressor_metadata])
+    return test[keep].copy(), model_selection
 
 
 def classification_curves(predictions: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -299,8 +450,9 @@ def shap_outputs(
     tables_dir: str | Path,
     figures_dir: str | Path,
     max_rows: int,
+    selection_tables_dir: str | Path,
 ) -> None:
-    """Generate sampled SHAP global and feature-family outputs for combined CatBoost models."""
+    """Generate sampled SHAP outputs only when the selected combined model is CatBoost."""
     import shap
 
     df = pd.read_csv(data_path)
@@ -308,8 +460,27 @@ def shap_outputs(
         ("classification", "classification_target", "classification"),
         ("regression", "regression_target_days", "regression"),
     ]:
+        selected_row = _selected_model_row(selection_tables_dir, task, "combined")
+        selected_name = str(selected_row["model_name"]) if selected_row is not None else "catboost"
+        if selected_name != "catboost":
+            _save_table(
+                pd.DataFrame(
+                    [
+                        {
+                            "task": task,
+                            "animal_subset": "combined",
+                            "selected_model": selected_name,
+                            "status": "skipped",
+                            "reason": "SHAP diagnostics are generated only for selected CatBoost models to avoid explaining an unselected artifact.",
+                            "validation_tactic": "Confirm skip note matches final_model_selection.csv when selected model is not CatBoost.",
+                        }
+                    ]
+                ),
+                Path(tables_dir) / f"shap_{filename_suffix}_skip_note.csv",
+            )
+            continue
         split = make_time_split(df, target_column, animal_subset="combined")
-        feature_columns = feature_columns_for(split.train)
+        feature_columns = model_feature_columns(split.train)
         sample = split.test
         if len(sample) > max_rows:
             if target_column == "classification_target" and sample[target_column].nunique() == 2:
@@ -320,7 +491,7 @@ def shap_outputs(
             else:
                 sample = sample.sample(n=max_rows, random_state=RANDOM_STATE)
         sample_x = prepare_catboost_frame(sample, feature_columns)
-        model = _load_model(models_dir, task, "combined")
+        model, _metadata = _load_model(models_dir, task, "combined", selection_tables_dir)
         explainer = shap.TreeExplainer(model)
         shap_values = explainer.shap_values(sample_x)
         if isinstance(shap_values, list):
@@ -366,6 +537,9 @@ def shap_outputs(
             "Sum mean absolute SHAP",
         )
 
+    if "sample" not in locals() or "global_table" not in locals():
+        return
+
     local_rows = []
     for row_index, row in sample.head(5).reset_index(drop=True).iterrows():
         top = global_table.head(5)
@@ -397,8 +571,10 @@ def generate_diagnostics(
     diagnostics = Path(diagnostics_dir)
     tables = Path(tables_dir)
     figures = Path(figures_dir)
-    predictions = _prediction_frame(data_path, models_dir, subset)
+    predictions, model_selection = _prediction_frame(data_path, models_dir, tables, subset)
     _save_table(predictions, diagnostics / "diagnostic_predictions_sample.csv")
+    _save_table(model_selection, diagnostics / "diagnostics_model_selection.csv")
+    _save_table(diagnostics_validation_tactics(include_shap), diagnostics / "diagnostics_validation_tactics.csv")
 
     roc, pr = classification_curves(predictions)
     thresholds = threshold_table(predictions)
@@ -451,5 +627,5 @@ def generate_diagnostics(
     _save_bar_plot(cls_slices, "value", "false_negative_rate", figures / "diagnostic_classification_error_slices.png", "Highest false-negative slices", "False negative rate")
     adoption_milestones(data_path, tables, figures)
     if include_shap:
-        shap_outputs(data_path, models_dir, tables, figures, shap_max_rows)
+        shap_outputs(data_path, models_dir, tables, figures, shap_max_rows, tables)
 

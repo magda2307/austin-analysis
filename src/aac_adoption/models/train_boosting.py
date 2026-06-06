@@ -15,9 +15,8 @@ from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
     INTAKE_TIME_FEATURES,
-    available_intake_features,
-    feature_set_label,
-    validate_no_leakage,
+    available_features_for_df,
+    model_feature_columns,
 )
 from aac_adoption.interpretation.explain import append_table
 from aac_adoption.models.artifacts import save_model_artifact
@@ -30,6 +29,7 @@ from aac_adoption.models.train_baseline import (
     categorical_to_object,
     limit_rows,
 )
+from aac_adoption.models.metadata import base_training_metadata
 
 
 @dataclass(frozen=True)
@@ -40,23 +40,10 @@ class BoostingTrainingOutputs:
     regression_metrics: pd.DataFrame
 
 
-def _available_features(df: pd.DataFrame, columns: list[str]) -> list[str]:
-    features = [column for column in columns if column in df.columns]
-    validate_no_leakage(features)
-    return features
-
-
-def feature_columns_for(df: pd.DataFrame) -> list[str]:
-    """Return available intake-time model features."""
-    features = available_intake_features(_available_features(df, INTAKE_TIME_FEATURES))
-    validate_no_leakage(features)
-    return features
-
-
 def make_boosting_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     """Create dense preprocessing compatible with HistGradientBoosting."""
-    numeric_features = _available_features(df, NUMERIC_FEATURES)
-    categorical_features = _available_features(df, CATEGORICAL_FEATURES)
+    numeric_features = available_features_for_df(df, NUMERIC_FEATURES)
+    categorical_features = available_features_for_df(df, CATEGORICAL_FEATURES)
     numeric_pipeline = Pipeline(steps=[("imputer", SimpleImputer(strategy="median"))])
     categorical_pipeline = Pipeline(
         steps=[
@@ -72,30 +59,6 @@ def make_boosting_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
         ],
         sparse_threshold=0.0,
     )
-
-
-def _base_metadata(
-    model_name: str,
-    task: str,
-    split: DatasetSplit,
-    feature_columns: list[str],
-    run_timestamp: str,
-) -> dict:
-    return {
-        "model_name": model_name,
-        "task": task,
-        "animal_subset": split.animal_subset,
-        "split_strategy": split.strategy,
-        "train_period": split.train_period,
-        "validation_period": split.validation_period,
-        "test_period": split.test_period,
-        "feature_set": feature_set_label(feature_columns),
-        "random_state": RANDOM_STATE,
-        "run_timestamp": run_timestamp,
-        "train_rows": len(split.train),
-        "validation_rows": len(split.validation),
-        "test_rows": len(split.test),
-    }
 
 
 def _fit_and_save(
@@ -115,7 +78,13 @@ def _fit_and_save(
         ]
     )
     pipeline.fit(split.train[feature_columns], split.train[target_column])
-    metadata = _base_metadata(model_name, task, split, feature_columns, run_timestamp)
+    metadata = base_training_metadata(
+        model_name=model_name,
+        task=task,
+        split=split,
+        feature_columns=feature_columns,
+        run_timestamp=run_timestamp,
+    )
     path = save_model_artifact(pipeline, models_dir, task, split.animal_subset, model_name, metadata)
     metadata["artifact_path"] = str(path)
     return pipeline, metadata
@@ -164,7 +133,7 @@ def train_boosting_classification(
     rows: list[dict] = []
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
-        feature_columns = feature_columns_for(split.train)
+        feature_columns = model_feature_columns(split.train)
         pipeline, metadata = _fit_and_save(
             model=HistGradientBoostingClassifier(
                 learning_rate=0.08,
@@ -210,7 +179,7 @@ def train_boosting_regression(
     rows: list[dict] = []
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
-        feature_columns = feature_columns_for(split.train)
+        feature_columns = model_feature_columns(split.train)
         pipeline, metadata = _fit_and_save(
             model=HistGradientBoostingRegressor(
                 learning_rate=0.08,

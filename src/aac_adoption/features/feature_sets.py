@@ -1,16 +1,14 @@
 """Feature-set definitions and leakage checks."""
 
+import pandas as pd
+
 BASE_INTAKE_TIME_FEATURES = [
     "animal_type",
     "intake_type",
     "intake_condition",
     "sex_upon_intake",
-    "age_upon_intake",
     "age_days",
-    "age_months",
-    "age_years",
     "age_group",
-    "breed",
     "primary_breed",
     "is_mixed_breed",
     "simplified_breed_group",
@@ -21,16 +19,12 @@ BASE_INTAKE_TIME_FEATURES = [
     "is_intersection_location",
     "is_address_like_location",
     "is_airport_location",
-    "color",
     "primary_color",
     "simplified_color_group",
     "is_black_or_dark",
-    "has_name",
     "is_named",
     "intake_year",
     "intake_month",
-    "intake_quarter",
-    "intake_season",
     "covid_period",
 ]
 
@@ -92,9 +86,25 @@ def validate_no_leakage(feature_columns: list[str]) -> None:
         raise ValueError(f"Leakage columns cannot be model features: {leakage}")
 
 
+def available_features_for_df(df: pd.DataFrame, columns: list[str]) -> list[str]:
+    """Return features from `columns` that exist in df, after leakage check."""
+    features = [col for col in columns if col in df.columns]
+    validate_no_leakage(features)
+    return features
+
+
+def model_feature_columns(df: pd.DataFrame) -> list[str]:
+    """Return available intake-time model features for a given DataFrame."""
+    features = available_intake_features(
+        available_features_for_df(df, INTAKE_TIME_FEATURES)
+    )
+    validate_no_leakage(features)
+    return features
+
+
 def feature_set_label(feature_columns: list[str] | set[str]) -> str:
     """Return stable feature-set label for model metadata."""
     columns = set(feature_columns)
     if columns & set(CONTEXT_FEATURES):
-        return "intake_time_context_v1"
-    return "intake_time_v1"
+        return "intake_time_context_v2"
+    return "intake_time_v2"

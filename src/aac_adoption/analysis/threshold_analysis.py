@@ -6,7 +6,9 @@ and evaluates multiple operating thresholds.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import matplotlib
 matplotlib.use("Agg")
@@ -20,26 +22,31 @@ def _load_model(model_path: Path):
     return joblib.load(model_path)
 
 
-def _find_best_model_path(tables_dir: Path, models_root: Path) -> Path | None:
+def _find_best_model(tables_dir: Path, models_root: Path) -> tuple[Path, str, str] | None:
     """Try to locate the selected model artifact from final_model_selection.csv."""
     sel_path = tables_dir / "final_model_selection.csv"
     if sel_path.exists():
         sel = pd.read_csv(sel_path)
-        clf = sel[(sel.get("task", "") == "classification") & (sel.get("selected", False) == True)]
+        selected_mask = sel.get("selected", pd.Series(dtype=object)).astype(str).str.lower().isin(["true", "1", "yes"])
+        clf = sel[(sel.get("task", "") == "classification") & selected_mask]
         if not clf.empty:
             # Look for combined subset first, then dogs, then cats
             for subset in ["combined", "dogs", "cats"]:
                 row = clf[clf.get("animal_subset", "") == subset]
                 if not row.empty:
                     model_name = row.iloc[0]["model_name"]
+                    if "artifact_path" in row.columns and pd.notna(row.iloc[0].get("artifact_path")):
+                        explicit = Path(str(row.iloc[0]["artifact_path"]))
+                        if explicit.exists():
+                            return explicit, subset, model_name
                     candidate = models_root / model_name / "classification" / subset / f"{model_name}.joblib"
                     if candidate.exists():
-                        return candidate
+                        return candidate, subset, model_name
                     # Try alternative paths
                     for subdir in ["boosting", "advanced", "baseline"]:
                         candidate2 = models_root / subdir / "classification" / subset / f"{model_name}.joblib"
                         if candidate2.exists():
-                            return candidate2
+                            return candidate2, subset, model_name
 
     # Fallback: search for any classifier
     for pattern in [
@@ -49,15 +56,45 @@ def _find_best_model_path(tables_dir: Path, models_root: Path) -> Path | None:
     ]:
         found = list(models_root.glob(pattern))
         if found:
-            return found[0]
+            path = found[0]
+            return path, path.parent.name, path.stem
     return None
 
 
+def _find_best_model_path(tables_dir: Path, models_root: Path) -> Path | None:
+    """Backward-compatible selected model path helper."""
+    found = _find_best_model(tables_dir, models_root)
+    return found[0] if found is not None else None
+
+
+def _model_metadata(model_path: Path) -> dict[str, Any]:
+    metadata_path = model_path.with_suffix(".json")
+    if not metadata_path.exists():
+        return {}
+    return json.loads(metadata_path.read_text(encoding="utf-8"))
+
+
+def _feature_columns(metadata: dict[str, Any], frame: pd.DataFrame) -> list[str]:
+    from aac_adoption.features.feature_sets import available_intake_features
+
+    columns = metadata.get("feature_columns")
+    if isinstance(columns, list) and columns:
+        return [str(column) for column in columns if str(column) in frame.columns]
+    return available_intake_features(list(frame.columns))
+
+
+def _predict_scores(model: Any, model_name: str, frame: pd.DataFrame, feature_cols: list[str]) -> np.ndarray:
+    if model_name == "catboost":
+        from aac_adoption.models.train_advanced import prepare_catboost_frame
+
+        x = prepare_catboost_frame(frame, feature_cols)
+    else:
+        x = frame[feature_cols]
+    return model.predict_proba(x)[:, 1]
+
+
 def _evaluate_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> pd.DataFrame:
-    from sklearn.metrics import (
-        precision_score, recall_score, f1_score,
-        confusion_matrix, fbeta_score,
-    )
+    from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix, roc_curve
 
     rows = []
 
@@ -86,6 +123,12 @@ def _evaluate_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> pd.DataFram
     best_f1_t = float(thresholds[int(np.argmax(f1s))])
     rows.append(_row("max_f1", best_f1_t))
 
+    fpr, tpr, roc_thresholds = roc_curve(y_true, y_score)
+    finite = np.isfinite(roc_thresholds)
+    if finite.any():
+        youden = tpr[finite] - fpr[finite]
+        rows.append(_row("youden_j", float(roc_thresholds[finite][int(np.argmax(youden))])))
+
     # Threshold 3: recall >= 0.85 (catch most adopted animals)
     recalls = [recall_score(y_true, (y_score >= t).astype(int), zero_division=0) for t in thresholds]
     high_recall_candidates = [(t, r) for t, r in zip(thresholds, recalls) if r >= 0.85]
@@ -107,10 +150,63 @@ def _evaluate_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> pd.DataFram
     )]
     balanced_t = float(thresholds[int(np.argmin(diffs))])
     rows.append(_row("balanced_precision_recall", balanced_t))
+    rows.append(_row("top_10_percent_capacity", float(np.quantile(y_score, 0.90))))
 
     df = pd.DataFrame(rows)
     df["threshold_name"] = df["threshold_label"]
+    df["selection_source"] = "validation"
     return df
+
+
+def _evaluate_fixed_thresholds(y_true: np.ndarray, y_score: np.ndarray, thresholds_df: pd.DataFrame, prefix: str) -> pd.DataFrame:
+    from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
+
+    rows: list[dict[str, Any]] = []
+    for _, row in thresholds_df.iterrows():
+        threshold = float(row["threshold"])
+        y_pred = (y_score >= threshold).astype(int)
+        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0, 1]).ravel()
+        rows.append(
+            {
+                "threshold_label": row["threshold_label"],
+                f"{prefix}_precision": round(precision_score(y_true, y_pred, zero_division=0), 4),
+                f"{prefix}_recall": round(recall_score(y_true, y_pred, zero_division=0), 4),
+                f"{prefix}_f1": round(f1_score(y_true, y_pred, zero_division=0), 4),
+                f"{prefix}_tp": int(tp),
+                f"{prefix}_fp": int(fp),
+                f"{prefix}_tn": int(tn),
+                f"{prefix}_fn": int(fn),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def _validation_selected_thresholds(
+    validation_true: np.ndarray,
+    validation_score: np.ndarray,
+    test_true: np.ndarray,
+    test_score: np.ndarray,
+) -> pd.DataFrame:
+    selected = _evaluate_thresholds(validation_true, validation_score).rename(
+        columns={
+            "precision": "validation_precision",
+            "recall": "validation_recall",
+            "f1": "validation_f1",
+            "false_positive_rate": "validation_false_positive_rate",
+            "false_negative_rate": "validation_false_negative_rate",
+            "tp": "validation_tp",
+            "fp": "validation_fp",
+            "tn": "validation_tn",
+            "fn": "validation_fn",
+        }
+    )
+    test_metrics = _evaluate_fixed_thresholds(test_true, test_score, selected, "test")
+    result = selected.merge(test_metrics, on="threshold_label", how="left")
+    result["threshold_name"] = result["threshold_label"]
+    result["validation_tactic"] = (
+        "Threshold chosen on validation period only; test metrics apply the frozen threshold without re-selection."
+    )
+    return result
 
 
 def _plot_confusion_matrices(y_true: np.ndarray, y_score: np.ndarray, thresholds_df: pd.DataFrame, out_path: Path) -> None:
@@ -157,46 +253,62 @@ def create_threshold_analysis(
     for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
-    model_path = _find_best_model_path(tables, models_root)
-    if model_path is None:
+    selected_model = _find_best_model(tables, models_root)
+    if selected_model is None:
         print("[4.3] No saved model found — skipping threshold analysis.")
         return
+    model_path, animal_subset, model_name = selected_model
 
     print(f"[4.3] Loading model from {model_path}")
     model = _load_model(model_path)
+    metadata = _model_metadata(model_path)
 
-    # Reconstruct test split
+    # Reconstruct validation/test split
     from aac_adoption.models.split import make_time_split
-    from aac_adoption.features.feature_sets import available_intake_features
 
     header = pd.read_csv(data_path, nrows=0)
     parse_dates = [c for c in ["intake_datetime", "outcome_datetime"] if c in header.columns]
     df = pd.read_csv(data_path, parse_dates=parse_dates)
 
-    # Determine animal_subset from path
-    for subset_candidate in ["dogs", "cats", "combined"]:
-        if subset_candidate in str(model_path):
-            animal_subset = subset_candidate
-            break
-    else:
-        animal_subset = "combined"
-
     split = make_time_split(df, "classification_target", animal_subset=animal_subset)
-    feature_cols = available_intake_features(list(split.test.columns))
+    if split.validation.empty:
+        pd.DataFrame(
+            [
+                {
+                    "model_name": model_name,
+                    "animal_subset": animal_subset,
+                    "model_path": str(model_path),
+                    "status": "skipped",
+                    "threshold_selection_period": "validation",
+                    "evaluation_period": "test",
+                    "validation_tactic": "Skipped because validation split is empty; thresholds must not be selected on test labels.",
+                }
+            ]
+        ).to_csv(tables / "final_classifier_thresholds.csv", index=False)
+        print("[4.3] Validation split empty - wrote skip record for final_classifier_thresholds.csv")
+        return
+    feature_cols = _feature_columns(metadata, split.train)
 
     try:
-        y_score = model.predict_proba(split.test[feature_cols])[:, 1]
+        validation_score = _predict_scores(model, model_name, split.validation, feature_cols)
+        test_score = _predict_scores(model, model_name, split.test, feature_cols)
     except Exception as e:
         print(f"[4.3] predict_proba failed: {e} — skipping.")
         return
 
-    y_true = split.test["classification_target"].values
+    validation_true = split.validation["classification_target"].values
+    test_true = split.test["classification_target"].values
 
-    thresholds_df = _evaluate_thresholds(y_true, y_score)
+    thresholds_df = _validation_selected_thresholds(validation_true, validation_score, test_true, test_score)
+    thresholds_df.insert(0, "model_name", model_name)
+    thresholds_df.insert(1, "animal_subset", animal_subset)
+    thresholds_df.insert(2, "model_path", str(model_path))
+    thresholds_df.insert(3, "threshold_selection_period", "validation")
+    thresholds_df.insert(4, "evaluation_period", "test")
     thresholds_df.to_csv(tables / "final_classifier_thresholds.csv", index=False)
     print(f"[4.3] Wrote final_classifier_thresholds.csv")
 
-    _plot_confusion_matrices(y_true, y_score, thresholds_df, figures / "final_confusion_matrix.png")
+    _plot_confusion_matrices(test_true, test_score, thresholds_df, figures / "final_confusion_matrix.png")
     _write_threshold_md(thresholds_df, animal_subset, str(model_path), summary)
 
 
@@ -216,12 +328,14 @@ def _write_threshold_md(df: pd.DataFrame, animal_subset: str, model_path: str, s
         "|-----------|----------|----------|\n",
         "| `default_0.50` | Balanced general use | May miss high-recall use cases |\n",
         "| `max_f1` | Maximising F1 score | Balances precision and recall automatically |\n",
+        "| `youden_j` | Maximising ROC sensitivity/specificity trade-off | Can ignore class imbalance |\n",
         "| `high_recall_ge85` | Flagging all adoption-likely animals | Accepts more false positives |\n",
-        "| `balanced_precision_recall` | Equal weight on precision and recall | Not always useful operationally |\n\n",
+        "| `balanced_precision_recall` | Equal weight on precision and recall | Not always useful operationally |\n",
+        "| `top_10_percent_capacity` | Fixed campaign capacity | Flags only highest-scored animals |\n\n",
         "## Thesis Statement\n\n",
         "The classifier is evaluated primarily as a **ranking / decision-support tool**, not a binary decision maker. "
-        "The default threshold (0.50) is used for F1 and confusion matrix reporting. "
-        "If the shelter wished to use this model operationally, threshold selection would depend on the cost "
+        "Operating thresholds are selected on the validation period and applied unchanged to the test period. "
+        "If the shelter wished to use this model operationally, final threshold choice would depend on the cost "
         "of false positives (resources allocated to animals unlikely to be adopted) vs. "
         "false negatives (adoption-ready animals not flagged for promotion).\n",
     ]

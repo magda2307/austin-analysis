@@ -16,9 +16,8 @@ from sklearn.preprocessing import FunctionTransformer, OneHotEncoder, StandardSc
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
     INTAKE_TIME_FEATURES,
-    available_intake_features,
-    feature_set_label,
-    validate_no_leakage,
+    available_features_for_df,
+    model_feature_columns,
 )
 from aac_adoption.interpretation.explain import (
     append_table,
@@ -28,17 +27,15 @@ from aac_adoption.interpretation.explain import (
 from aac_adoption.models.artifacts import save_model_artifact
 from aac_adoption.models.evaluate import classification_metrics, regression_metrics
 from aac_adoption.models.split import DatasetSplit, make_time_split
+from aac_adoption.models.metadata import base_training_metadata
 
 
 FEATURE_COLUMNS = INTAKE_TIME_FEATURES
 
 NUMERIC_FEATURES = [
     "age_days",
-    "age_months",
-    "age_years",
     "intake_year",
     "intake_month",
-    "intake_quarter",
     "daily_temp_max",
     "daily_temp_min",
     "daily_precipitation",
@@ -66,7 +63,6 @@ CATEGORICAL_FEATURES = [
     "simplified_color_group",
     "is_black_or_dark",
     "is_named",
-    "intake_season",
     "covid_period",
     "is_extreme_heat",
     "is_rainy_day",
@@ -87,23 +83,10 @@ class BaselineTrainingOutputs:
     regression_metrics: pd.DataFrame
 
 
-def _available_features(df: pd.DataFrame, columns: list[str]) -> list[str]:
-    features = [column for column in columns if column in df.columns]
-    validate_no_leakage(features)
-    return features
-
-
-def feature_columns_for(df: pd.DataFrame) -> list[str]:
-    """Return available intake-time model features."""
-    features = available_intake_features(_available_features(df, FEATURE_COLUMNS))
-    validate_no_leakage(features)
-    return features
-
-
 def make_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     """Create preprocessing from intake-time predictors only."""
-    numeric_features = _available_features(df, NUMERIC_FEATURES)
-    categorical_features = _available_features(df, CATEGORICAL_FEATURES)
+    numeric_features = available_features_for_df(df, NUMERIC_FEATURES)
+    categorical_features = available_features_for_df(df, CATEGORICAL_FEATURES)
 
     numeric_pipeline = Pipeline(
         steps=[
@@ -140,31 +123,6 @@ def limit_rows(df: pd.DataFrame, max_rows: int | None) -> pd.DataFrame:
     return df.sample(n=max_rows, random_state=RANDOM_STATE).reset_index(drop=True)
 
 
-def _base_metadata(
-    *,
-    model_name: str,
-    task: str,
-    split: DatasetSplit,
-    feature_set: str,
-    run_timestamp: str,
-) -> dict:
-    return {
-        "model_name": model_name,
-        "task": task,
-        "animal_subset": split.animal_subset,
-        "split_strategy": split.strategy,
-        "train_period": split.train_period,
-        "validation_period": split.validation_period,
-        "test_period": split.test_period,
-        "feature_set": feature_set,
-        "random_state": RANDOM_STATE,
-        "run_timestamp": run_timestamp,
-        "train_rows": len(split.train),
-        "validation_rows": len(split.validation),
-        "test_rows": len(split.test),
-    }
-
-
 def _fit_and_save(
     *,
     model,
@@ -180,11 +138,11 @@ def _fit_and_save(
     pipeline = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
     pipeline.fit(split.train[feature_columns], split.train[target_column])
 
-    metadata = _base_metadata(
+    metadata = base_training_metadata(
         model_name=model_name,
         task=task,
         split=split,
-        feature_set=feature_set_label(feature_columns),
+        feature_columns=feature_columns,
         run_timestamp=run_timestamp,
     )
     path = save_model_artifact(
@@ -209,12 +167,12 @@ def train_classification_baselines(
     rows: list[dict] = []
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
-        feature_columns = feature_columns_for(split.train)
+        feature_columns = model_feature_columns(split.train)
         models = {
             "dummy_most_frequent": DummyClassifier(strategy="most_frequent"),
             "logistic_regression": LogisticRegression(max_iter=1000, class_weight="balanced"),
             "random_forest": RandomForestClassifier(
-                n_estimators=50,
+                n_estimators=200,
                 max_depth=14,
                 min_samples_leaf=10,
                 random_state=RANDOM_STATE,
@@ -265,12 +223,12 @@ def train_regression_baselines(
     rows: list[dict] = []
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
-        feature_columns = feature_columns_for(split.train)
+        feature_columns = model_feature_columns(split.train)
         models = {
             "dummy_median": DummyRegressor(strategy="median"),
             "ridge": Ridge(),
             "random_forest": RandomForestRegressor(
-                n_estimators=50,
+                n_estimators=200,
                 max_depth=14,
                 min_samples_leaf=10,
                 random_state=RANDOM_STATE,

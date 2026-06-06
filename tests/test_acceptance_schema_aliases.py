@@ -1,11 +1,21 @@
 import numpy as np
 import pandas as pd
+import joblib
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
 
 from aac_adoption.analysis.calibration_summary import create_calibration_summary
 from aac_adoption.analysis.hypothesis_tables import create_adopted_only_timing_tables
 from aac_adoption.analysis.model_selection import create_final_model_selection
 from aac_adoption.analysis.reliability_red_flags import create_reliability_red_flags
-from aac_adoption.analysis.threshold_analysis import _evaluate_thresholds
+from aac_adoption.analysis.threshold_analysis import (
+    _evaluate_thresholds,
+    _find_best_model,
+    _validation_selected_thresholds,
+    create_threshold_analysis,
+)
 from scripts.generate_leakage_audit import build_leakage_audit
 
 
@@ -62,8 +72,24 @@ def test_final_model_selection_adds_subset_alias(tmp_path):
     tables_dir.mkdir()
     pd.DataFrame(
         [
-            {"model_name": "random_forest", "animal_subset": "combined", "roc_auc": 0.7, "pr_auc": 0.75, "f1": 0.6},
-            {"model_name": "catboost", "animal_subset": "combined", "roc_auc": 0.8, "pr_auc": 0.85, "f1": 0.7},
+            {
+                "model_name": "random_forest",
+                "animal_subset": "combined",
+                "roc_auc": 0.7,
+                "pr_auc": 0.75,
+                "f1": 0.6,
+                "brier_score": 0.22,
+                "expected_calibration_error": 0.12,
+            },
+            {
+                "model_name": "catboost",
+                "animal_subset": "combined",
+                "roc_auc": 0.8,
+                "pr_auc": 0.85,
+                "f1": 0.7,
+                "brier_score": 0.18,
+                "expected_calibration_error": 0.08,
+            },
         ]
     ).to_csv(tables_dir / "model_comparison_classification.csv", index=False)
     pd.DataFrame(
@@ -76,8 +102,26 @@ def test_final_model_selection_adds_subset_alias(tmp_path):
     create_final_model_selection(tables_dir, summary_dir)
     table = pd.read_csv(tables_dir / "final_model_selection.csv")
 
-    assert {"animal_subset", "subset"}.issubset(table.columns)
+    assert {"animal_subset", "subset", "brier_score", "expected_calibration_error"}.issubset(table.columns)
     assert table["subset"].equals(table["animal_subset"])
+
+
+def test_final_model_selection_uses_pr_auc_before_roc_auc(tmp_path):
+    tables_dir = tmp_path / "tables"
+    summary_dir = tmp_path / "summary"
+    tables_dir.mkdir()
+    pd.DataFrame(
+        [
+            {"model_name": "higher_roc", "animal_subset": "combined", "roc_auc": 0.90, "pr_auc": 0.70, "f1": 0.6},
+            {"model_name": "higher_pr", "animal_subset": "combined", "roc_auc": 0.85, "pr_auc": 0.80, "f1": 0.7},
+        ]
+    ).to_csv(tables_dir / "model_comparison_classification.csv", index=False)
+
+    create_final_model_selection(tables_dir, summary_dir)
+    table = pd.read_csv(tables_dir / "final_model_selection.csv")
+    selected = table[(table["task"] == "classification") & (table["selected"] == True)]
+
+    assert selected.iloc[0]["model_name"] == "higher_pr"
 
 
 def test_threshold_analysis_adds_threshold_name_alias():
@@ -86,8 +130,107 @@ def test_threshold_analysis_adds_threshold_name_alias():
         np.array([0.1, 0.4, 0.7, 0.8, 0.9, 0.2]),
     )
 
-    assert {"threshold_label", "threshold_name"}.issubset(table.columns)
+    assert {"threshold_label", "threshold_name", "selection_source"}.issubset(table.columns)
     assert table["threshold_name"].equals(table["threshold_label"])
+    assert {"youden_j", "top_10_percent_capacity"}.issubset(set(table["threshold_label"]))
+    assert set(table["selection_source"]) == {"validation"}
+
+
+def test_validation_selected_thresholds_freeze_thresholds_for_test():
+    table = _validation_selected_thresholds(
+        validation_true=np.array([0, 0, 1, 1, 1, 0]),
+        validation_score=np.array([0.1, 0.4, 0.7, 0.8, 0.9, 0.2]),
+        test_true=np.array([0, 1, 1, 0, 1, 0]),
+        test_score=np.array([0.7, 0.6, 0.55, 0.5, 0.45, 0.1]),
+    )
+
+    assert {
+        "validation_precision",
+        "validation_recall",
+        "validation_f1",
+        "test_precision",
+        "test_recall",
+        "test_f1",
+        "validation_tactic",
+    }.issubset(table.columns)
+    assert table["validation_tactic"].str.contains("validation period only").all()
+
+
+def test_create_threshold_analysis_writes_validation_and_test_metrics(tmp_path):
+    data_path = tmp_path / "modeling_dataset.csv"
+    tables_dir = tmp_path / "tables"
+    figures_dir = tmp_path / "figures"
+    summary_dir = tmp_path / "summary"
+    models_root = tmp_path / "models"
+    model_path = models_root / "baseline" / "classification" / "combined" / "logistic_regression.joblib"
+    model_path.parent.mkdir(parents=True)
+    tables_dir.mkdir()
+
+    rows = []
+    for year in range(2013, 2026):
+        for idx in range(4):
+            age_days = year * 10 + idx
+            rows.append(
+                {
+                    "animal_type": "Dog",
+                    "intake_year": year,
+                    "age_days": age_days,
+                    "classification_target": int(idx % 2 == 0),
+                }
+            )
+    df = pd.DataFrame(rows)
+    df.to_csv(data_path, index=False)
+
+    pipeline = Pipeline(
+        [
+            ("select_scale", ColumnTransformer([("age", StandardScaler(), ["age_days"])])),
+            ("model", LogisticRegression()),
+        ]
+    )
+    pipeline.fit(df[["animal_type", "intake_year", "age_days"]], df["classification_target"])
+    joblib.dump(pipeline, model_path)
+    pd.DataFrame(
+        [
+            {
+                "model_name": "logistic_regression",
+                "animal_subset": "combined",
+                "subset": "combined",
+                "selected": True,
+                "task": "classification",
+            }
+        ]
+    ).to_csv(tables_dir / "final_model_selection.csv", index=False)
+
+    create_threshold_analysis(data_path, tables_dir, figures_dir, summary_dir, models_root)
+    thresholds = pd.read_csv(tables_dir / "final_classifier_thresholds.csv")
+
+    assert set(thresholds["threshold_selection_period"]) == {"validation"}
+    assert set(thresholds["evaluation_period"]) == {"test"}
+    assert {"validation_f1", "test_f1", "validation_tactic"}.issubset(thresholds.columns)
+
+
+def test_threshold_model_finder_accepts_string_selected_and_artifact_path(tmp_path):
+    tables_dir = tmp_path / "tables"
+    tables_dir.mkdir()
+    explicit = tmp_path / "custom" / "chosen.joblib"
+    explicit.parent.mkdir()
+    explicit.write_bytes(b"placeholder")
+    pd.DataFrame(
+        [
+            {
+                "model_name": "custom_model",
+                "animal_subset": "combined",
+                "subset": "combined",
+                "selected": "true",
+                "task": "classification",
+                "artifact_path": str(explicit),
+            }
+        ]
+    ).to_csv(tables_dir / "final_model_selection.csv", index=False)
+
+    found = _find_best_model(tables_dir, tmp_path / "models")
+
+    assert found == (explicit, "combined", "custom_model")
 
 
 def test_calibration_summary_adds_subset_and_records_aliases(tmp_path):

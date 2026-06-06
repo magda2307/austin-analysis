@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: aac-adoption
+Version: 1.0.0
+Summary: ML pipeline for Austin Animal Center adoption prediction
+Requires-Python: >=3.10
+Requires-Dist: pandas>=2.0
+Requires-Dist: numpy>=1.24
+Requires-Dist: scikit-learn>=1.3
+Requires-Dist: matplotlib>=3.7
+Requires-Dist: joblib>=1.3
+Requires-Dist: catboost>=1.2
+Requires-Dist: shap>=0.45
+Requires-Dist: plotly>=5.20
+Requires-Dist: lifelines>=0.27
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0; extra == "dev"
+Requires-Dist: streamlit>=1.35; extra == "dev"
+Requires-Dist: altair>=5; extra == "dev"

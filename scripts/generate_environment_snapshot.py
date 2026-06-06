@@ -101,6 +101,16 @@ def main() -> None:
     md_out.write_text("\n".join(md_lines), encoding="utf-8")
     print(f"Saved: {md_out}")
 
+    # Also regenerate requirements-lock.txt in workspace root
+    lockfile_path = ROOT / "requirements-lock.txt"
+    try:
+        import subprocess
+        with open(lockfile_path, "w", encoding="utf-8") as f:
+            subprocess.run([sys.executable, "-m", "pip", "freeze"], stdout=f, check=True)
+        print(f"Regenerated lockfile: {lockfile_path}")
+    except Exception as e:
+        print(f"Warning: Failed to regenerate requirements-lock.txt: {e}")
+
 
 if __name__ == "__main__":
     main()

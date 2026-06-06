@@ -1,4 +1,4 @@
-"""Final model selection report — Task 4.1."""
+﻿"""Final model selection report â€” Task 4.1."""
 
 from __future__ import annotations
 
@@ -11,9 +11,10 @@ import pandas as pd
 # Selection logic
 # ---------------------------------------------------------------------------
 
+
 _CLASSIFICATION_REASON_TEMPLATE = (
-    "Selected on combined criterion: highest test ROC-AUC ({roc_auc:.4f}), "
-    "PR-AUC ({pr_auc:.4f} — accounting for class imbalance), and acceptable calibration. "
+    "Selected on combined criterion: highest test PR-AUC ({pr_auc:.4f} - accounting for class imbalance), "
+    "ROC-AUC ({roc_auc:.4f}), and acceptable calibration. "
     "Outperforms simpler baselines by {roc_delta:.4f} ROC-AUC over random forest. "
     "Interpretability supported via SHAP and permutation importance."
 )
@@ -39,11 +40,11 @@ def _select_classification(df: pd.DataFrame) -> pd.DataFrame:
         if sub.empty:
             continue
 
-        # Primary: ROC-AUC; tie-break: PR-AUC
+        # Primary: PR-AUC; tie-break: ROC-AUC
         pr_col = "pr_auc" if "pr_auc" in sub.columns else None
         if pr_col and sub[pr_col].notna().any():
             sub_sorted = sub.sort_values(
-                ["roc_auc", pr_col], ascending=False, na_position="last"
+                [pr_col, "roc_auc"], ascending=False, na_position="last"
             )
         else:
             sub_sorted = sub.sort_values("roc_auc", ascending=False)
@@ -118,7 +119,7 @@ def create_final_model_selection(
     reg_df = pd.read_csv(reg_path) if reg_path.exists() else pd.DataFrame()
 
     if clf_df.empty and reg_df.empty:
-        print("[4.1] No model comparison tables found — skipping final model selection.")
+        print("[4.1] No model comparison tables found â€” skipping final model selection.")
         return pd.DataFrame(), pd.DataFrame()
 
     clf_selected = _select_classification(clf_df) if not clf_df.empty else pd.DataFrame()
@@ -127,7 +128,8 @@ def create_final_model_selection(
     # Trim to key columns for the final CSV
     clf_cols = [c for c in [
         "model_name", "animal_subset", "roc_auc", "pr_auc", "f1",
-        "precision", "recall", "selected", "selection_reason"
+        "precision", "recall", "brier_score", "expected_calibration_error",
+        "selected", "selection_reason"
     ] if c in clf_selected.columns]
     reg_cols = [c for c in [
         "model_name", "animal_subset", "mae", "rmse",
@@ -162,20 +164,33 @@ def _write_model_selection_md(
         "This document records the selected model for each task and animal subset, "
         "with explicit justification beyond leaderboard ranking.\n\n",
         "## Selection Rules\n\n",
-        "**Classification:** Test ROC-AUC (primary) → PR-AUC (tie-break, accounts for class imbalance) "
-        "→ calibration behaviour → interpretability support.\n",
+        "**Classification:** Test PR-AUC (primary, accounts for class imbalance) -> ROC-AUC (tie-break) "
+        "-> calibration behaviour -> interpretability support.\n",
         "Dummy classifiers are excluded from selection.\n\n",
-        "**Regression:** Test MAE (primary) → Median Absolute Error (robustness) → RMSE.\n",
+        "**Regression:** Test MAE (primary) â†’ Median Absolute Error (robustness) â†’ RMSE.\n",
         "Dummy regressors are excluded from selection.\n\n",
         "## Classification Results\n\n",
     ]
 
     if not clf.empty:
-        clf_cols = [c for c in ["model_name", "animal_subset", "roc_auc", "pr_auc", "f1", "selected"] if c in clf.columns]
+        clf_cols = [
+            c
+            for c in [
+                "model_name",
+                "animal_subset",
+                "roc_auc",
+                "pr_auc",
+                "f1",
+                "brier_score",
+                "expected_calibration_error",
+                "selected",
+            ]
+            if c in clf.columns
+        ]
         lines.append(clf[clf_cols].sort_values(["animal_subset", "roc_auc"], ascending=[True, False]).to_markdown(index=False))
-        lines.append("\n\n### Selected Models — Classification\n\n")
+        lines.append("\n\n### Selected Models â€” Classification\n\n")
         for _, row in clf[clf.get("selected", pd.Series(dtype=bool)) == True].iterrows():
-            lines.append(f"**{row.get('animal_subset', '?')} — {row.get('model_name', '?')}**\n\n")
+            lines.append(f"**{row.get('animal_subset', '?')} â€” {row.get('model_name', '?')}**\n\n")
             lines.append(f"{row.get('selection_reason', '')}\n\n")
 
     lines.append("## Regression Results\n\n")
@@ -183,9 +198,9 @@ def _write_model_selection_md(
     if not reg.empty:
         reg_cols = [c for c in ["model_name", "animal_subset", "mae", "rmse", "median_absolute_error", "selected"] if c in reg.columns]
         lines.append(reg[reg_cols].sort_values(["animal_subset", "mae"], ascending=[True, True]).to_markdown(index=False))
-        lines.append("\n\n### Selected Models — Regression\n\n")
+        lines.append("\n\n### Selected Models â€” Regression\n\n")
         for _, row in reg[reg.get("selected", pd.Series(dtype=bool)) == True].iterrows():
-            lines.append(f"**{row.get('animal_subset', '?')} — {row.get('model_name', '?')}**\n\n")
+            lines.append(f"**{row.get('animal_subset', '?')} â€” {row.get('model_name', '?')}**\n\n")
             lines.append(f"{row.get('selection_reason', '')}\n\n")
 
     lines += [
@@ -196,7 +211,7 @@ def _write_model_selection_md(
         "native missing-value handling and with higher memory usage for large datasets.\n",
         "- **Dummy classifiers** serve only as sanity-check lower bounds.\n\n",
         "## Limitations\n\n",
-        "- Model selection is based on a single time-split test period (2024–2025). "
+        "- Model selection is based on a single time-split test period (2024â€“2025). "
         "Performance may vary across different time windows.\n",
         "- Calibration was assessed via existing diagnostic outputs. "
         "Formal isotonic or Platt calibration was not applied.\n",

@@ -527,8 +527,14 @@ data/raw/context/austin_311_animal_requests.csv
 
 Install dependencies:
 
+For latest compatible versions:
 ```bash
 pip install -r requirements.txt
+```
+
+For exact replication of the thesis environment (fully pinned versions):
+```bash
+pip install -r requirements-lock.txt
 ```
 
 Run:

@@ -207,7 +207,7 @@ def build_prediction_record(
         "intake_volume_7d": 0.0,
         "intake_volume_30d": 0.0,
     }
-    return pd.DataFrame([{column: record[column] for column in INTAKE_TIME_FEATURES}])
+    return pd.DataFrame([record])
 
 
 def build_profile_prediction_record(profile: pd.Series | dict[str, Any]) -> pd.DataFrame:
