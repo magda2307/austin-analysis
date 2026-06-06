@@ -10,7 +10,7 @@ from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 
 from aac_adoption.config import RANDOM_STATE
-from aac_adoption.models.bootstrap import bootstrap_ci
+from aac_adoption.models.evaluate import bootstrap_ci
 from aac_adoption.models.evaluate import classification_metrics, regression_metrics
 from aac_adoption.models.split import make_time_split, _filter_subset
 
