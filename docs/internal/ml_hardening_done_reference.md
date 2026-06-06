@@ -292,13 +292,34 @@ Residual:
 
 - Add real git SHA/data hash/run manifest if thesis requires stronger provenance.
 
+## DONE - Task A: Refresh Censoring Summary Artifacts
+
+Source review concern:
+
+- Horizon follow-up audit code exists, but real reports may not be refreshed.
+- Roadmap still marks end-of-dataset censoring/follow-up summary incomplete until artifact is regenerated.
+
+Current state:
+
+- `generate_data_audit.py` successfully executed and generated `reports/tables/horizon_followup_audit.csv`.
+- `reports/summary/data_audit.md` includes Horizon Follow-Up Audit section.
+
+## DONE - Task B: Audit Re-Intake Ambiguity
+
+Source review concern:
+
+- Matching records re-intake metadata, but roadmap says ambiguous intake-outcome pairs are not rejected/summarized.
+
+Current state:
+
+- `match_records.py` is updated to detect and flag `is_ambiguous_match` using a performant mapping algorithm.
+- Data audit script correctly calculates and reports ambiguous episodes.
+
 ## STILL OPEN - Review Items Not Yet Accepted
 
 Active task file tracks these:
 
 - LOS target leakage verification.
-- End-of-dataset censoring summary artifact.
-- Re-intake matching ambiguity audit.
 - Yearly temporal backtesting.
 - Recency strategy comparison.
 - Dashboard/report language separation for LOS vs adoption timing.

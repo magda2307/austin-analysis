@@ -26,63 +26,7 @@ path:line: severity: problem. fix.
 totals: N bug N risk N nit N q
 ```
 
-## Task A - Refresh Censoring Summary Artifacts
 
-Use: `cavecrew-builder`.
-
-Priority: P0
-
-Own files:
-
-- `scripts/generate_data_audit.py`
-- `docs/ROADMAP.md`
-
-Problem:
-
-- Horizon follow-up audit code exists, but real reports may not be refreshed.
-- Roadmap still marks end-of-dataset censoring/follow-up summary incomplete until artifact is regenerated.
-
-Acceptance:
-
-- Run `python scripts/generate_data_audit.py`.
-- Confirm `reports/tables/horizon_followup_audit.csv` exists and is nonempty.
-- Confirm `reports/summary/data_audit.md` includes Horizon Follow-Up Audit section.
-- Update `docs/ROADMAP.md` status from TODO/PARTIAL only after artifact exists.
-
-Commit:
-
-```text
-docs(ml): refresh censoring status
-```
-
-## Task B - Audit Re-Intake Ambiguity
-
-Use: `cavecrew-investigator`, then `cavecrew-builder`.
-
-Priority: P0
-
-Own files:
-
-- `src/aac_adoption/data/match_records.py`
-- `scripts/audit_matching_ambiguity.py`
-- tests only if needed: `tests/test_match_records.py`
-
-Problem:
-
-- Matching records re-intake metadata, but roadmap says ambiguous intake-outcome pairs are not rejected/summarized.
-
-Acceptance:
-
-- Detect same-animal intake between candidate intake and candidate outcome.
-- Report clean, ambiguous, censored/unmatched, dropped counts.
-- Decide and document whether ambiguous episodes are excluded or only flagged.
-- Test includes animal with intake A, intake B, outcome C.
-
-Commit:
-
-```text
-fix(data): audit reintake ambiguity
-```
 
 ## Task C - Add Yearly Backtesting Artifact
 

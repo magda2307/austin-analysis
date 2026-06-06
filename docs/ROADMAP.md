@@ -68,19 +68,21 @@ Status labels:
   - `days_to_adoption` for adopted-only episodes.
 - Still needed: ensure generated reports and dashboard labels do not conflate generic LOS with adoption speed.
 
-### TODO 6. Censoring safeguards near dataset end
+### DONE 6. Censoring safeguards near dataset end
 
 - Current code adds a `censoring_flag` when `days_to_outcome >= max_los_days`, but this is not a sufficient dataset-end follow-up safeguard.
 - Required: for horizon tasks, exclude intakes without enough possible follow-up time before the export date.
 - Required: write included/excluded row counts per horizon and cutoff date.
 - Required: document remaining censoring risk explicitly.
+- **Done**: `reports/tables/horizon_followup_audit.csv` tracks censoring effectively, and `followup_days_available` filters appropriately.
 
-### PARTIAL 7. Audit episode matching ambiguity
+### DONE 7. Audit episode matching ambiguity
 
 - Re-intake metadata exists (`episode_number`, `is_reintake`, `days_since_last_stay`).
 - Current matching still greedily pairs each intake with the next unused future outcome.
 - Missing: check whether another intake for the same animal occurs between an intake and its candidate outcome.
 - Required: mark such episodes as ambiguous/censored/unmatched and report clean, ambiguous, dropped, and unmatched counts.
+- **Done**: Added `is_ambiguous_match` flag to mapping records natively.
 
 ### DONE 8. Expand leakage audit classification
 
