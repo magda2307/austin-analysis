@@ -438,7 +438,7 @@ def show_metric_cards(best_rows: pd.DataFrame) -> None:
 
 def figure(path: Path, caption: str) -> None:
     if path.exists():
-        st.image(str(path), caption=t(caption), use_container_width=True)
+        st.image(str(path), caption=t(caption), width='stretch')
     else:
         st.info(f"{t('Missing figure')}: {path.name}")
 
@@ -516,7 +516,7 @@ with tabs[0]:
         st.markdown("#### ⚖️ Classification Errors")
         st.write(t("When the model misclassifies an outcome, these are the most common failure modes:"))
         if not tables["model_failure_modes"].empty:
-            st.dataframe(tables["model_failure_modes"].head(5), use_container_width=True, hide_index=True)
+            st.dataframe(tables["model_failure_modes"].head(5), width='stretch', hide_index=True)
         else:
             st.info(t("Run `python scripts/generate_evidence_pack.py` to see failure modes."))
             
@@ -524,7 +524,7 @@ with tabs[0]:
         st.markdown("#### ⏱️ Regression Magnitude Errors")
         st.write(t("The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:"))
         if not diagnostics["regression_slices"].empty:
-            st.dataframe(diagnostics["regression_slices"][["cohort", "mae", "records"]].head(5), use_container_width=True, hide_index=True)
+            st.dataframe(diagnostics["regression_slices"][["cohort", "mae", "records"]].head(5), width='stretch', hide_index=True)
         else:
             st.info(t("Run `python scripts/generate_diagnostics.py` to see error slices."))
     
@@ -535,8 +535,8 @@ with tabs[0]:
 with tabs[1]:
     st.subheader(t("Data-to-Decision Story"))
     st.caption(t("How raw shelter records become thesis evidence and practical shelter-facing signals."))
-    st.graphviz_chart(workflow_dot(), use_container_width=True)
-    st.plotly_chart(decision_sankey(), use_container_width=True)
+    st.graphviz_chart(workflow_dot(), width='stretch')
+    st.plotly_chart(decision_sankey(), width='stretch')
 
     st.subheader(t("Approach Comparison"))
     approaches = approach_comparison_rows()
@@ -550,9 +550,9 @@ with tabs[1]:
             tooltip=["layer", "technology", "answers", "strength", "dashboard_use"],
         )
         .properties(height=280),
-        use_container_width=True,
+        width='stretch',
     )
-    st.dataframe(approaches, use_container_width=True, hide_index=True)
+    st.dataframe(approaches, width='stretch', hide_index=True)
 
     st.subheader(t("Real-life Shelter Questions"))
     card_columns = st.columns(5)
@@ -616,13 +616,13 @@ with tabs[2]:
             model_cols[1].metric(t("Predicted Time to Any Outcome"), wait_bucket)
             model_cols[2].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
             with st.expander(t("Representative model record")):
-                st.dataframe(profile_record, use_container_width=True, hide_index=True)
+                st.dataframe(profile_record, width='stretch', hide_index=True)
 
         st.subheader(t("Similar Historical Cases"))
         if profile_similarity.empty:
             st.info(t("No similar historical cases found for this representative card."))
         else:
-            st.dataframe(profile_similarity, use_container_width=True, hide_index=True)
+            st.dataframe(profile_similarity, width='stretch', hide_index=True)
 
         st.subheader(t("Top SHAP Reasons"))
         shap_view = pd.DataFrame()
@@ -637,10 +637,10 @@ with tabs[2]:
                 st.info(t("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons."))
             else:
                 st.caption(t("Model-wide SHAP signals mapped onto this animal profile; associations, not causes."))
-                st.dataframe(shap_view, use_container_width=True, hide_index=True)
+                st.dataframe(shap_view, width='stretch', hide_index=True)
         else:
             st.caption(t("Local CatBoost SHAP values for the representative journey record; associations, not causes."))
-            st.dataframe(shap_view, use_container_width=True, hide_index=True)
+            st.dataframe(shap_view, width='stretch', hide_index=True)
 
         with st.expander(t("⚠️ Interpretation limits")):
             st.info(
@@ -663,18 +663,18 @@ with tabs[2]:
                 tooltip=["contrast_value", "records", "adoption_rate_pct", "median_days_to_outcome", "euthanasia_rate_pct"],
             )
             .properties(height=320),
-            use_container_width=True,
+            width='stretch',
         )
-        st.dataframe(contrast_view, use_container_width=True, hide_index=True)
+        st.dataframe(contrast_view, width='stretch', hide_index=True)
     left_animal, right_animal = st.columns(2)
     with left_animal:
         figure(FIGURES_DIR / "animal_archetypes_top.png", "Largest animal archetypes")
     with right_animal:
         figure(FIGURES_DIR / "vulnerable_profiles.png", "Animal profiles needing visibility or support")
     st.subheader(t("Vulnerable Profiles"))
-    st.dataframe(tables["vulnerable_profiles"].head(30), use_container_width=True, hide_index=True)
+    st.dataframe(tables["vulnerable_profiles"].head(30), width='stretch', hide_index=True)
     st.subheader(t("Health and Behavior Support Profiles"))
-    st.dataframe(tables["health_behavior_profiles"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["health_behavior_profiles"], width='stretch', hide_index=True)
 
 with tabs[3]:
     left, right = st.columns(2)
@@ -686,9 +686,9 @@ with tabs[3]:
         figure(FIGURES_DIR / "model_comparison_regression_rmse.png", "Regression RMSE")
 
     st.subheader(t("Classification Table"))
-    st.dataframe(tables["classification"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["classification"], width='stretch', hide_index=True)
     st.subheader(t("Regression Table"))
-    st.dataframe(tables["regression"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["regression"], width='stretch', hide_index=True)
 
     st.subheader(t("Probability Trust Meter"))
     calibration = diagnostics["calibration"]
@@ -704,7 +704,7 @@ with tabs[3]:
                 tooltip=["probability_bin", "records", "mean_predicted_probability", "observed_adoption_rate"],
             )
             .properties(height=320),
-            use_container_width=True,
+            width='stretch',
         )
     st.subheader(t("Reliability Figures"))
     left_diag, right_diag = st.columns(2)
@@ -735,7 +735,7 @@ with tabs[4]:
             st.markdown("## Model Evidence Pack" + evidence_summary[1])
         if not intervals.empty:
             st.subheader(t("Metric Confidence Intervals"))
-            st.dataframe(intervals, use_container_width=True, hide_index=True)
+            st.dataframe(intervals, width='stretch', hide_index=True)
             st.altair_chart(
                 alt.Chart(intervals)
                 .mark_rule(size=4)
@@ -747,12 +747,12 @@ with tabs[4]:
                     tooltip=["metric", "animal_subset", "lower", "estimate", "upper", "bootstrap_samples"],
                 )
                 .properties(height=260),
-                use_container_width=True,
+                width='stretch',
             )
         if not limitations.empty:
             st.subheader(t("Cohort Reliability Limits"))
             reliable = limitations[~limitations["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in limitations.columns else limitations
-            st.dataframe(reliable.head(30), use_container_width=True, hide_index=True)
+            st.dataframe(reliable.head(30), width='stretch', hide_index=True)
             st.altair_chart(
                 alt.Chart(reliable.head(30))
                 .mark_bar()
@@ -763,7 +763,7 @@ with tabs[4]:
                     tooltip=["cohort", "value", "records", "calibration_gap", "mae", "false_negative_rate"],
                 )
                 .properties(height=360),
-                use_container_width=True,
+                width='stretch',
             )
         if not subgroup_reliability_table.empty:
             st.subheader(t("Subgroup Explorer"))
@@ -771,7 +771,7 @@ with tabs[4]:
             subgroup_choice = st.selectbox(t("Reliability subgroup"), subgroup_options)
             subgroup_view = subgroup_reliability_table[subgroup_reliability_table["cohort"].astype(str).eq(subgroup_choice)]
             stable_view = subgroup_view[~subgroup_view["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in subgroup_view.columns else subgroup_view
-            st.dataframe(stable_view, use_container_width=True, hide_index=True)
+            st.dataframe(stable_view, width='stretch', hide_index=True)
             st.altair_chart(
                 alt.Chart(stable_view)
                 .mark_bar()
@@ -781,15 +781,15 @@ with tabs[4]:
                     tooltip=["value", "records", "observed_adoption_rate", "mean_predicted_adoption_probability", "calibration_gap", "mae"],
                 )
                 .properties(height=320),
-                use_container_width=True,
+                width='stretch',
             )
         if not failure_modes.empty:
             st.subheader(t("Where the Model Struggles"))
-            st.dataframe(failure_modes.head(40), use_container_width=True, hide_index=True)
+            st.dataframe(failure_modes.head(40), width='stretch', hide_index=True)
         if not subgroup_intervals.empty:
             st.subheader(t("Subgroup Metric Intervals"))
             interval_view = subgroup_intervals[subgroup_intervals["status"].eq("ok")] if "status" in subgroup_intervals.columns else subgroup_intervals
-            st.dataframe(interval_view.head(50), use_container_width=True, hide_index=True)
+            st.dataframe(interval_view.head(50), width='stretch', hide_index=True)
         if not subgroup_milestones.empty:
             st.subheader(t("Time-to-Adoption Milestones"))
             milestone_group = st.selectbox(t("Milestone subgroup"), sorted(subgroup_milestones["cohort"].dropna().astype(str).unique().tolist()))
@@ -817,12 +817,12 @@ with tabs[4]:
                     ],
                 )
                 .properties(height=340),
-                use_container_width=True,
+                width='stretch',
             )
-            st.dataframe(milestone_view, use_container_width=True, hide_index=True)
+            st.dataframe(milestone_view, width='stretch', hide_index=True)
         if not journey_examples.empty:
             st.subheader(t("Animal Journey Evidence Examples"))
-            st.dataframe(journey_examples, use_container_width=True, hide_index=True)
+            st.dataframe(journey_examples, width='stretch', hide_index=True)
 
 with tabs[5]:
     st.subheader(t("SHAP Global Explanations"))
@@ -831,10 +831,10 @@ with tabs[5]:
     left_shap, right_shap = st.columns(2)
     with left_shap:
         figure(FIGURES_DIR / "shap_summary_classification.png", "Classification SHAP summary")
-        st.dataframe(tables["shap_classification"].head(20), use_container_width=True, hide_index=True)
+        st.dataframe(tables["shap_classification"].head(20), width='stretch', hide_index=True)
     with right_shap:
         figure(FIGURES_DIR / "shap_summary_regression.png", "Regression SHAP summary")
-        st.dataframe(tables["shap_regression"].head(20), use_container_width=True, hide_index=True)
+        st.dataframe(tables["shap_regression"].head(20), width='stretch', hide_index=True)
     st.subheader(t("Feature Family Scores"))
     family = tables["shap_family_classification"]
     if not family.empty:
@@ -847,7 +847,7 @@ with tabs[5]:
                 tooltip=["feature_family", "mean_abs_shap", "features"],
             )
             .properties(height=340),
-            use_container_width=True,
+            width='stretch',
         )
     else:
         st.info(t("Run diagnostics with `--include-shap` to populate interpretation artifacts."))
@@ -887,13 +887,13 @@ with tabs[6]:
                 ],
             )
             .properties(height=320),
-            use_container_width=True,
+            width='stretch',
         )
 
     st.subheader(t("Placement Risk Quadrant"))
     risk = diagnostics["risk_quadrants"]
     if not risk.empty:
-        st.dataframe(risk, use_container_width=True, hide_index=True)
+        st.dataframe(risk, width='stretch', hide_index=True)
     predictions = diagnostics["predictions"]
     if not predictions.empty:
         st.altair_chart(
@@ -906,11 +906,11 @@ with tabs[6]:
                 tooltip=["animal_type", "age_group", "intake_type", "predicted_adoption_probability", "predicted_days_to_outcome"],
             )
             .properties(height=360),
-            use_container_width=True,
+            width='stretch',
         )
     st.subheader(t("Error Slice Explorer"))
-    st.dataframe(diagnostics["classification_slices"].head(20), use_container_width=True, hide_index=True)
-    st.dataframe(diagnostics["regression_slices"].head(20), use_container_width=True, hide_index=True)
+    st.dataframe(diagnostics["classification_slices"].head(20), width='stretch', hide_index=True)
+    st.dataframe(diagnostics["regression_slices"].head(20), width='stretch', hide_index=True)
 
 with tabs[7]:
     h1_left, h1_right = st.columns(2)
@@ -924,11 +924,11 @@ with tabs[7]:
         figure(FIGURES_DIR / "h5_covid_period_median_days.png", "H5 median days by COVID period")
 
     st.subheader(t("H1: Intake vs Appearance"))
-    st.dataframe(tables["h1"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["h1"], width='stretch', hide_index=True)
     st.subheader(t("H3: Age and Length of Stay"))
-    st.dataframe(tables["h3"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["h3"], width='stretch', hide_index=True)
     st.subheader(t("H5: COVID-period Dynamics"))
-    st.dataframe(tables["h5"], use_container_width=True, hide_index=True)
+    st.dataframe(tables["h5"], width='stretch', hide_index=True)
 
 with tabs[8]:
     st.subheader(t("Campaign Candidate Finder"))
@@ -960,7 +960,7 @@ with tabs[8]:
                     "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
                 )
             )
-            st.dataframe(cohort.head(100), use_container_width=True, hide_index=True)
+            st.dataframe(cohort.head(100), width='stretch', hide_index=True)
 
 with tabs[9]:
     st.subheader(t("Model Sensitivity Demo"))
@@ -1020,11 +1020,11 @@ with tabs[9]:
             col1, col2 = st.columns(2)
             col1.metric(t("Predicted adoption probability"), f"{probability_pct:.1f}%")
             col2.metric(t("Predicted Time to Any Outcome"), wait_bucket)
-            st.dataframe(record, use_container_width=True, hide_index=True)
+            st.dataframe(record, width='stretch', hide_index=True)
             similar = similar_historical_cases(DATA_PATH, record)
             if not similar.empty:
                 st.subheader(t("Similar Historical Cases"))
-                st.dataframe(similar, use_container_width=True, hide_index=True)
+                st.dataframe(similar, width='stretch', hide_index=True)
         except FileNotFoundError as error:
             st.error(str(error))
             st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first."))
@@ -1058,10 +1058,10 @@ with tabs[10]:
                 ],
             )
             .properties(height=360),
-            use_container_width=True,
+            width='stretch',
         )
         figure(FIGURES_DIR / "adoption_cumulative_curves.png", "Adoption timeline milestones")
-        st.dataframe(milestones, use_container_width=True, hide_index=True)
+        st.dataframe(milestones, width='stretch', hide_index=True)
 
 with tabs[11]:
     st.subheader(t("Generated Artifacts"))
@@ -1096,7 +1096,7 @@ with tabs[11]:
             }
             display_df = display_df.rename(columns=column_mapping)
             cols_to_show = [c for c in column_mapping.values() if c in display_df.columns]
-            st.dataframe(display_df[cols_to_show], use_container_width=True, hide_index=True)
+            st.dataframe(display_df[cols_to_show], width='stretch', hide_index=True)
         except Exception as e:
             st.error(f"Error loading artifact manifest: {e}")
             
@@ -1177,7 +1177,7 @@ with tabs[12]:
             axis=1,
         )
         view["direction_label"] = view["direction"].map(t)
-        st.dataframe(view, use_container_width=True, hide_index=True)
+        st.dataframe(view, width='stretch', hide_index=True)
         st.altair_chart(
             alt.Chart(view)
             .mark_bar()
@@ -1189,7 +1189,7 @@ with tabs[12]:
                 tooltip=["animal_subset", "model_name", "primary_metric", "base_score", "context_score", "delta", "direction_label"],
             )
             .properties(height=280),
-            use_container_width=True,
+            width='stretch',
         )
 
 with tabs[13]:
@@ -1209,12 +1209,12 @@ with tabs[13]:
                     y=alt.Y("feature_family:N", sort="-x", title=""),
                     tooltip=["feature_family", "mean_abs_shap"]
                 ).properties(height=200),
-                use_container_width=True
+                width='stretch'
             )
     with h1_col2:
         if not tables["h1"].empty:
             st.write(t("**Adoption Rates by Intake Type**"))
-            st.dataframe(tables["h1"][["intake_type", "records", "adoption_rate_pct"]].sort_values("adoption_rate_pct", ascending=False).head(5), use_container_width=True, hide_index=True)
+            st.dataframe(tables["h1"][["intake_type", "records", "adoption_rate_pct"]].sort_values("adoption_rate_pct", ascending=False).head(5), width='stretch', hide_index=True)
 
     st.markdown("### 📌 H3: Age Penalties")
     st.warning(t("**Finding:** Older animals face severe penalties in both adoption likelihood and wait times, but the effect is non-linear and accelerates sharply for seniors."))
@@ -1228,7 +1228,7 @@ with tabs[13]:
                     y=alt.Y("median_days_to_outcome:Q", title=t("Days")),
                     tooltip=["age_group", "median_days_to_outcome", "adoption_rate_pct"]
                 ).properties(height=200),
-                use_container_width=True
+                width='stretch'
             )
     with h3_col2:
         st.write(t("While puppies and kittens ('baby') often leave the shelter within 5-7 days, 'adult' and 'senior' animals face wait times that are often 2x to 4x longer. Advanced models identify age as one of the top 3 critical predictive features."))
@@ -1237,7 +1237,7 @@ with tabs[13]:
     st.success(t("**Finding:** The COVID-19 pandemic radically disrupted shelter operations, causing an artificial spike in adoption rates and a plunge in total volume that must be accounted for to prevent model drift."))
     if not tables["h5"].empty:
         st.write(t("**Volume and Outcomes Across Periods**"))
-        st.dataframe(tables["h5"][["covid_period", "records", "adoption_rate_pct", "median_days_to_outcome"]], use_container_width=True, hide_index=True)
+        st.dataframe(tables["h5"][["covid_period", "records", "adoption_rate_pct", "median_days_to_outcome"]], width='stretch', hide_index=True)
 
     st.markdown("---")
     st.markdown("### 🎯 Shelter Actionability & Limits")

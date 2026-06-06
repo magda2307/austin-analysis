@@ -179,3 +179,46 @@ def test_create_evidence_pack_writes_artifacts(tmp_path):
     assert "similar historical cases" in local_summary
     assert "SHAP/model reasons" in local_summary
     assert "Limitations" in local_summary
+
+
+def test_bootstrap_handles_cluster_and_fallback():
+    predictions = _predictions().copy()
+    predictions["animal_id"] = [1, 1, 2, 2, 3, 3]
+    intervals = bootstrap_metric_intervals(predictions, n_bootstrap=10, random_state=1)
+    
+    assert not intervals.empty
+    assert {"metric", "animal_subset", "lower", "estimate", "upper", "bootstrap_samples", "pr_auc_first"}.issubset(intervals.columns)
+
+
+def test_best_model_evidence_prioritizes_pr_auc():
+    classification = pd.DataFrame(
+        [
+            {"animal_subset": "combined", "model_name": "catboost", "roc_auc": 0.8, "pr_auc": 0.75},
+            {"animal_subset": "combined", "model_name": "logistic", "roc_auc": 0.85, "pr_auc": 0.65},
+        ]
+    )
+    regression = pd.DataFrame()
+    
+    evidence = best_model_evidence(classification, regression)
+    
+    assert not evidence.empty
+    assert evidence.iloc[0]["metric"] == "pr_auc"
+    assert "PR-AUC" in evidence.iloc[0]["interpretation"]
+
+
+def test_model_limitations_respects_min_records():
+    predictions = _predictions()
+    limitations = model_limitations_by_cohort(predictions, min_records=5)
+    
+    assert (limitations[limitations["records"] < 5]["small_cohort_flag"] == True).all()
+
+
+def test_subgroup_intervals_enforces_cohort_threshold():
+    predictions = _predictions()
+    intervals = subgroup_metric_intervals(predictions, n_bootstrap=5, min_records=2, cohort_threshold=0.10, random_state=1)
+    
+    assert {"cohort", "value", "metric", "records", "lower", "estimate", "upper", "bootstrap_samples", "status", "interpretation_status"}.issubset(intervals.columns)
+    if not intervals.empty:
+        assert {"small_cohort", "insufficient_class_variety", "ok"}.issubset(set(intervals["status"]))
+        assert intervals["interpretation_status"].notna().all()
+

@@ -10,12 +10,14 @@ import pandas as pd
 def create_calibration_summary(
     tables_dir: str | Path = "reports/tables",
     summary_dir: str | Path = "reports/summary",
+    *,
+    min_records_for_cohort: int = 100,
+    cohort_threshold: float = 0.10,
 ) -> pd.DataFrame:
     tables = Path(tables_dir)
     summary = Path(summary_dir)
     summary.mkdir(parents=True, exist_ok=True)
 
-    # Read per-cohort calibration from subgroup_reliability.csv
     rel_path = tables / "subgroup_reliability.csv"
     if not rel_path.exists():
         print("[4.4] subgroup_reliability.csv not found — skipping calibration summary.")
@@ -26,21 +28,28 @@ def create_calibration_summary(
         print("[4.4] calibration_gap column not found.")
         return pd.DataFrame()
 
-    # Derive animal_subset from existing model_comparison tables
+    if not rel.empty:
+        rel["is_reliable_cohort"] = (
+            (rel["records"] >= min_records_for_cohort) &
+            (rel["calibration_gap"] <= cohort_threshold) &
+            (rel["brier_score"] <= 0.25)
+        )
+    else:
+        rel["is_reliable_cohort"] = False
+
     clf_path = tables / "model_comparison_classification.csv"
     clf = pd.read_csv(clf_path) if clf_path.exists() else pd.DataFrame()
 
-    # Per-subset summary
     rows = []
     for subset in ["dogs", "cats", "combined"]:
-        sub = rel.copy()  # subgroup_reliability is currently combined
+        sub = rel.copy()
 
         mean_gap = float(sub["calibration_gap"].mean())
         worst_cohort = sub.loc[sub["calibration_gap"].idxmax(), "cohort"] if not sub.empty else "unknown"
         worst_gap = float(sub["calibration_gap"].max())
         small_flag_pct = float((sub.get("small_cohort_flag", False) == True).mean() * 100)
+        pct_reliable_cohort = float(sub["is_reliable_cohort"].mean() * 100) if "is_reliable_cohort" in sub.columns else 0.0
 
-        # Overconfident if mean predicted > mean observed
         mean_obs = float(sub["observed_adoption_rate"].mean()) if "observed_adoption_rate" in sub.columns else None
         mean_pred = float(sub["mean_predicted_adoption_probability"].mean()) if "mean_predicted_adoption_probability" in sub.columns else None
         overconfident = (mean_pred > mean_obs) if (mean_pred is not None and mean_obs is not None) else None
@@ -53,6 +62,9 @@ def create_calibration_summary(
             "worst_cohort": worst_cohort,
             "worst_calibration_gap": round(worst_gap, 4),
             "pct_small_cohort_flagged": round(small_flag_pct, 1),
+            "pct_reliable_cohort": round(pct_reliable_cohort, 1),
+            "cohort_threshold": cohort_threshold,
+            "min_records_for_cohort": min_records_for_cohort,
             "overconfident": overconfident,
             "mean_observed_adoption_rate": round(mean_obs, 4) if mean_obs else None,
             "mean_predicted_probability": round(mean_pred, 4) if mean_pred else None,
@@ -68,7 +80,6 @@ def create_calibration_summary(
 
 
 def _write_calibration_md(summary_df: pd.DataFrame, rel: pd.DataFrame, summary: Path) -> None:
-    # Determine overall direction
     mean_gap = float(summary_df["mean_calibration_gap"].mean())
     overconfident_flag = summary_df["overconfident"].dropna()
     if overconfident_flag.empty:
@@ -78,9 +89,11 @@ def _write_calibration_md(summary_df: pd.DataFrame, rel: pd.DataFrame, summary: 
     else:
         direction = "underconfident"
 
-    # Identify reliable vs unreliable bins
-    reliable = rel[rel.get("calibration_gap", pd.Series(dtype=float)) < 0.08] if "calibration_gap" in rel.columns else pd.DataFrame()
-    unreliable = rel[rel.get("calibration_gap", pd.Series(dtype=float)) >= 0.15] if "calibration_gap" in rel.columns else pd.DataFrame()
+    cohort_threshold = float(summary_df["cohort_threshold"].iloc[0]) if not summary_df.empty else 0.10
+    min_records = int(summary_df["min_records_for_cohort"].iloc[0]) if not summary_df.empty else 100
+
+    reliable = rel[rel.get("is_reliable_cohort", False) == True] if not rel.empty else pd.DataFrame()
+    unreliable = rel[rel.get("calibration_gap", pd.Series(dtype=float)) >= cohort_threshold] if not rel.empty else pd.DataFrame()
 
     lines = [
         "# Calibration Interpretation\n\n",
@@ -96,15 +109,15 @@ def _write_calibration_md(summary_df: pd.DataFrame, rel: pd.DataFrame, summary: 
 
     if not reliable.empty:
         lines.append(
-            f"**{len(reliable)} cohorts** have calibration gap < 0.08 and are considered reliable. "
+            f"**{len(reliable)} cohorts** have calibration gap ≤ {cohort_threshold}, records ≥ {min_records}, and brier_score ≤ 0.25 and are considered reliable. "
             f"These include: {', '.join(reliable['cohort'].head(5).astype(str).tolist())}...\n\n"
         )
     else:
-        lines.append("No cohorts with gap < 0.08 identified.\n\n")
+        lines.append(f"No cohorts meet reliability threshold (gap ≤ {cohort_threshold}, records ≥ {min_records}, brier_score ≤ 0.25).\n\n")
 
     if not unreliable.empty:
         lines.append(
-            f"**{len(unreliable)} cohorts** have calibration gap ≥ 0.15 and are flagged as unreliable. "
+            f"**{len(unreliable)} cohorts** have calibration gap ≥ {cohort_threshold} and are flagged as unreliable. "
             f"These include: {', '.join(unreliable['cohort'].head(5).astype(str).tolist())}...\n\n"
         )
 
@@ -121,7 +134,7 @@ def _write_calibration_md(summary_df: pd.DataFrame, rel: pd.DataFrame, summary: 
 
     if mean_gap >= 0.10:
         lines.append(
-            "Given that the mean calibration gap is ≥ 0.10, the model is **not well-calibrated** overall. "
+            f"Given that the mean calibration gap is ≥ 0.10, the model is **not well-calibrated** overall. "
             "Predicted probabilities should be used for ranking (high prob → more likely adopted) rather than "
             "as literal probability estimates.\n\n"
         )

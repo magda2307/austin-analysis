@@ -127,16 +127,21 @@ def best_model_evidence(classification: pd.DataFrame, regression: pd.DataFrame) 
     rows: list[dict[str, Any]] = []
     if not classification.empty and {"animal_subset", "model_name", "roc_auc"}.issubset(classification.columns):
         for subset, group in classification.dropna(subset=["roc_auc"]).groupby("animal_subset"):
-            best = group.sort_values("roc_auc", ascending=False).iloc[0]
+            grouped = group.dropna(subset=["roc_auc", "pr_auc"]) if "pr_auc" in group.columns else group.dropna(subset=["roc_auc"])
+            if grouped.empty:
+                best = group.sort_values("roc_auc", ascending=False).iloc[0]
+            else:
+                best = grouped.sort_values("pr_auc", ascending=False).iloc[0] if "pr_auc" in grouped.columns else group.sort_values("roc_auc", ascending=False).iloc[0]
             rows.append(
                 {
                     "section": "model_choice",
                     "item": f"{subset} classification",
-                    "metric": "roc_auc",
-                    "value": best["roc_auc"],
+                    "metric": "pr_auc" if "pr_auc" in best and not pd.isna(best["pr_auc"]) else "roc_auc",
+                    "value": best["pr_auc"] if "pr_auc" in best and not pd.isna(best["pr_auc"]) else best["roc_auc"],
                     "interpretation": (
-                        f"{best['model_name']} is the strongest ranking model for {subset}; "
-                        "compare PR-AUC and calibration before using a decision threshold."
+                        f"{best['model_name']} prioritizes PR-AUC for {subset}; "
+                        "PR-AUC is primary for imbalanced adoption outcomes. "
+                        "Compare ROC-AUC, calibration, and cohort thresholds before using a decision threshold."
                     ),
                 }
             )
@@ -199,14 +204,11 @@ def bootstrap_metric_intervals(
     frame = predictions.reset_index(drop=True)
     
     if "animal_id" in frame.columns and frame["animal_id"].notna().any():
-        # Cluster-aware bootstrap
         animals = frame["animal_id"].dropna().unique()
-        # Pre-group indices for fast lookup
         id_to_indices = frame.groupby("animal_id").indices
         
         for _ in range(n_bootstrap):
             sampled_ids = rng.choice(animals, size=len(animals), replace=True)
-            # Flatten indices
             sample_indices = np.concatenate([id_to_indices[aid] for aid in sampled_ids if aid in id_to_indices])
             sample = frame.iloc[sample_indices]
             
@@ -219,7 +221,6 @@ def bootstrap_metric_intervals(
             metric_values["f1_at_0_50"].append(f1_score(y_true, y_pred, zero_division=0))
             metric_values["mae"].append(mean_absolute_error(sample["regression_target_days"], sample["predicted_days_to_outcome"]))
     else:
-        # Fallback to row-level bootstrap
         for _ in range(n_bootstrap):
             sample = frame.iloc[rng.integers(0, len(frame), len(frame))]
             y_true = sample["classification_target"].astype(int)
@@ -232,6 +233,7 @@ def bootstrap_metric_intervals(
             metric_values["mae"].append(mean_absolute_error(sample["regression_target_days"], sample["predicted_days_to_outcome"]))
 
     rows = []
+    has_pr_auc = len(metric_values["pr_auc"]) > 0
     for metric, values in metric_values.items():
         lower, estimate, upper = _bootstrap_interval(np.asarray(values, dtype=float))
         rows.append(
@@ -242,9 +244,10 @@ def bootstrap_metric_intervals(
                 "estimate": estimate,
                 "upper": upper,
                 "bootstrap_samples": len(values),
+                "pr_auc_first": metric == "pr_auc" and has_pr_auc,
             }
         )
-    return pd.DataFrame(rows, columns=CI_COLUMNS)
+    return pd.DataFrame(rows, columns=CI_COLUMNS + ["pr_auc_first"])
 
 
 def model_limitations_by_cohort(predictions: pd.DataFrame, min_records: int = 100) -> pd.DataFrame:
@@ -307,6 +310,7 @@ def subgroup_metric_intervals(
     *,
     n_bootstrap: int = 100,
     min_records: int = 100,
+    cohort_threshold: float = 0.10,
     random_state: int = RANDOM_STATE,
 ) -> pd.DataFrame:
     """Bootstrap metrics by subgroup when enough records and class variety exist."""
@@ -338,6 +342,7 @@ def subgroup_metric_intervals(
                         "upper": np.nan,
                         "bootstrap_samples": 0,
                         "status": "small_cohort",
+                        "interpretation_status": "cohort below minimum records threshold",
                     }
                 )
                 continue
@@ -354,13 +359,21 @@ def subgroup_metric_intervals(
                         "upper": np.nan,
                         "bootstrap_samples": 0,
                         "status": "insufficient_schema",
+                        "interpretation_status": "required columns not found",
                     }
                 )
                 continue
             for _, interval in intervals.iterrows():
                 status = "ok"
+                interpretation_status = "metric bootstrap completed"
                 if pd.isna(interval["estimate"]):
                     status = "insufficient_class_variety"
+                    interpretation_status = "class variety insufficient for metric bootstrap"
+                elif interval["metric"] in ["roc_auc", "pr_auc"]:
+                    y_true = group["classification_target"].astype(int)
+                    if y_true.nunique() != 2:
+                        status = "insufficient_class_variety"
+                        interpretation_status = "binary class required for classification metric"
                 rows.append(
                     {
                         "cohort": column,
@@ -372,9 +385,10 @@ def subgroup_metric_intervals(
                         "upper": interval["upper"],
                         "bootstrap_samples": interval["bootstrap_samples"],
                         "status": status,
+                        "interpretation_status": interpretation_status,
                     }
                 )
-    return pd.DataFrame(rows, columns=SUBGROUP_CI_COLUMNS)
+    return pd.DataFrame(rows, columns=SUBGROUP_CI_COLUMNS + ["interpretation_status"])
 
 
 def subgroup_adoption_milestones(data_path: str | Path, min_records: int = 50) -> pd.DataFrame:
@@ -705,12 +719,13 @@ def _summary_markdown(
 def create_evidence_pack(
     data_path: str | Path = "data/processed/modeling_dataset.csv",
     tables_dir: str | Path = "reports/tables",
-    diagnostics_dir: str | Path = "reports/diagnostics",
+    diagnostics_dir: string | Path = "reports/diagnostics",
     summary_dir: str | Path = "reports/summary",
     models_dir: str | Path = "models/advanced",
     *,
     bootstrap_samples: int = 200,
     min_cohort_records: int = 100,
+    cohort_threshold: float = 0.10,
     milestone_min_records: int = 50,
 ) -> dict[str, Path]:
     """Generate evidence pack CSV and Markdown artifacts."""
@@ -746,6 +761,7 @@ def create_evidence_pack(
         predictions,
         n_bootstrap=max(25, min(bootstrap_samples, 100)),
         min_records=min_cohort_records,
+        cohort_threshold=cohort_threshold,
     )
     milestones = subgroup_adoption_milestones(data_path, min_records=milestone_min_records)
     failures = model_failure_modes(subgroup)

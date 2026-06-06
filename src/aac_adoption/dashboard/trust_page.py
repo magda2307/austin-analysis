@@ -80,7 +80,7 @@ def render_trust_and_limits(tables: dict[str, pd.DataFrame]) -> None:
             high_gap = flagged[flagged["calibration_gap"] > 0.08]
             if not high_gap.empty:
                 st.write("**High Calibration Discrepancy (Gap > 8%):**")
-                st.dataframe(high_gap[["cohort", "value", "records", "observed_adoption_rate", "calibration_gap"]], use_container_width=True, hide_index=True)
+                st.dataframe(high_gap[["cohort", "value", "records", "observed_adoption_rate", "calibration_gap"]], width='stretch', hide_index=True)
             else:
                 st.info("No cohorts exhibit a calibration gap greater than 8%.")
     else:
