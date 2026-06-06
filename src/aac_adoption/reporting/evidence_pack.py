@@ -197,16 +197,39 @@ def bootstrap_metric_intervals(
     rng = np.random.default_rng(random_state)
     metric_values = {"roc_auc": [], "pr_auc": [], "f1_at_0_50": [], "mae": []}
     frame = predictions.reset_index(drop=True)
-    for _ in range(n_bootstrap):
-        sample = frame.iloc[rng.integers(0, len(frame), len(frame))]
-        y_true = sample["classification_target"].astype(int)
-        y_score = sample["predicted_adoption_probability"]
-        y_pred = sample["predicted_adopted"].astype(int)
-        if y_true.nunique() == 2:
-            metric_values["roc_auc"].append(roc_auc_score(y_true, y_score))
-            metric_values["pr_auc"].append(average_precision_score(y_true, y_score))
-        metric_values["f1_at_0_50"].append(f1_score(y_true, y_pred, zero_division=0))
-        metric_values["mae"].append(mean_absolute_error(sample["regression_target_days"], sample["predicted_days_to_outcome"]))
+    
+    if "animal_id" in frame.columns and frame["animal_id"].notna().any():
+        # Cluster-aware bootstrap
+        animals = frame["animal_id"].dropna().unique()
+        # Pre-group indices for fast lookup
+        id_to_indices = frame.groupby("animal_id").indices
+        
+        for _ in range(n_bootstrap):
+            sampled_ids = rng.choice(animals, size=len(animals), replace=True)
+            # Flatten indices
+            sample_indices = np.concatenate([id_to_indices[aid] for aid in sampled_ids if aid in id_to_indices])
+            sample = frame.iloc[sample_indices]
+            
+            y_true = sample["classification_target"].astype(int)
+            y_score = sample["predicted_adoption_probability"]
+            y_pred = sample["predicted_adopted"].astype(int)
+            if y_true.nunique() == 2:
+                metric_values["roc_auc"].append(roc_auc_score(y_true, y_score))
+                metric_values["pr_auc"].append(average_precision_score(y_true, y_score))
+            metric_values["f1_at_0_50"].append(f1_score(y_true, y_pred, zero_division=0))
+            metric_values["mae"].append(mean_absolute_error(sample["regression_target_days"], sample["predicted_days_to_outcome"]))
+    else:
+        # Fallback to row-level bootstrap
+        for _ in range(n_bootstrap):
+            sample = frame.iloc[rng.integers(0, len(frame), len(frame))]
+            y_true = sample["classification_target"].astype(int)
+            y_score = sample["predicted_adoption_probability"]
+            y_pred = sample["predicted_adopted"].astype(int)
+            if y_true.nunique() == 2:
+                metric_values["roc_auc"].append(roc_auc_score(y_true, y_score))
+                metric_values["pr_auc"].append(average_precision_score(y_true, y_score))
+            metric_values["f1_at_0_50"].append(f1_score(y_true, y_pred, zero_division=0))
+            metric_values["mae"].append(mean_absolute_error(sample["regression_target_days"], sample["predicted_days_to_outcome"]))
 
     rows = []
     for metric, values in metric_values.items():
