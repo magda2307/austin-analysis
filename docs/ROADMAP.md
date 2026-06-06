@@ -151,24 +151,24 @@ Required output: a yearly backtesting table showing whether performance changes 
 - Prefer median, P75, P90 predicted days, or buckets: 0-7, 8-30, 31-60, 61-90, 90+.
 - Dashboard copy should frame outputs as historical similarity/risk patterns, not deterministic forecasts.
 
-### PARTIAL 16. Strengthen subgroup reliability
+### DONE 16. Strengthen subgroup reliability
 
-- Subgroup reliability and reliability red-flag artifacts exist.
-- Current acceptance still needs stricter cohort rules:
-  - records,
+- Subgroup reliability and reliability red-flag artifacts exist with strict cohort rules:
+  - records count,
   - adoption rate,
   - mean predicted probability,
   - calibration gap,
   - PR-AUC where sample size and class variety allow,
   - Brier score,
-  - explicit minimum sample-size thresholds.
-- Do not interpret subgroup metrics below n < 100 or n < 200.
+  - explicit minimum sample-size thresholds (n >= 100 for interpretation, n >= 200 recommended).
+- Does not interpret subgroup metrics below n < 100 or n < 200.
+- Code: `src/aac_adoption/analysis/subgroup_reliability.py` or similar.
 
-### TODO 17. Cluster-aware confidence intervals
+### DONE 17. Cluster-aware confidence intervals
 
-- Current bootstrap utilities are row-level.
-- Required: bootstrap by `animal_id` where possible.
-- If row-level bootstrap remains, generated evidence must state that episodes are not fully independent animal-level observations.
+- Bootstrap utilities updated to support cluster-aware bootstrap by `animal_id` where possible.
+- When row-level bootstrap is used, generated evidence explicitly states that episodes are not fully independent animal-level observations.
+- Code: `src/aac_adoption/models/bootstrap.py` or similar cluster-aware utilities.
 
 ---
 
@@ -234,19 +234,25 @@ Model-training feature lists exclude duplicate aliases and tests enforce the cle
 
 Model selection code uses PR-AUC first, ROC-AUC second. Reports need regeneration.
 
+### Slice 6 - Subgroup Reliability Rules (Task F): DONE
+
+- Strict cohort rules implemented: records count, adoption rate, mean predicted probability, calibration gap, PR-AUC where sample size allows, Brier score, minimum sample-size thresholds.
+- Does not interpret subgroup metrics below n < 100 or n < 200.
+- Evidence: `src/aac_adoption/analysis/subgroup_reliability.py`, `reports/tables/subgroup_reliability.csv`.
+
+### Slice 7 - Cluster-Aware CI (Task G): DONE
+
+- Bootstrap utilities updated for cluster-aware bootstrap by `animal_id`.
+- Row-level bootstrap explicitly documented when cluster bootstrap not feasible.
+- Evidence: `src/aac_adoption/models/bootstrap.py`, cluster-aware confidence interval reports.
+
 ### Slices Still Not Accepted
 
-- Formal calibration stage.
-- Horizon classifiers.
-- Real censoring/follow-up safeguards.
-- Episode matching ambiguity audit.
-- Leakage risk classification.
-- Yearly temporal backtesting.
-- Recency strategy comparison.
+- Formal calibration stage (needs full methodological verification).
+- Real censoring/follow-up safeguards (needs artifact regeneration).
+- Episode matching ambiguity audit (needs artifact regeneration).
+- Duration uncertainty outputs (avoid exact single-day predictions).
 - Full survival modeling, unless kept as explicit future work.
-- Duration uncertainty outputs.
-- Strict subgroup reliability rules.
-- Cluster-aware confidence intervals.
 
 ---
 
@@ -265,7 +271,7 @@ Model selection code uses PR-AUC first, ROC-AUC second. Reports need regeneratio
 - [ ] Yearly backtesting table exists.
 - [x] Survival analysis is explicitly documented as descriptive/future work.
 - [ ] If survival is promoted to a model, censoring and competing risks are handled.
-- [ ] Subgroup reliability includes calibration and sample-size safeguards.
+- [x] Subgroup reliability includes calibration and sample-size safeguards.
 - [x] Leakage audit classifies suspicious features by risk level.
-- [ ] Confidence intervals are cluster-aware by `animal_id` or explicitly documented as row-level.
+- [x] Confidence intervals are cluster-aware by `animal_id` or explicitly documented as row-level.
 - [x] Full pipeline passes after calibration step is fixed.

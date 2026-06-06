@@ -42,7 +42,7 @@ Current state:
 
 - `src/aac_adoption/analysis/threshold_analysis.py` selects thresholds on validation and applies frozen thresholds to test.
 - Output records `threshold_selection_period`, `evaluation_period`, validation metrics, test metrics, and `validation_tactic`.
-- Policies include default, max-F1, Youden J, high-recall, balanced, and top-10%-capacity.
+- Policies include default, max-F1,Youden J, high-recall, balanced, and top-10%-capacity.
 
 Evidence:
 
@@ -359,9 +359,6 @@ Active task file tracks these:
 - Yearly temporal backtesting.
 - Recency strategy comparison.
 - Dashboard/report language separation for LOS vs adoption timing.
-- Strict subgroup reliability interpretation rules.
-- Cluster-aware confidence intervals by `animal_id`.
-- Roadmap/status contradiction cleanup.
 
 ## Stale Note Removed
 

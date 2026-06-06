@@ -46,25 +46,54 @@ def bootstrap_ci(
     y_score: np.ndarray | None = None,
     n_bootstraps: int = 1000,
     random_state: int = RANDOM_STATE,
+    animal_ids: np.ndarray | None = None,
 ) -> tuple[float, float]:
-    """Calculate 95% confidence interval for a metric using bootstrapping."""
+    """Calculate 95% confidence interval for a metric using bootstrapping.
+    
+    When animal_ids is provided, performs cluster-aware bootstrap by resampling
+    animals with replacement and including all observations from selected animals.
+    Falls back to row-level bootstrap when animal_ids is None or empty.
+    """
     rng = np.random.default_rng(random_state)
-    indices = np.arange(len(y_true))
-    scores = []
     y_true_arr = np.asarray(y_true)
     y_pred_arr = np.asarray(y_pred)
     y_score_arr = np.asarray(y_score) if y_score is not None else None
     
-    for _ in range(n_bootstraps):
-        idx = rng.choice(indices, size=len(indices), replace=True)
-        if len(np.unique(y_true_arr[idx])) < 2:
-            continue
-        if y_score_arr is not None:
-            score = metric_func(y_true_arr[idx], y_score_arr[idx])
-        else:
-            score = metric_func(y_true_arr[idx], y_pred_arr[idx])
-        scores.append(score)
+    if animal_ids is not None and len(animal_ids) > 0:
+        animal_ids_arr = np.asarray(animal_ids)
+        unique_animals = np.unique(animal_ids_arr)
+        animal_to_indices = {aid: np.where(animal_ids_arr == aid)[0] for aid in unique_animals}
         
+        for _ in range(n_bootstraps):
+            sampled_animals = rng.choice(unique_animals, size=len(unique_animals), replace=True)
+            sample_indices = np.concatenate([animal_to_indices[aid] for aid in sampled_animals])
+            sample_indices = np.unique(sample_indices)
+            
+            if len(np.unique(y_true_arr[sample_indices])) < 2:
+                continue
+            if y_score_arr is not None:
+                score = metric_func(y_true_arr[sample_indices], y_score_arr[sample_indices])
+            else:
+                score = metric_func(y_true_arr[sample_indices], y_pred_arr[sample_indices])
+            scores.append(score)
+    else:
+        indices = np.arange(len(y_true))
+        scores = []
+        
+        for _ in range(n_bootstraps):
+            idx = rng.choice(indices, size=len(indices), replace=True)
+            if len(np.unique(y_true_arr[idx])) < 2:
+                continue
+            if y_score_arr is not None:
+                score = metric_func(y_true_arr[idx], y_score_arr[idx])
+            else:
+                score = metric_func(y_true_arr[idx], y_pred_arr[idx])
+            scores.append(score)
+        
+        if not scores:
+            return (np.nan, np.nan)
+        return float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))
+    
     if not scores:
         return (np.nan, np.nan)
     return float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))

@@ -719,7 +719,7 @@ def _summary_markdown(
 def create_evidence_pack(
     data_path: str | Path = "data/processed/modeling_dataset.csv",
     tables_dir: str | Path = "reports/tables",
-    diagnostics_dir: string | Path = "reports/diagnostics",
+    diagnostics_dir: str | Path = "reports/diagnostics",
     summary_dir: str | Path = "reports/summary",
     models_dir: str | Path = "models/advanced",
     *,

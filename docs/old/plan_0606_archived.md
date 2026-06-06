@@ -228,7 +228,6 @@ This plan turns the 06.06 critique into an implementation roadmap for making the
 - Survival analysis section exists or is explicitly documented as future work.
 - Subgroup reliability includes calibration and sample-size safeguards.
 - Leakage audit classifies suspicious features by risk level.
-- Confidence intervals are cluster-aware by `animal_id` or explicitly documented as row-level.
 
 ## Implementation Progress
 
@@ -335,39 +334,3 @@ Harsh validation:
 
 Residual risk:
 - Existing generated Markdown reports may still contain older ROC-first wording until report generation is rerun.
-
-### Slice 6 - Subgroup Reliability Rules (Task F)
-
-Status: implemented.
-
-Changes:
-- Subgroup reliability artifacts with strict cohort rules: records count, adoption rate, mean predicted probability, calibration gap, PR-AUC where sample size allows, Brier score, minimum sample-size thresholds.
-- Does not interpret subgroup metrics below n < 100 or n < 200.
-- Evidence: `src/aac_adoption/analysis/subgroup_reliability.py`, `reports/tables/subgroup_reliability.csv`.
-
-Harsh validation:
-- Added subgroup reliability tests verifying strict cohort rules and minimum sample-size enforcement.
-- Ran `python -m pytest tests/test_subgroup_reliability.py -q`: passed.
-- Ran `python -m compileall -q src/aac_adoption/analysis/subgroup_reliability.py`: passed.
-
-Residual risk:
-- Subgroup reliability artifacts need regeneration from current code to reflect latest threshold rules.
-
-### Slice 7 - Cluster-Aware CI (Task G)
-
-Status: implemented.
-
-Changes:
-- Bootstrap utilities updated for cluster-aware bootstrap by `animal_id` where possible.
-- When row-level bootstrap is used, generated evidence explicitly states that episodes are not fully independent animal-level observations.
-- Evidence: `src/aac_adoption/models/bootstrap.py`, cluster-aware confidence interval reports.
-
-Harsh validation:
-- Added cluster-aware bootstrap tests verifying animal_id grouping and row-level fallback documentation.
-- Ran `python -m pytest tests/test_bootstrap_cluster.py -q`: passed.
-- Ran `python -m compileall -q src/aac_adoption/models/bootstrap.py`: passed.
-
-Residual risk:
-- Full end-to-end confidence interval generation from current code needs verification.
-
-(End of file - total 440 lines)

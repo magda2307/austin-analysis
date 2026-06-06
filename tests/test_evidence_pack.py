@@ -1,6 +1,7 @@
 import pandas as pd
 
 from aac_adoption.reporting.evidence_pack import (
+    best_model_evidence,
     bootstrap_metric_intervals,
     create_evidence_pack,
     model_limitations_by_cohort,
