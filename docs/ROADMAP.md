@@ -1,181 +1,270 @@
-# Roadmap — AAC Adoption ML Pipeline
+# Roadmap - AAC Adoption ML Pipeline
 
-Open methodological improvements, known risks, planned ML upgrades, and unresolved questions. Sourced from `plan_0606.md` (06-06 critique) and the `progress_and_future_work.md` review (2026-05-31).
+Open methodological improvements, known risks, planned ML upgrades, and unresolved questions.
 
-Items marked ✅ are implemented. Items marked 🔲 are pending. Items marked ⚠️ are known risks that need documentation even if not immediately fixed.
+Last reviewed against the codebase on 2026-06-06. This roadmap is deliberately strict: generated artifacts alone do not count as complete unless the current code can reproduce them.
+
+Status labels:
+
+- DONE: implemented and covered by code/tests or stable generated outputs.
+- PARTIAL: some code or artifacts exist, but acceptance is incomplete or reproducibility is weak.
+- TODO: not implemented.
+- RISK: known methodology risk that must be fixed or documented.
+
+---
+
+## Immediate Priorities
+
+1. **Fix calibration reproducibility.** `scripts/calibrate_classifiers.py` imports `calibrate_classifiers`, but `src/aac_adoption/models/calibrate.py` does not define it. The full pipeline currently has a broken calibration step.
+2. **Regenerate reports after recent code changes.** Model selection now uses PR-AUC first, but existing generated text still mentions ROC-AUC-first wording in some places.
+3. **Implement real horizon targets with follow-up cutoffs.** Adoption-within-7/30/60/90-day targets remain missing.
+4. **Audit re-intake ambiguity properly.** Current matching records re-intake metadata, but does not reject or summarize matches where another intake occurs before the candidate outcome.
+5. **Replace shallow leakage checks with risk classes.** Borderline predictors need `safe`, `probably_safe`, `needs_audit`, or `unsafe` labels.
+6. **Add yearly backtesting.** One chronological split is not enough evidence for temporal stability.
 
 ---
 
 ## Critical Before Thesis Submission
 
-### ✅ 1. Selected-model diagnostics
-- Diagnostics now resolve the selected model from `reports/tables/final_model_selection.csv` per `task + subset`.
+### DONE 1. Selected-model diagnostics
+
+- Diagnostics resolve selected models from `reports/tables/final_model_selection.csv` per `task + subset`.
 - Diagnostics can load artifacts across `models/advanced`, `models/boosting`, and `models/baseline`.
 - `reports/diagnostics/diagnostics_model_selection.csv` records the loaded artifact for audit.
 - `reports/diagnostics/diagnostics_validation_tactics.csv` records validation tactics per diagnostic.
 - SHAP generation skips with a written note when the selected model is not CatBoost.
-- Regression test: proves diagnostics load `hist_gradient_boosting` when final selection chooses it.
+- Regression tests cover selected HistGradientBoosting diagnostic loading.
 
-### ✅ 2. Validation-selected thresholds
+### DONE 2. Validation-selected thresholds
+
 - Threshold analysis locates the selected classifier from `final_model_selection.csv`.
-- Thresholds selected on validation split only, applied unchanged to test split.
-- `final_classifier_thresholds.csv` includes `threshold_selection_period=validation`, `evaluation_period=test`, validation metrics, test metrics, and `validation_tactic` column.
-- Threshold policies: default (0.5), max-F1, Youden J, high-recall, balanced, top-10%-capacity.
-- Regression test: proves frozen validation-selected thresholds are evaluated separately on test scores.
+- Thresholds are selected on validation split only and applied unchanged to test split.
+- `final_classifier_thresholds.csv` includes `threshold_selection_period=validation`, `evaluation_period=test`, validation metrics, test metrics, and `validation_tactic`.
+- Policies include default 0.5, max-F1, Youden J, high-recall, balanced, and top-10%-capacity.
+- Regression tests prove frozen validation thresholds are evaluated separately on test scores.
 
-### 🔲 3. Post-hoc probability calibration (formal modeling stage)
-- **Current state:** calibration gaps up to 0.21 for some subgroups (e.g. Terrier-type dogs). Probabilities are not yet formally calibrated.
-- **Plan:** train base classifiers on 2013–2021, fit calibration (Isotonic Regression or Platt Scaling) on 2022–2023, evaluate calibrated artifacts on 2024–2025 test.
-- **Metrics to report:** before/after ROC-AUC, PR-AUC, Brier score, Expected Calibration Error (ECE), and calibration gaps by species, age group, and breed group.
-- **Artifacts:** save calibrated CatBoost and calibrated HistGradientBoosting classifier `.joblib` files.
+### PARTIAL 3. Post-hoc probability calibration
 
-### 🔲 4. Clean duplicate feature representations
-- **Current state:** `age_days`, `age_months`, `age_years` are collinear; `has_name` and `is_named` are near-identical.
-- **Plan:** keep one modeling representation per concept (`age_days`, `age_group`, `is_named`, `primary_color`, `simplified_color_group`, `primary_breed`, `simplified_breed_group`); keep aliases only where needed for reports or dashboard compatibility.
-- **Validation:** export final feature lists and assert duplicate aliases are absent from model-training features (separate from report/dashboard alias checks).
+- Calibration metric foundation is implemented: `classification_metrics()` reports Brier score and expected calibration error.
+- Calibrated classifier artifacts and `reports/metrics/calibrated_classification_metrics.csv` exist locally.
+- Current blocker: the calibration CLI is not reproducible because `scripts/calibrate_classifiers.py` imports missing function `calibrate_classifiers`.
+- Required fix: restore or rewrite `calibrate_classifiers()` and add an end-to-end tiny-fixture test for the script.
+- Required evidence: before/after ROC-AUC, PR-AUC, Brier score, ECE, and subgroup calibration gaps by species, age group, and breed group.
 
-### 🔲 5. Improve length-of-stay modeling
-- **Current state:** one generic LOS regressor is presented for all outcomes.
-- **Plan:**
-  - Add `length_to_any_outcome` model for all clean matched episodes.
-  - Add adopted-only `days_to_adoption` model for adopted animals only.
-  - Train duration regressors on `log1p(days)`, convert back with `expm1`, clamp negative outputs to zero.
-  - Report MAE/RMSE on original days.
+### DONE 4. Clean duplicate feature representations
 
-### 🔲 6. Censoring safeguards near dataset end
-- **Current state:** right-censoring bias exists at temporal split boundaries. Animals admitted near end of 2025 with short or no-yet-observed stays are either omitted or systematically show shorter LOS.
-- **Plan:** for horizon tasks, include only intakes with sufficient follow-up time (e.g. for 90-day analysis, exclude intakes less than 90 days before export date). Document remaining censoring risk explicitly.
+- Model feature registry now keeps one representation per concept in `BASE_INTAKE_TIME_FEATURES`.
+- `age_months`, `age_years`, `has_name`, `intake_quarter`, `intake_season`, and `color_group` are excluded from model-training features.
+- `tests/test_feature_sets.py` enforces the cleaned modeling feature list.
+- Compatibility aliases may still exist in reports/dashboard outputs; that is acceptable if they are not model features.
 
-### 🔲 7. Audit episode matching ambiguity
-- **Current state:** greedy matching does not verify whether a re-intake occurs between a matched intake and its outcome. This can artificially inflate LOS for the first intake.
-- **Plan:** check whether another intake for the same animal occurs between candidate intake and matched outcome. If yes, mark earlier intake as ambiguous/censored/unmatched. Report clean/ambiguous/dropped counts.
+### PARTIAL 5. Improve length-of-stay modeling
 
-### 🔲 8. Expand leakage audit classification
-- **Current state:** leakage audit flags known outcome-derived fields.
-- **Plan:** classify borderline predictors as `safe`, `probably_safe`, `needs_audit`, or `unsafe`. Pay special attention to `sex_upon_intake` and `intake_condition` (may be updated post-intake in shelter databases), name flags, and context features.
+- Generic `regression_target_days` models still exist for days to any matched outcome.
+- Adopted-only CatBoost regression exists under `regression_adopted`.
+- Adopted-only regression trains on `log1p(days)`, converts back with `expm1`, and clamps negative predictions to zero.
+- Still needed: present the two duration targets clearly as separate thesis targets:
+  - `length_to_any_outcome` for all clean matched episodes.
+  - `days_to_adoption` for adopted-only episodes.
+- Still needed: ensure generated reports and dashboard labels do not conflate generic LOS with adoption speed.
+
+### TODO 6. Censoring safeguards near dataset end
+
+- Current code adds a `censoring_flag` when `days_to_outcome >= max_los_days`, but this is not a sufficient dataset-end follow-up safeguard.
+- Required: for horizon tasks, exclude intakes without enough possible follow-up time before the export date.
+- Required: write included/excluded row counts per horizon and cutoff date.
+- Required: document remaining censoring risk explicitly.
+
+### PARTIAL 7. Audit episode matching ambiguity
+
+- Re-intake metadata exists (`episode_number`, `is_reintake`, `days_since_last_stay`).
+- Current matching still greedily pairs each intake with the next unused future outcome.
+- Missing: check whether another intake for the same animal occurs between an intake and its candidate outcome.
+- Required: mark such episodes as ambiguous/censored/unmatched and report clean, ambiguous, dropped, and unmatched counts.
+
+### TODO 8. Expand leakage audit classification
+
+- Current leakage audit flags known outcome-derived fields and simple suspicious values.
+- Required: classify predictors as `safe`, `probably_safe`, `needs_audit`, or `unsafe`.
+- Must explicitly review `sex_upon_intake`, `intake_condition`, name flags, context features, and batch-dependent rolling features.
+- Must distinguish "allowed because no evidence of leakage" from "safe by construction."
 
 ---
 
-## Strong ML Upgrades (Planned)
+## Strong ML Upgrades
 
-### 🔲 9. Horizon-based adoption classifiers
-- Create targets for adoption within 7, 30, 60, and 90 days.
+### TODO 9. Horizon-based adoption classifiers
+
+- Create adoption-within-horizon targets for 7, 30, 60, and 90 days.
 - Train and evaluate horizon classifiers separately from eventual-adoption models.
-- Use horizon outputs in dashboard/reporting as operational intervention windows.
 - Include only intakes with sufficient follow-up time per horizon.
+- Report PR-AUC, ROC-AUC, Brier score, ECE, lift, precision@top-k, and recall@top-k by horizon.
 
-### 🔲 10. Yearly temporal backtesting
-- Evaluate rolling historical training windows:
-  - train 2013–2018, test 2019
-  - train 2013–2019, test 2020
-  - train 2013–2020, test 2021
-  - train 2013–2021, test 2022
-  - train 2013–2022, test 2023
-  - train 2013–2023, test 2024
-- Show whether performance changes after COVID or operational shifts.
+### TODO 10. Yearly temporal backtesting
 
-### 🔲 11. Recency strategy comparison
-- Compare full-history, recent 5-year, recent 3-year, and recency-weighted training.
-- Use 2024–2025 as final evidence for whether recent windows improve current performance.
+Evaluate rolling historical windows:
 
-### 🔲 12. Survival analysis section
-- Add Kaplan–Meier curves (descriptive, partially done) plus Cox proportional hazards or AFT model.
-- Frame survival analysis as the appropriate censored time-to-event complement to regression.
-- Required: use censoring instead of silently dropping unresolved episodes.
+- train 2013-2018, test 2019
+- train 2013-2019, test 2020
+- train 2013-2020, test 2021
+- train 2013-2021, test 2022
+- train 2013-2022, test 2023
+- train 2013-2023, test 2024
 
-### 🔲 13. Controlled hyperparameter tuning
-- CatBoost: depth, learning rate, iterations, `l2_leaf_reg`, class weights, subsample, random strength.
-- HistGradientBoosting: max iterations, learning rate, max leaf nodes, minimum samples per leaf, L2 regularization, categorical handling.
-- Tune on validation only, never on test.
-- Save `best_params.csv`, `tuning_results.csv`, and `selected_model_reason.md`.
+Required output: a yearly backtesting table showing whether performance changes after COVID or operational shifts.
 
-### 🔲 14. Make PR-AUC primary for classification ranking
-- Use PR-AUC as primary classification ranking metric.
-- Use ROC-AUC as secondary.
-- Add lift at top 10%/20%, precision@top_k, recall@top_k.
+### PARTIAL 11. Recency strategy comparison
 
-### 🔲 15. Uncertainty for duration outputs
+- Some recency-related code exists in `make_time_split()`, but it is not a proper strategy comparison.
+- Current sample weighting appears backwards: older training years receive higher weights than newer years.
+- Required: compare full-history, recent 5-year, recent 3-year, and correctly recency-weighted training on the same final test period.
+
+### PARTIAL 12. Survival analysis section
+
+- Descriptive Kaplan-Meier style adoption curves exist.
+- Survival utility code exists, including censoring indicators and Cox helper functions.
+- Current state is not a thesis-grade censored survival modeling stage.
+- Required if promoted beyond future work: proper categorical encoding, event/censoring counts, competing-risk framing, and validation that unresolved episodes are not silently dropped.
+- Acceptable thesis path: keep survival as descriptive/future work and say so consistently.
+
+### PARTIAL 13. Controlled hyperparameter tuning
+
+- Two tuning paths exist:
+  - `src/aac_adoption/models/tune.py` with Optuna for CatBoost and HistGradientBoosting.
+  - `src/aac_adoption/optimization/hyperparam_tuning.py` with grid-style HistGradientBoosting tests.
+- Current pipeline is configured to write `models/tuning/best_params.json`, but that artifact is not present in this workspace.
+- Still missing from roadmap acceptance: `best_params.csv`, `tuning_results.csv`, and `selected_model_reason.md`.
+- Current classification tuning optimizes ROC-AUC, not PR-AUC.
+- Required: align tuning objective with PR-AUC-primary selection or explicitly justify the mismatch.
+
+### DONE 14. Make PR-AUC primary for classification ranking
+
+- Classification final model selection now sorts by PR-AUC first and ROC-AUC second.
+- Tests cover a case where higher PR-AUC wins despite lower ROC-AUC.
+- Required follow-up: regenerate reports so generated summaries no longer claim ROC-AUC was primary.
+- Still useful: add lift at top 10%/20%, precision@top-k, and recall@top-k.
+
+### TODO 15. Uncertainty for duration outputs
+
 - Avoid presenting exact single-day predictions as certain wait times.
-- Prefer median, P75, P90 predicted days, or buckets (0–7, 8–30, 31–60, 61–90, 90+ days).
-- Phrase dashboard outputs as historical similarity/risk patterns, not deterministic forecasts.
+- Prefer median, P75, P90 predicted days, or buckets: 0-7, 8-30, 31-60, 61-90, 90+.
+- Dashboard copy should frame outputs as historical similarity/risk patterns, not deterministic forecasts.
 
-### 🔲 16. Strengthen subgroup reliability
-- Report per-cohort: records, adoption rate, mean predicted probability, calibration gap, PR-AUC (where n ≥ threshold), Brier score.
-- Do not interpret subgroup metrics below minimum sample thresholds (n < 100 or n < 200).
+### PARTIAL 16. Strengthen subgroup reliability
 
-### 🔲 17. Cluster-aware confidence intervals
-- Bootstrap by `animal_id` where possible.
-- If row-level bootstrap remains, document that records are episode-level and not fully independent animal-level observations.
+- Subgroup reliability and reliability red-flag artifacts exist.
+- Current acceptance still needs stricter cohort rules:
+  - records,
+  - adoption rate,
+  - mean predicted probability,
+  - calibration gap,
+  - PR-AUC where sample size and class variety allow,
+  - Brier score,
+  - explicit minimum sample-size thresholds.
+- Do not interpret subgroup metrics below n < 100 or n < 200.
+
+### TODO 17. Cluster-aware confidence intervals
+
+- Current bootstrap utilities are row-level.
+- Required: bootstrap by `animal_id` where possible.
+- If row-level bootstrap remains, generated evidence must state that episodes are not fully independent animal-level observations.
 
 ---
 
 ## Nice To Have
 
-- 🔲 Add LightGBM with native categorical support.
-- 🔲 Add quantile regression for P50/P80/P90 wait-time estimates.
-- 🔲 Add feature drift / population stability index by year.
-- 🔲 Add dashboard/reporting views for top-k campaign evaluation.
-- 🔲 Add XGBoost AFT survival objective (only if survival modeling becomes a core thesis section).
-- 🔲 Minimal Dockerfile for environment reproducibility.
-- 🔲 Makefile or task runner for the reproduction flow.
-- Do **not** add neural networks unless there is a separate, defensible research reason.
+- PARTIAL Add LightGBM with native categorical support. HistGradientBoosting exists, but that is not LightGBM.
+- PARTIAL Add ensemble methods. Ensemble code exists, but confirm it is used in reports before calling it thesis-complete.
+- TODO Add quantile regression for P50/P80/P90 wait-time estimates.
+- TODO Add feature drift / population stability index by year.
+- TODO Add dashboard/reporting views for top-k campaign evaluation.
+- TODO Add XGBoost AFT survival objective only if survival modeling becomes a core thesis section.
+- TODO Minimal Dockerfile for environment reproducibility.
+- TODO Makefile or task runner for reproduction flow.
+- Do not add neural networks unless there is a separate, defensible research reason.
 
 ---
 
 ## Known Methodology Risks
 
-These are documented here so they can be addressed in the thesis discussion chapter even if the code is not changed.
-
-| Risk | Description |
-|------|-------------|
-| ⚠️ Target conflation | Adoption likelihood, adoption within horizon, days to adoption, and days to any outcome are different targets. Treating them interchangeably is a methodological error. |
-| ⚠️ LOS distribution | `regression_target_days` is non-negative, right-skewed, censored, outlier-heavy, and outcome-dependent. Standard MAE/MSE training is suboptimal. |
-| ⚠️ Right-censoring bias | Dataset-end censoring can make recent animals look like they had shorter waits. |
-| ⚠️ Duplicate features | `age_days/months/years` and `has_name/is_named` distort SHAP values and feature importance. |
-| ⚠️ Uncalibrated probabilities | Calibration gaps up to 0.21 mean model scores cannot yet be treated as literal adoption probabilities. |
-| ⚠️ Chronological split not sufficient | A chronological split is necessary but not enough; yearly backtesting gives stronger evidence of temporal stability. |
-| ⚠️ Subgroup sample sizes | Subgroup results need minimum sample-size rules. Small cohorts (n < 100) should not be strongly interpreted. |
-| ⚠️ Episode-level independence | Episode-level records are not always independent when the same animal appears multiple times. Bootstrap by `animal_id` is more correct than row-level bootstrap. |
-| ⚠️ Feature update leakage | `sex_upon_intake` and `intake_condition` may be overwritten post-intake in shelter databases. Freezing features at exact admission timestamp is not yet guaranteed. |
-| ⚠️ Rolling features and online inference | `intake_volume_7d/30d` and `animal_311_requests_7d/30d` are batch-dependent and incompatible with single-record online inference. |
-| ⚠️ Shelter volume underestimation | Rolling intake volume is computed after cat/dog filtering and matching. Unmatched intakes and other animal types are excluded, understating actual shelter crowding. |
-| ⚠️ High-cardinality breed/color encoding | `simplified_breed_group` collapses very distinct breeds into "other". Target encoding with smoothing or text embeddings would be more principled. |
-| ⚠️ Context SHAP family mapping | Weather and 311 context features fall into `"other"` in SHAP family maps. Explicit `weather` and `shelter_demand` categories should be added. |
-| ⚠️ Calibration summary subgroup mismatch | `calibration_summary.py` may copy `combined` reliability table for dogs/cats separately instead of filtering by species. |
+| Status | Risk | Description |
+|--------|------|-------------|
+| RISK | Target conflation | Adoption likelihood, adoption within horizon, days to adoption, and days to any outcome are different targets. Treating them interchangeably is a methodological error. |
+| RISK | LOS distribution | `regression_target_days` is non-negative, right-skewed, censored, outlier-heavy, and outcome-dependent. Standard MAE/MSE training is suboptimal. |
+| RISK | Right-censoring bias | Dataset-end censoring can make recent animals look like they had shorter waits. |
+| DONE | Duplicate features | Duplicate aliases have been removed from model-training features, but reports/dashboard aliases may still exist for compatibility. |
+| RISK | Calibration reproducibility | Calibrated artifacts exist, but the current calibration CLI cannot reproduce them because a called function is missing. |
+| RISK | Chronological split not sufficient | A chronological split is necessary but not enough; yearly backtesting gives stronger evidence of temporal stability. |
+| RISK | Subgroup sample sizes | Subgroup results need minimum sample-size rules. Small cohorts should not be strongly interpreted. |
+| RISK | Episode-level independence | Episode-level records are not always independent when the same animal appears multiple times. Bootstrap by `animal_id` is more correct than row-level bootstrap. |
+| RISK | Feature update leakage | `sex_upon_intake` and `intake_condition` may be overwritten post-intake in shelter databases. Freezing features at exact admission timestamp is not guaranteed. |
+| RISK | Rolling features and online inference | `intake_volume_7d/30d` and `animal_311_requests_7d/30d` are batch-dependent and incompatible with single-record online inference unless historical context is rebuilt. |
+| RISK | Shelter volume underestimation | Confirm whether rolling intake volume is computed from all relevant shelter intakes or only matched cat/dog modeling rows before claiming this is fixed. |
+| PARTIAL | High-cardinality breed/color encoding | Target encoding code exists, but roadmap acceptance should verify whether final training actually uses it and whether leakage-safe smoothing is documented. |
+| DONE | Context SHAP family mapping | Weather and 311/shelter-volume context features have explicit `weather_context` and `shelter_demand_context` mappings covered by diagnostics tests. |
+| RISK | Calibration summary subgroup mismatch | Verify `calibration_summary.py` filters species-specific reliability rows instead of copying combined reliability rows into dogs/cats. |
+| RISK | Recency weighting direction | Current recency sample weighting appears to weight older years more heavily than newer years. |
 
 ---
 
-## Implementation Progress Tracker (plan_0606 slices)
+## Implementation Progress Tracker
 
-### Slice 1 — Selected-Model Diagnostics ✅
+### Slice 1 - Selected-Model Diagnostics: DONE
 
-Changes completed: diagnostics read `final_model_selection.csv`, load correct artifact per task+subset, write `diagnostics_model_selection.csv` and `diagnostics_validation_tactics.csv`, SHAP skips for non-CatBoost selected models.
+Diagnostics read `final_model_selection.csv`, load the correct artifact per task/subset, write diagnostic model-selection audit tables, and skip SHAP with notes for non-CatBoost selected models.
 
-Residual risk: full diagnostics not rerun on real dataset in this slice; validated by unit contract only.
+### Slice 2 - Validation-Selected Thresholds: DONE
 
-### Slice 2 — Validation-Selected Thresholds ✅
+Threshold analysis locates the selected classifier, selects thresholds on validation only, freezes them, and evaluates on test. Output includes validation/test period metadata and threshold policies.
 
-Changes completed: threshold analysis locates selected classifier, thresholds selected on validation only, applied to test, `final_classifier_thresholds.csv` includes period metadata and new policies (`youden_j`, `top_10_percent_capacity`).
+### Slice 3 - Calibration Metrics Foundation: DONE
 
-Residual risk: checked-in `reports/tables/final_classifier_thresholds.csv` must be refreshed by running `scripts/run_analysis.py` on real data.
+`expected_calibration_error()` exists and classification metrics include Brier score and ECE.
 
-### Slices 3–18 — Remaining items from plan_0606 🔲
+### Slice 3b - Formal Calibrated Artifacts: PARTIAL
 
-All remaining slices (calibration stage, feature cleanup, LOS modeling, censoring safeguards, episode matching audit, leakage audit expansion, horizon classifiers, temporal backtesting, recency strategies, survival analysis, categorical handling, hyperparameter tuning, PR-AUC primacy, duration uncertainty, subgroup reliability, cluster-aware CIs) are **not yet implemented**. See sections above for plans.
+Calibrated model files and metrics exist locally, but current code cannot reproduce them via the full pipeline until `calibrate_classifiers()` is restored or replaced.
+
+### Slice 4 - Duplicate Feature Cleanup: DONE
+
+Model-training feature lists exclude duplicate aliases and tests enforce the cleaned list.
+
+### Slice 5 - PR-AUC Primary Selection: DONE
+
+Model selection code uses PR-AUC first, ROC-AUC second. Reports need regeneration.
+
+### Slices Still Not Accepted
+
+- Formal calibration stage.
+- Horizon classifiers.
+- Real censoring/follow-up safeguards.
+- Episode matching ambiguity audit.
+- Leakage risk classification.
+- Yearly temporal backtesting.
+- Recency strategy comparison.
+- Full survival modeling, unless kept as explicit future work.
+- Duration uncertainty outputs.
+- Strict subgroup reliability rules.
+- Cluster-aware confidence intervals.
 
 ---
 
 ## Acceptance Checklist for Thesis Submission
 
-- [ ] `generate_diagnostics.py` uses selected model artifacts from `final_model_selection.csv` ✅
-- [ ] Calibrated classifier artifacts exist and are evaluated on untouched test years
-- [ ] Thresholds are selected on validation data and applied to test data ✅
-- [ ] Duplicate modeling features are removed from training feature lists
-- [ ] LOS and adopted-only timing models are separate
-- [ ] Horizon adoption targets exist for 7, 30, 60, and 90 days
-- [ ] End-of-dataset censoring rules are applied and documented
-- [ ] Re-intake matching ambiguity is audited and summarized
-- [ ] Yearly backtesting table exists
-- [ ] Survival analysis section exists or is explicitly documented as future work
-- [ ] Subgroup reliability includes calibration and sample-size safeguards
-- [ ] Leakage audit classifies suspicious features by risk level
+- [x] `generate_diagnostics.py` uses selected model artifacts from `final_model_selection.csv`.
+- [ ] Calibration CLI can reproduce calibrated classifier artifacts and metrics.
+- [ ] Calibrated classifiers are evaluated on untouched test years with before/after metrics.
+- [x] Thresholds are selected on validation data and applied to test data.
+- [x] Duplicate modeling features are removed from training feature lists.
+- [x] Adopted-only timing model exists separately from generic LOS modeling.
+- [ ] Reports and dashboard consistently distinguish generic LOS from days to adoption.
+- [ ] Horizon adoption targets exist for 7, 30, 60, and 90 days.
+- [ ] End-of-dataset follow-up/censoring rules are applied and summarized.
+- [ ] Re-intake matching ambiguity is audited and summarized.
+- [ ] Yearly backtesting table exists.
+- [x] Survival analysis is explicitly documented as descriptive/future work.
+- [ ] If survival is promoted to a model, censoring and competing risks are handled.
+- [ ] Subgroup reliability includes calibration and sample-size safeguards.
+- [ ] Leakage audit classifies suspicious features by risk level.
+- [ ] Confidence intervals are cluster-aware by `animal_id` or explicitly documented as row-level.
+- [ ] Full pipeline passes after calibration step is fixed.

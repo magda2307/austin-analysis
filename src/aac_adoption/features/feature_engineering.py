@@ -225,24 +225,20 @@ def add_intake_features(df: pd.DataFrame) -> pd.DataFrame:
     """Add intake-time features only."""
     result = df.copy()
 
-    result["has_name"] = (
+    is_named = (
         result.get("name", pd.Series(index=result.index, dtype="object"))
         .fillna("")
         .astype(str)
         .str.strip()
         .ne("")
     )
-    result["is_named"] = result["has_name"]
+    result["is_named"] = is_named
 
-    result["age_in_days"] = result.get("age_upon_intake", pd.Series(index=result.index)).map(
+    age_in_days = result.get("age_upon_intake", pd.Series(index=result.index)).map(
         parse_age_to_days
     )
-    result["age_in_months"] = result["age_in_days"] / 30.4375
-    result["age_in_years"] = result["age_in_days"] / 365.25
-    result["age_days"] = result["age_in_days"]
-    result["age_months"] = result["age_in_months"]
-    result["age_years"] = result["age_in_years"]
-    result["age_group"] = result["age_in_days"].map(age_group_from_days)
+    result["age_days"] = age_in_days
+    result["age_group"] = age_in_days.map(age_group_from_days)
 
     result["intake_year"] = result["intake_datetime"].dt.year
     result["intake_month"] = result["intake_datetime"].dt.month

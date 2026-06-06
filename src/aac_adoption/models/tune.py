@@ -44,22 +44,32 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20) -> dict[str, Any]:
     
     def catboost_clf_objective(trial: optuna.Trial) -> float:
         params = {
-            "iterations": trial.suggest_int("iterations", 100, 500),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
-            "depth": trial.suggest_int("depth", 4, 10),
+            "iterations": 5000,
+            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "depth": trial.suggest_int("depth", 3, 10),
+            "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
+            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "bootstrap_type": "Bernoulli",  # Required for subsample in CatBoost
             "loss_function": "Logloss",
             "eval_metric": "AUC",
             "random_seed": RANDOM_STATE,
             "verbose": False,
         }
         scores = []
-        for train_idx, val_idx in cv.split(cat_X):
+        for step, (train_idx, val_idx) in enumerate(cv.split(cat_X)):
             X_tr, y_tr = cat_X.iloc[train_idx], cat_y.iloc[train_idx]
             X_va, y_va = cat_X.iloc[val_idx], cat_y.iloc[val_idx]
             model = CatBoostClassifier(**params)
-            model.fit(X_tr, y_tr, cat_features=cat_features, eval_set=(X_va, y_va), early_stopping_rounds=20)
+            model.fit(X_tr, y_tr, cat_features=cat_features, eval_set=(X_va, y_va), early_stopping_rounds=50)
             preds = model.predict_proba(X_va)[:, 1]
-            scores.append(roc_auc_score(y_va, preds))
+            score = roc_auc_score(y_va, preds)
+            scores.append(score)
+            
+            # Prune trial early based on intermediate fold score
+            trial.report(np.mean(scores), step)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+                
         return np.mean(scores)
 
     study = optuna.create_study(direction="maximize")

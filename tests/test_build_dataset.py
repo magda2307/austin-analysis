@@ -108,7 +108,7 @@ def test_build_modeling_dataset_filters_and_creates_targets():
     assert bool(dataset.loc[dataset["animal_id"] == "A2", "is_airport_location"].item()) is True
     assert "found_location" not in dataset.columns
     assert bool(dataset.loc[dataset["animal_id"] == "A1", "is_black_or_dark"].item()) is True
-    assert bool(dataset.loc[dataset["animal_id"] == "A2", "has_name"].item()) is False
+    assert bool(dataset.loc[dataset["animal_id"] == "A2", "is_named"].item()) is False
 
 
 def test_validate_rejects_negative_los():

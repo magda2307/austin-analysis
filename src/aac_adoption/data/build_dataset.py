@@ -95,6 +95,9 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         np.nan,
     )
     
+    # Horizon-based targets
+    for horizon in [7, 30, 60, 90]:
+        dataset[f"adopted_in_{horizon}d"] = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
     # Only winsorize if there are extreme outliers (>99th percentile > 99th percentile of non-extreme)
     if len(dataset) > 100:
         q99 = dataset["length_of_stay"].quantile(0.99)
@@ -155,6 +158,10 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         "classification_target",
         "regression_target_days",
         "days_to_adoption",
+        "adopted_in_7d",
+        "adopted_in_30d",
+        "adopted_in_60d",
+        "adopted_in_90d",
     ]
     dataset = dataset[[column for column in ordered_columns if column in dataset.columns]]
     validate_modeling_dataset(dataset)

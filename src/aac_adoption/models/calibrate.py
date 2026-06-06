@@ -82,7 +82,7 @@ def apply_calibration_to_predictions(
     y_calib: pd.Series,
     calib_method: str = "isotonic",
 ) -> CalibratedClassifierCV:
-    """Train calibration on calibration set only."""
+    """Train calibration on calibration set using pre-fitted base model."""
     if calib_method not in {"isotonic", "platt", "sigmoid"}:
         calib_method = "isotonic"
     
@@ -91,11 +91,19 @@ def apply_calibration_to_predictions(
     else:
         method = "isotonic"
     
-    calibrated = CalibratedClassifierCV(
-        estimator=clone(base_model),
-        method=method,
-        cv=5,
-    )
+    try:
+        from sklearn.frozen import FrozenEstimator
+        calibrated = CalibratedClassifierCV(
+            estimator=FrozenEstimator(base_model),
+            method=method,
+        )
+    except ImportError:
+        calibrated = CalibratedClassifierCV(
+            estimator=base_model,
+            method=method,
+            cv="prefit",
+        )
+        
     calibrated.fit(X_calib, y_calib)
     
     return calibrated

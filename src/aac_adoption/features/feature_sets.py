@@ -51,6 +51,10 @@ TARGET_COLUMNS = [
     "days_to_outcome",
     "days_to_adoption",
     "length_of_stay",
+    "adopted_in_7d",
+    "adopted_in_30d",
+    "adopted_in_60d",
+    "adopted_in_90d",
 ]
 
 METADATA_COLUMNS = [
@@ -70,11 +74,6 @@ SEX_UPON_INTAKE = "sex_upon_intake"
 
 NUMERIC_FEATURES = [
     "age_days",
-    "age_in_days",
-    "age_in_months",
-    "age_in_years",
-    "age_months",
-    "age_years",
     "daily_temp_max",
     "daily_temp_min",
     "daily_precipitation",

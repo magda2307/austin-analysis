@@ -92,6 +92,8 @@ def _fit_and_save(
     return model, metadata
 
 
+from aac_adoption.models.calibrate import apply_calibration_to_predictions, save_calibration
+
 def train_advanced_classification(
     df: pd.DataFrame,
     models_dir: Path,
@@ -102,7 +104,7 @@ def train_advanced_classification(
     depth: int,
     early_stopping_rounds: int,
 ) -> list[dict[str, Any]]:
-    """Train CatBoost adoption classifiers."""
+    """Train CatBoost adoption classifiers with post-hoc calibration."""
     rows: list[dict[str, Any]] = []
     params = {
         "loss_function": "Logloss",
@@ -127,6 +129,8 @@ def train_advanced_classification(
             params=params,
         )
         test_x = prepare_catboost_frame(split.test, feature_columns)
+        
+        # Uncalibrated metrics
         predictions = model.predict(test_x).astype(int)
         scores = model.predict_proba(test_x)[:, 1]
         metrics = classification_metrics(
@@ -135,6 +139,37 @@ def train_advanced_classification(
             scores,
             compute_ci=(subset in ["dogs", "cats"])
         )
+        
+        # Apply Post-Hoc Calibration if validation set is available
+        if not split.validation.empty:
+            val_x = prepare_catboost_frame(split.validation, feature_columns)
+            calibrated_model = apply_calibration_to_predictions(
+                base_model=model,
+                X_train=prepare_catboost_frame(split.train, feature_columns),
+                y_train=split.train["classification_target"],
+                X_calib=val_x,
+                y_calib=split.validation["classification_target"],
+                calib_method="isotonic"
+            )
+            
+            # Save calibrated artifact
+            calibrated_path = Path(metadata["artifact_path"]).with_name(Path(metadata["artifact_path"]).stem + "_calibrated.joblib")
+            save_calibration(calibrated_model, str(calibrated_path))
+            
+            calib_predictions = calibrated_model.predict(test_x).astype(int)
+            calib_scores = calibrated_model.predict_proba(test_x)[:, 1]
+            calib_metrics = classification_metrics(
+                split.test["classification_target"], 
+                calib_predictions, 
+                calib_scores,
+                compute_ci=False
+            )
+            
+            # Update metrics to record the calibrated ones (like ECE) alongside the metadata
+            metrics["brier_score"] = calib_metrics["brier_score"]
+            metrics["expected_calibration_error"] = calib_metrics["expected_calibration_error"]
+            metadata["calibrated_artifact_path"] = str(calibrated_path)
+            
         rows.append({**metadata, **metrics})
     return rows
 
