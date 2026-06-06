@@ -173,16 +173,16 @@ def _summary_lines(
         "",
     ]
 
-    best_classification = _best_rows(classification, "roc_auc", ascending=False)
+    best_classification = _best_rows(classification, "pr_auc", ascending=False)
     if best_classification.empty:
         lines.append("Classification comparison table was not available.")
     else:
-        lines.append("Best classification models by ROC-AUC:")
+        lines.append("Best classification models by PR-AUC:")
         lines.append("")
         for _, row in best_classification.iterrows():
             lines.append(
                 f"- {row['animal_subset']}: {row['model_name']} "
-                f"(ROC-AUC {_format_number(row.get('roc_auc'))}, PR-AUC {_format_number(row.get('pr_auc'))}, F1 {_format_number(row.get('f1'))})"
+                f"(PR-AUC {_format_number(row.get('pr_auc'))}, ROC-AUC {_format_number(row.get('roc_auc'))}, F1 {_format_number(row.get('f1'))})"
             )
 
     lines.append("")

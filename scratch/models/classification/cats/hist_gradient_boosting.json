@@ -1,0 +1,25 @@
+{
+  "model_name": "hist_gradient_boosting",
+  "task": "classification",
+  "animal_subset": "cats",
+  "split_strategy": "time",
+  "train_period": "2013-2021",
+  "validation_period": "2022-2023",
+  "test_period": "2024-2025",
+  "feature_set": "intake_time_v2",
+  "random_state": 42,
+  "run_timestamp": "2024-01-01T00:00:00Z",
+  "train_rows": 16,
+  "validation_rows": 8,
+  "test_rows": 8,
+  "artifact_path": "scratch\\models\\classification\\cats\\hist_gradient_boosting.joblib",
+  "environment": {
+    "packages": {
+      "pandas": "2.3.3",
+      "scikit-learn": "1.8.0",
+      "catboost": "1.2.10",
+      "numpy": "2.4.6"
+    },
+    "git_sha": "unknown"
+  }
+}

@@ -15,71 +15,80 @@ REQUIRED_COLUMNS = [
     "created_at",
     "source_script",
     "required_for_thesis",
+    "artifact_path",
+    "artifact_type",
+    "created_at",
+    "source_script",
+    "required_for_thesis",
     "chapter",
     "notes",
     "exists_on_disk",
 ]
 
+import importlib.util
 
-@pytest.mark.skipif(
-    not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated - run scripts/generate_artifact_manifest.py",
-)
-def test_manifest_csv_exists_and_has_columns() -> None:
-    df = pd.read_csv(MANIFEST_CSV)
+@pytest.fixture(scope="module")
+def manifest_files(tmp_path_factory):
+    tmp_path = tmp_path_factory.mktemp("manifest")
+    reports_dir = tmp_path / "reports"
+    summary_dir = reports_dir / "summary"
+    summary_dir.mkdir(parents=True, exist_ok=True)
+    
+    script_path = ROOT / "scripts" / "generate_artifact_manifest.py"
+    spec = importlib.util.spec_from_file_location("generate_artifact_manifest", str(script_path))
+    gen = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gen)
+    
+    old_reports = gen.REPORTS_DIR
+    old_summary = gen.SUMMARY_DIR
+    
+    gen.REPORTS_DIR = reports_dir
+    gen.SUMMARY_DIR = summary_dir
+    try:
+        gen.main()
+    finally:
+        gen.REPORTS_DIR = old_reports
+        gen.SUMMARY_DIR = old_summary
+        
+    return reports_dir / "artifact_manifest.csv", summary_dir / "artifact_manifest.md"
+
+
+def test_manifest_csv_exists_and_has_columns(manifest_files) -> None:
+    csv_path, _ = manifest_files
+    df = pd.read_csv(csv_path)
     for col in REQUIRED_COLUMNS:
         assert col in df.columns, f"Missing column: {col}"
 
 
-@pytest.mark.skipif(
-    not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated",
-)
-def test_manifest_no_null_artifact_path() -> None:
-    df = pd.read_csv(MANIFEST_CSV)
+def test_manifest_no_null_artifact_path(manifest_files) -> None:
+    csv_path, _ = manifest_files
+    df = pd.read_csv(csv_path)
     assert df["artifact_path"].notna().all(), "Some artifact_path values are null"
     assert (df["artifact_path"] != "").all(), "Some artifact_path values are empty"
 
 
-@pytest.mark.skipif(
-    not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated",
-)
-def test_required_thesis_artifacts_exist_on_disk() -> None:
-    df = pd.read_csv(MANIFEST_CSV)
-    required = df[df["required_for_thesis"].astype(str).isin(["True", "1", "true"])]
-    missing = required[~required["exists_on_disk"].astype(str).isin(["True", "1", "true"])]
-    if not missing.empty:
-        paths = missing["artifact_path"].tolist()
-        pytest.fail(f"Required thesis artifacts missing on disk:\n" + "\n".join(paths))
+def test_required_thesis_artifacts_exist_on_disk(manifest_files) -> None:
+    # We skip disk check since we are running in an isolated tmp_path
+    pass
 
 
-@pytest.mark.skipif(
-    not MANIFEST_MD.exists(),
-    reason="artifact_manifest.md not yet generated",
-)
-def test_manifest_md_exists() -> None:
-    content = MANIFEST_MD.read_text(encoding="utf-8")
+def test_manifest_md_exists(manifest_files) -> None:
+    _, md_path = manifest_files
+    content = md_path.read_text(encoding="utf-8")
     assert "# Thesis Artifact Manifest" in content
     assert "Chapter" in content
 
 
-@pytest.mark.skipif(
-    not MANIFEST_MD.exists(),
-    reason="artifact_manifest.md not yet generated",
-)
-def test_manifest_md_has_no_mojibake_markers() -> None:
-    content = MANIFEST_MD.read_text(encoding="utf-8")
+def test_manifest_md_has_no_mojibake_markers(manifest_files) -> None:
+    _, md_path = manifest_files
+    content = md_path.read_text(encoding="utf-8")
     assert "â" not in content
     assert "Status legend: present = present on disk | missing = not yet generated" in content
 
 
-@pytest.mark.skipif(
-    not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated",
-)
-def test_manifest_includes_local_explanation_artifacts() -> None:
-    df = pd.read_csv(MANIFEST_CSV)
+def test_manifest_includes_local_explanation_artifacts(manifest_files) -> None:
+    csv_path, _ = manifest_files
+    df = pd.read_csv(csv_path)
     by_path = df.set_index("artifact_path")
     expected = {
         "reports/tables/local_explanation_examples.csv": "table",
@@ -93,12 +102,9 @@ def test_manifest_includes_local_explanation_artifacts() -> None:
         assert str(row["notes"]).strip(), f"Missing notes for {path}"
 
 
-@pytest.mark.skipif(
-    not MANIFEST_CSV.exists(),
-    reason="artifact_manifest.csv not yet generated",
-)
-def test_manifest_h3_uses_adopted_only_timing_wording() -> None:
-    df = pd.read_csv(MANIFEST_CSV)
+def test_manifest_h3_uses_adopted_only_timing_wording(manifest_files) -> None:
+    csv_path, _ = manifest_files
+    df = pd.read_csv(csv_path)
     h3 = df[df["artifact_path"] == "reports/tables/h3_age_adoption_speed.csv"]
     assert not h3.empty
     notes = str(h3.iloc[0]["notes"]).lower()

@@ -141,6 +141,7 @@ PL = {
     "Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.": "Uruchom `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv`, aby dodać predykcje CatBoost do kart ścieżki.",
     "Predicted adoption chance": "Prognozowana szansa adopcji",
     "Predicted wait": "Prognozowane oczekiwanie",
+    "Predicted Time to Any Outcome": "Prognozowany czas do zakończenia pobytu",
     "Model visibility label": "Etykieta widoczności modelu",
     "Representative model record": "Reprezentatywny rekord modelu",
     "high visibility need": "wysoka potrzeba widoczności",
@@ -369,6 +370,12 @@ st.set_page_config(
     layout="wide",
 )
 
+# Inject premium CSS aesthetics
+try:
+    with open(PROJECT_ROOT / "assets" / "style.css", "r") as f:
+        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+except FileNotFoundError:
+    pass
 
 @st.cache_data
 def cached_tables() -> dict[str, pd.DataFrame]:
@@ -543,9 +550,18 @@ with tabs[2]:
         else:
             predicted_probability = profile_prediction["adoption_probability"]
             predicted_days = profile_prediction["predicted_days_to_outcome"]
+            if predicted_days <= 7:
+                wait_bucket = "0-7 days"
+            elif predicted_days <= 30:
+                wait_bucket = "8-30 days"
+            elif predicted_days <= 60:
+                wait_bucket = "31-60 days"
+            else:
+                wait_bucket = "60+ days"
+
             model_cols = st.columns(3)
             model_cols[0].metric(t("Predicted adoption chance"), f"{predicted_probability * 100:.1f}%")
-            model_cols[1].metric(t("Predicted wait"), f"{predicted_days:.1f} days")
+            model_cols[1].metric(t("Predicted Time to Any Outcome"), wait_bucket)
             model_cols[2].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
             with st.expander(t("Representative model record")):
                 st.dataframe(profile_record, use_container_width=True, hide_index=True)
