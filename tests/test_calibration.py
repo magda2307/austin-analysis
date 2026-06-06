@@ -109,7 +109,8 @@ def test_apply_calibration_to_predictions(sample_data):
         X_train,
         y_train,
         X_calib,
-        calib_method="platt",
+        y_calib,
+        calib_method="isotonic",
     )
     
     predictions = calibrated.predict(X_calib)

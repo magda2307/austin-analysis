@@ -6,8 +6,7 @@ import joblib
 import pandas as pd
 import numpy as np
 from sklearn.calibration import CalibratedClassifierCV
-from sklearn.base import BaseEstimator
-from sklearn.frozen import FrozenEstimator
+from sklearn.base import BaseEstimator, clone
 
 
 def calibrate_with_isotonic(
@@ -18,10 +17,13 @@ def calibrate_with_isotonic(
     method: str = "isotonic",
 ) -> tuple[np.ndarray, np.ndarray]:
     """Apply isotonic regression calibration."""
+    if method == "sigmoid":
+        method = "isotonic"  # Use isotonic as default
+    
     calibrated = CalibratedClassifierCV(
-        estimator=FrozenEstimator(base_model),
+        estimator=clone(base_model),
         method=method,
-        cv="prefit",
+        cv=5,
     )
     calibrated.fit(X_calib, y_calib)
     
@@ -60,11 +62,11 @@ def post_hoc_calibration_pipeline(
         method = "isotonic"
     
     calibrated = CalibratedClassifierCV(
-        estimator=FrozenEstimator(base_model),
+        estimator=clone(base_model),
         method=method,
-        cv="prefit",
+        cv=5,
     )
-    calibrated.fit(X_val, y_val)
+    calibrated.fit(pd.concat([X_train, X_val]), pd.concat([y_train, y_val]))
     
     predictions = calibrated.predict(X_test).astype(int)
     scores = calibrated.predict_proba(X_test)[:, 1]
@@ -77,9 +79,10 @@ def apply_calibration_to_predictions(
     X_train: pd.DataFrame,
     y_train: pd.Series,
     X_calib: pd.DataFrame,
+    y_calib: pd.Series,
     calib_method: str = "isotonic",
 ) -> CalibratedClassifierCV:
-    """Train calibration on validation set only."""
+    """Train calibration on calibration set only."""
     if calib_method not in {"isotonic", "platt", "sigmoid"}:
         calib_method = "isotonic"
     
@@ -89,11 +92,11 @@ def apply_calibration_to_predictions(
         method = "isotonic"
     
     calibrated = CalibratedClassifierCV(
-        estimator=FrozenEstimator(base_model),
+        estimator=clone(base_model),
         method=method,
-        cv="prefit",
+        cv=5,
     )
-    calibrated.fit(X_calib, y_train)
+    calibrated.fit(X_calib, y_calib)
     
     return calibrated
 
