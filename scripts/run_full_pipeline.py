@@ -140,6 +140,12 @@ STEPS = [
     ),
     (
         17,
+        "Evaluate backtesting",
+        [sys.executable, "scripts/evaluate_backtesting.py"],
+        "expensive",
+    ),
+    (
+        18,
         "Run test suite",
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
         None,
@@ -203,7 +209,7 @@ def should_skip(step_number: int, tag: str | None, args: argparse.Namespace, onl
         return True
     if tag == "shap" and (args.skip_shap or args.quick):
         return True
-    if step_number == 17 and args.quick:
+    if step_number == 18 and args.quick:
         return True
     return False
 

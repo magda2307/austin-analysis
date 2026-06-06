@@ -315,6 +315,42 @@ Current state:
 - `match_records.py` is updated to detect and flag `is_ambiguous_match` using a performant mapping algorithm.
 - Data audit script correctly calculates and reports ambiguous episodes.
 
+## DONE - Task C: Add Yearly Backtesting Artifact
+
+Source review concern:
+
+- `evaluate_backtesting.py` existed, but roadmap said yearly backtesting table was still TODO.
+
+Current state:
+
+- `evaluate_backtesting.py` outputs the exact required schema (train_period, test_year, subset, model, pr_auc, roc_auc, brier, ece, mae).
+- Test suite verifies the output schema.
+- Hooked into `scripts/run_full_pipeline.py`.
+
+## DONE - Task D: Compare Recency Strategies
+
+Source review concern:
+
+- Recency weights were fixed and wired, but no strategy comparison existed.
+
+Current state:
+
+- `compare_recency.py` compares full-history, recent 5-year, recent 3-year, and recency-weighted training.
+- Strategy results saved to `reports/tables/recency_strategy_comparison.csv`.
+- Test asserts monotonic chronological weights constraints.
+
+## DONE - Task E: Align Dashboard LOS Language
+
+Source review concern:
+
+- Dashboard could conflate generic LOS with days to adoption.
+
+Current state:
+
+- `streamlit_app.py` avoids exact-day certainty using `wait_bucket` in the sensitivity demo.
+- Cleaned up terms: "Predicted wait" to "Predicted days to outcome", "Median wait" to "Median days to outcome".
+- Updated methodology to correctly reference "Predicted days to adoption".
+
 ## STILL OPEN - Review Items Not Yet Accepted
 
 Active task file tracks these:

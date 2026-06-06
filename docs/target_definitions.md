@@ -161,7 +161,7 @@ The following columns are **targets or outcome-derived metadata** and must never
 | Regression MAE in reports | "MAE X days for length-of-stay prediction" | "adoption speed error" |
 | H3 table (all animals) | "median days to outcome by age group" | "adoption speed by age" |
 | H3 adopted-only table | "median days to adoption (adopted animals only)" | "adoption speed" without qualification |
-| Dashboard regression metric card | "Predicted days to outcome" | "Predicted wait until adoption" |
+| Dashboard regression metric card | "Predicted days to outcome" | "Predicted days to adoption" |
 | SHAP regression interpretation | "associated with predicted days to outcome" | "causes faster adoption" |
 
 ---

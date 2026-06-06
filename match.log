@@ -1,3 +1,8 @@
 Loading data...
-Loaded and cleaned in 16.30s
+Loaded and cleaned in 22.00s
 Running verify_reintake_patterns...
+verify_reintake_patterns took 4.10s
+Running match_intakes_to_future_outcomes...
+Matched in 9.45s
+Matched 162390 rows, 1511 unmatched.
+Matched 162390 rows, 1511 unmatched.

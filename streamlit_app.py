@@ -129,7 +129,7 @@ PL = {
     "Animal profile": "Profil zwierzęcia",
     "Similar records": "Podobne rekordy",
     "Adoption rate": "Odsetek adopcji",
-    "Median wait": "Mediana oczekiwania",
+    "Median days to outcome": "Mediana dni do wyniku",
     "Visibility need": "Potrzeba widoczności",
     "Profile": "Profil",
     "has recorded name": "ma zapisane imię",
@@ -528,7 +528,7 @@ with tabs[2]:
         col1, col2, col3, col4 = st.columns(4)
         col1.metric(t("Similar records"), f"{int(selected['records']):,}")
         col2.metric(t("Adoption rate"), f"{selected['adoption_rate_pct']:.1f}%")
-        col3.metric(t("Median wait"), f"{selected['median_days_to_outcome']:.1f} days")
+        col3.metric(t("Median days to outcome"), f"{selected['median_days_to_outcome']:.1f} days")
         col4.metric(t("Visibility need"), selected["visibility_need"])
 
         st.write(
@@ -957,9 +957,17 @@ with tabs[9]:
             prediction = predict_from_record(record, MODELS_DIR)
             probability_pct = prediction["adoption_probability"] * 100
             days = prediction["predicted_days_to_outcome"]
+            if days <= 7:
+                wait_bucket = "0-7 days"
+            elif days <= 30:
+                wait_bucket = "8-30 days"
+            elif days <= 60:
+                wait_bucket = "31-60 days"
+            else:
+                wait_bucket = "60+ days"
             col1, col2 = st.columns(2)
             col1.metric(t("Predicted adoption probability"), f"{probability_pct:.1f}%")
-            col2.metric(t("Predicted days to outcome"), f"{days:.1f}")
+            col2.metric(t("Predicted Time to Any Outcome"), wait_bucket)
             st.dataframe(record, use_container_width=True, hide_index=True)
             similar = similar_historical_cases(DATA_PATH, record)
             if not similar.empty:
