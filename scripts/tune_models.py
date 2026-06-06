@@ -48,10 +48,36 @@ def main():
     df = pd.read_csv(args.data_path, parse_dates=parse_dates)
     df = limit_rows(df, args.max_rows)
     
-    best_params = tune_models(df, n_trials=args.n_trials)
+    best_params, studies = tune_models(df, n_trials=args.n_trials)
     
     save_tuned_params(best_params, args.output_path)
     print(f"Saved tuned hyperparameters to {args.output_path}")
+
+    # Generate Roadmap Requirements
+    tuning_results = []
+    selected_reasons = []
+    best_params_rows = []
+
+    for name, study in studies.items():
+        df_trials = study.trials_dataframe()
+        df_trials["model"] = name
+        tuning_results.append(df_trials)
+
+        best_score = study.best_value
+        direction = "maximize" if "classification" in name else "minimize"
+        selected_reasons.append(f"### {name}\nOptuna selected the best parameters by trying to {direction} the objective. The best score achieved was {best_score:.4f}.\nSelected Parameters: {study.best_params}\n")
+
+        for k, v in study.best_params.items():
+            best_params_rows.append({"model": name, "parameter": k, "value": v})
+
+    tuning_dir = args.output_path.parent
+    tuning_dir.mkdir(parents=True, exist_ok=True)
+    
+    pd.concat(tuning_results, ignore_index=True).to_csv(tuning_dir / "tuning_results.csv", index=False)
+    pd.DataFrame(best_params_rows).to_csv(tuning_dir / "best_params.csv", index=False)
+    (tuning_dir / "selected_model_reason.md").write_text("# Selected Model Reason\n\n" + "\n".join(selected_reasons), encoding="utf-8")
+    
+    print(f"Saved roadmap tuning artifacts to {tuning_dir}/")
 
 if __name__ == "__main__":
     main()

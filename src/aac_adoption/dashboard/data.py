@@ -86,21 +86,27 @@ DIAGNOSTIC_FILES = {
 }
 
 
+def _safe_load_csv(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    for col in df.columns:
+        if df[col].dtype == "object":
+            df[col] = df[col].astype(str)
+    return df
+
 def load_table(tables_dir: str | Path, key: str) -> pd.DataFrame:
     """Load one known dashboard table or return an empty frame."""
     filename = TABLE_FILES[key]
     path = Path(tables_dir) / filename
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
-
+    return _safe_load_csv(path)
 
 def load_optional_csv(base_dir: str | Path, filename: str) -> pd.DataFrame:
     """Load an optional CSV artifact."""
     path = Path(base_dir) / filename
     if not path.exists():
         return pd.DataFrame()
-    return pd.read_csv(path)
+    return _safe_load_csv(path)
 
 
 def load_diagnostic(diagnostics_dir: str | Path, key: str) -> pd.DataFrame:

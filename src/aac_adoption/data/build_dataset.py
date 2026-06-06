@@ -95,9 +95,21 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         np.nan,
     )
     
-    # Horizon-based targets
+    # Horizon-based targets and right-censoring safeguards
+    max_date = max(dataset["intake_datetime"].max(), dataset["outcome_datetime"].max())
     for horizon in [7, 30, 60, 90]:
-        dataset[f"adopted_in_{horizon}d"] = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
+        has_full_followup = dataset["intake_datetime"] <= (max_date - pd.Timedelta(days=horizon))
+        # They are adopted within horizon if they are adopted AND the days to outcome <= horizon
+        adopted_in_horizon = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
+        
+        # If they don't have full follow-up time (intake was too recent), 
+        # their outcome is biased towards fast outcomes, so we censor the target (NaN).
+        dataset[f"adopted_in_{horizon}d"] = np.where(
+            has_full_followup,
+            adopted_in_horizon,
+            np.nan
+        )
+        
     # Only winsorize if there are extreme outliers (>99th percentile > 99th percentile of non-extreme)
     if len(dataset) > 100:
         q99 = dataset["length_of_stay"].quantile(0.99)

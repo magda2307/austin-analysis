@@ -319,8 +319,8 @@ Training:
 | `scripts/train_baseline.py` | Train dummy, linear, and random forest baselines. |
 | `scripts/train_baselines.py` | Compatibility wrapper for baseline training. |
 | `scripts/train_adopted_regression.py` | Train models predicting time-to-adoption (adopted subset only). |
-| `scripts/tune_models.py` | Run Optuna hyperparameter tuning for boosting and CatBoost models. |
-| `scripts/train_boosting.py` | Train histogram gradient boosting models and permutation importance. |
+| `scripts/tune_models.py` | Run Optuna hyperparameter tuning for boosting and CatBoost models. Generates `tuning_results.csv`, `best_params.csv`, and `selected_model_reason.md` in `reports/tuning/`. |
+| `scripts/train_boosting.py` | Train histogram gradient boosting models natively handling class imbalance and calculate permutation importance. |
 | `scripts/train_advanced.py` | Train CatBoost classifier/regressor artifacts. |
 | `scripts/calibrate_classifiers.py` | Produce calibrated classifiers via Isotonic Regression wrappers. |
 | `scripts/backfill_pr_auc.py` | Backfill PR-AUC values into older metric files. |

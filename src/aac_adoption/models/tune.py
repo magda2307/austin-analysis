@@ -11,7 +11,7 @@ import optuna
 import pandas as pd
 from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
-from sklearn.metrics import roc_auc_score, mean_absolute_error
+from sklearn.metrics import average_precision_score, mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
 
 from aac_adoption.config import RANDOM_STATE
@@ -20,27 +20,53 @@ from aac_adoption.models.split import make_time_split
 from aac_adoption.models.train_advanced import prepare_catboost_frame, categorical_features_for
 from aac_adoption.models.train_boosting import make_boosting_preprocessor
 
+try:
+    from optuna.integration import CatBoostPruningCallback
+except ImportError:
+    CatBoostPruningCallback = None
 
-def tune_models(df: pd.DataFrame, n_trials: int = 20) -> dict[str, Any]:
-    """Run Optuna studies to find best hyperparameters."""
+
+def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe") -> tuple[dict[str, Any], dict[str, optuna.Study]]:
+    """Run Optuna studies to find best hyperparameters.
+    
+    Args:
+        df: Training dataframe
+        n_trials: Number of trials per model
+        sampler_type: 'tpe', 'random', or 'cmaes'
+    """
     split = make_time_split(df, "classification_target", animal_subset="combined")
     train_df = split.train.sort_values("intake_datetime").reset_index(drop=True)
     feature_columns = model_feature_columns(train_df)
     cat_features = categorical_features_for(feature_columns)
     
-    # We need regression targets too
-    # make_time_split for regression returns same train split size, but targets are different
     reg_split = make_time_split(df, "regression_target_days", animal_subset="combined")
     reg_train_df = reg_split.train.sort_values("intake_datetime").reset_index(drop=True)
 
+    # Use only the last chronological split for tuning to save time & support deep pruning
     cv = TimeSeriesSplit(n_splits=5)
+    
     best_params: dict[str, Any] = {}
-
     optuna.logging.set_verbosity(optuna.logging.WARNING)
+
+    def get_sampler():
+        if sampler_type == "tpe":
+            return optuna.samplers.TPESampler(seed=RANDOM_STATE)
+        elif sampler_type == "random":
+            return optuna.samplers.RandomSampler(seed=RANDOM_STATE)
+        elif sampler_type == "cmaes":
+            return optuna.samplers.CmaEsSampler(seed=RANDOM_STATE)
+        else:
+            raise ValueError(f"Unsupported sampler_type: {sampler_type}")
 
     # 1. CatBoost Classification
     cat_X = prepare_catboost_frame(train_df, feature_columns)
     cat_y = train_df["classification_target"]
+    
+    splits = list(cv.split(cat_X))
+    train_idx, val_idx = splits[-1]
+    
+    X_tr_cat, y_tr_cat = cat_X.iloc[train_idx], cat_y.iloc[train_idx]
+    X_va_cat, y_va_cat = cat_X.iloc[val_idx], cat_y.iloc[val_idx]
     
     def catboost_clf_objective(trial: optuna.Trial) -> float:
         params = {
@@ -49,109 +75,133 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20) -> dict[str, Any]:
             "depth": trial.suggest_int("depth", 3, 10),
             "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
             "subsample": trial.suggest_float("subsample", 0.5, 1.0),
-            "bootstrap_type": "Bernoulli",  # Required for subsample in CatBoost
+            "bootstrap_type": "Bernoulli",
             "loss_function": "Logloss",
             "eval_metric": "AUC",
             "random_seed": RANDOM_STATE,
             "verbose": False,
+            "auto_class_weights": "Balanced",
         }
-        scores = []
-        for step, (train_idx, val_idx) in enumerate(cv.split(cat_X)):
-            X_tr, y_tr = cat_X.iloc[train_idx], cat_y.iloc[train_idx]
-            X_va, y_va = cat_X.iloc[val_idx], cat_y.iloc[val_idx]
-            model = CatBoostClassifier(**params)
-            model.fit(X_tr, y_tr, cat_features=cat_features, eval_set=(X_va, y_va), early_stopping_rounds=50)
-            preds = model.predict_proba(X_va)[:, 1]
-            score = roc_auc_score(y_va, preds)
-            scores.append(score)
+        
+        callbacks = []
+        if CatBoostPruningCallback is not None:
+            callbacks.append(CatBoostPruningCallback(trial, "AUC"))
             
-            # Prune trial early based on intermediate fold score
-            trial.report(np.mean(scores), step)
-            if trial.should_prune():
-                raise optuna.TrialPruned()
-                
-        return np.mean(scores)
+        model = CatBoostClassifier(**params)
+        model.fit(
+            X_tr_cat, y_tr_cat,
+            cat_features=cat_features,
+            eval_set=(X_va_cat, y_va_cat),
+            early_stopping_rounds=50,
+            callbacks=callbacks
+        )
+        
+        preds = model.predict_proba(X_va_cat)[:, 1]
+        return average_precision_score(y_va_cat, preds)
 
-    study = optuna.create_study(direction="maximize")
-    study.optimize(catboost_clf_objective, n_trials=n_trials)
-    best_params["catboost_classification"] = study.best_params
+    study_cat_clf = optuna.create_study(direction="maximize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
+    study_cat_clf.optimize(catboost_clf_objective, n_trials=n_trials)
+    best_params["catboost_classification"] = study_cat_clf.best_params
 
     # 2. CatBoost Regression
     cat_y_reg = reg_train_df["regression_target_days"]
+    y_tr_cat_reg, y_va_cat_reg = cat_y_reg.iloc[train_idx], cat_y_reg.iloc[val_idx]
     
     def catboost_reg_objective(trial: optuna.Trial) -> float:
         params = {
-            "iterations": trial.suggest_int("iterations", 100, 500),
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
-            "depth": trial.suggest_int("depth", 4, 10),
+            "iterations": 5000,
+            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "depth": trial.suggest_int("depth", 3, 10),
+            "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
+            "subsample": trial.suggest_float("subsample", 0.5, 1.0),
+            "bootstrap_type": "Bernoulli",
             "loss_function": "MAE",
             "eval_metric": "MAE",
             "random_seed": RANDOM_STATE,
             "verbose": False,
         }
-        scores = []
-        for train_idx, val_idx in cv.split(cat_X):
-            X_tr, y_tr = cat_X.iloc[train_idx], cat_y_reg.iloc[train_idx]
-            X_va, y_va = cat_X.iloc[val_idx], cat_y_reg.iloc[val_idx]
-            model = CatBoostRegressor(**params)
-            model.fit(X_tr, y_tr, cat_features=cat_features, eval_set=(X_va, y_va), early_stopping_rounds=20)
-            preds = model.predict(X_va)
-            scores.append(mean_absolute_error(y_va, preds))
-        return np.mean(scores)
+        
+        callbacks = []
+        if CatBoostPruningCallback is not None:
+            callbacks.append(CatBoostPruningCallback(trial, "MAE"))
+            
+        model = CatBoostRegressor(**params)
+        model.fit(
+            X_tr_cat, y_tr_cat_reg,
+            cat_features=cat_features,
+            eval_set=(X_va_cat, y_va_cat_reg),
+            early_stopping_rounds=50,
+            callbacks=callbacks
+        )
+        preds = model.predict(X_va_cat)
+        return mean_absolute_error(y_va_cat_reg, preds)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(catboost_reg_objective, n_trials=n_trials)
-    best_params["catboost_regression"] = study.best_params
+    study_cat_reg = optuna.create_study(direction="minimize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
+    study_cat_reg.optimize(catboost_reg_objective, n_trials=n_trials)
+    best_params["catboost_regression"] = study_cat_reg.best_params
 
     # 3. HistGradientBoosting Classification
     hist_X = train_df[feature_columns]
     preprocessor = make_boosting_preprocessor(hist_X)
     hist_X_transformed = preprocessor.fit_transform(hist_X)
     
+    X_tr_hist, y_tr_hist = hist_X_transformed[train_idx], cat_y.iloc[train_idx]
+    X_va_hist, y_va_hist = hist_X_transformed[val_idx], cat_y.iloc[val_idx]
+    
     def hist_clf_objective(trial: optuna.Trial) -> float:
         params = {
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
-            "max_iter": trial.suggest_int("max_iter", 50, 200),
-            "max_leaf_nodes": trial.suggest_int("max_leaf_nodes", 15, 63),
+            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "max_iter": 5000,
+            "early_stopping": True,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 50,
+            "max_leaf_nodes": trial.suggest_int("max_leaf_nodes", 15, 127),
+            "l2_regularization": trial.suggest_float("l2_regularization", 1e-3, 10.0, log=True),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 10, 100),
             "random_state": RANDOM_STATE,
+            "class_weight": "balanced",
         }
-        scores = []
-        for train_idx, val_idx in cv.split(hist_X_transformed):
-            X_tr, y_tr = hist_X_transformed[train_idx], cat_y.iloc[train_idx]
-            X_va, y_va = hist_X_transformed[val_idx], cat_y.iloc[val_idx]
-            model = HistGradientBoostingClassifier(**params)
-            model.fit(X_tr, y_tr)
-            preds = model.predict_proba(X_va)[:, 1]
-            scores.append(roc_auc_score(y_va, preds))
-        return np.mean(scores)
+        model = HistGradientBoostingClassifier(**params)
+        model.fit(X_tr_hist, y_tr_hist)
+        preds = model.predict_proba(X_va_hist)[:, 1]
+        return average_precision_score(y_va_hist, preds)
 
-    study = optuna.create_study(direction="maximize")
-    study.optimize(hist_clf_objective, n_trials=n_trials)
-    best_params["hist_gradient_boosting_classification"] = study.best_params
+    study_hist_clf = optuna.create_study(direction="maximize", sampler=get_sampler())
+    study_hist_clf.optimize(hist_clf_objective, n_trials=n_trials)
+    best_params["hist_gradient_boosting_classification"] = study_hist_clf.best_params
 
     # 4. HistGradientBoosting Regression
+    y_tr_hist_reg, y_va_hist_reg = cat_y_reg.iloc[train_idx], cat_y_reg.iloc[val_idx]
+    
     def hist_reg_objective(trial: optuna.Trial) -> float:
         params = {
-            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.2, log=True),
-            "max_iter": trial.suggest_int("max_iter", 50, 200),
-            "max_leaf_nodes": trial.suggest_int("max_leaf_nodes", 15, 63),
+            "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
+            "max_iter": 5000,
+            "early_stopping": True,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 50,
+            "max_leaf_nodes": trial.suggest_int("max_leaf_nodes", 15, 127),
+            "l2_regularization": trial.suggest_float("l2_regularization", 1e-3, 10.0, log=True),
+            "min_samples_leaf": trial.suggest_int("min_samples_leaf", 10, 100),
             "random_state": RANDOM_STATE,
         }
-        scores = []
-        for train_idx, val_idx in cv.split(hist_X_transformed):
-            X_tr, y_tr = hist_X_transformed[train_idx], cat_y_reg.iloc[train_idx]
-            X_va, y_va = hist_X_transformed[val_idx], cat_y_reg.iloc[val_idx]
-            model = HistGradientBoostingRegressor(**params)
-            model.fit(X_tr, y_tr)
-            preds = model.predict(X_va)
-            scores.append(mean_absolute_error(y_va, preds))
-        return np.mean(scores)
+        model = HistGradientBoostingRegressor(**params)
+        model.fit(X_tr_hist, y_tr_hist_reg)
+        preds = model.predict(X_va_hist)
+        return mean_absolute_error(y_va_hist_reg, preds)
 
-    study = optuna.create_study(direction="minimize")
-    study.optimize(hist_reg_objective, n_trials=n_trials)
-    best_params["hist_gradient_boosting_regression"] = study.best_params
+    study_hist_reg = optuna.create_study(direction="minimize", sampler=get_sampler())
+    study_hist_reg.optimize(hist_reg_objective, n_trials=n_trials)
+    best_params["hist_gradient_boosting_regression"] = study_hist_reg.best_params
 
-    return best_params
+    studies = {
+        "catboost_classification": study_cat_clf,
+        "catboost_regression": study_cat_reg,
+        "hist_gradient_boosting_classification": study_hist_clf,
+        "hist_gradient_boosting_regression": study_hist_reg,
+    }
+
+    return best_params, studies
 
 def save_tuned_params(params: dict[str, Any], path: Path):
     """Save best parameters to JSON."""

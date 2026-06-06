@@ -43,7 +43,7 @@ Status labels:
 - Policies include default 0.5, max-F1, Youden J, high-recall, balanced, and top-10%-capacity.
 - Regression tests prove frozen validation thresholds are evaluated separately on test scores.
 
-### PARTIAL 3. Post-hoc probability calibration
+### DONE 3. Post-hoc probability calibration
 
 - Calibration metric foundation is implemented: `classification_metrics()` reports Brier score and expected calibration error.
 - Calibrated classifier artifacts and `reports/metrics/calibrated_classification_metrics.csv` exist locally.
@@ -82,7 +82,7 @@ Status labels:
 - Missing: check whether another intake for the same animal occurs between an intake and its candidate outcome.
 - Required: mark such episodes as ambiguous/censored/unmatched and report clean, ambiguous, dropped, and unmatched counts.
 
-### TODO 8. Expand leakage audit classification
+### DONE 8. Expand leakage audit classification
 
 - Current leakage audit flags known outcome-derived fields and simple suspicious values.
 - Required: classify predictors as `safe`, `probably_safe`, `needs_audit`, or `unsafe`.
@@ -93,7 +93,7 @@ Status labels:
 
 ## Strong ML Upgrades
 
-### TODO 9. Horizon-based adoption classifiers
+### DONE 9. Horizon-based adoption classifiers
 
 - Create adoption-within-horizon targets for 7, 30, 60, and 90 days.
 - Train and evaluate horizon classifiers separately from eventual-adoption models.
@@ -127,15 +127,14 @@ Required output: a yearly backtesting table showing whether performance changes 
 - Required if promoted beyond future work: proper categorical encoding, event/censoring counts, competing-risk framing, and validation that unresolved episodes are not silently dropped.
 - Acceptable thesis path: keep survival as descriptive/future work and say so consistently.
 
-### PARTIAL 13. Controlled hyperparameter tuning
+### DONE 13. Controlled hyperparameter tuning
 
 - Two tuning paths exist:
   - `src/aac_adoption/models/tune.py` with Optuna for CatBoost and HistGradientBoosting.
   - `src/aac_adoption/optimization/hyperparam_tuning.py` with grid-style HistGradientBoosting tests.
-- Current pipeline is configured to write `models/tuning/best_params.json`, but that artifact is not present in this workspace.
-- Still missing from roadmap acceptance: `best_params.csv`, `tuning_results.csv`, and `selected_model_reason.md`.
-- Current classification tuning optimizes ROC-AUC, not PR-AUC.
-- Required: align tuning objective with PR-AUC-primary selection or explicitly justify the mismatch.
+- Tuning artifacts (`best_params.csv`, `tuning_results.csv`, and `selected_model_reason.md`) are now generated inside `reports/tuning/`.
+- Classification tuning optimizes PR-AUC.
+- CatBoost and HistGradientBoosting classifiers natively handle class imbalance (via `auto_class_weights="Balanced"` and `class_weight="balanced"`).
 
 ### DONE 14. Make PR-AUC primary for classification ranking
 
@@ -252,19 +251,19 @@ Model selection code uses PR-AUC first, ROC-AUC second. Reports need regeneratio
 ## Acceptance Checklist for Thesis Submission
 
 - [x] `generate_diagnostics.py` uses selected model artifacts from `final_model_selection.csv`.
-- [ ] Calibration CLI can reproduce calibrated classifier artifacts and metrics.
-- [ ] Calibrated classifiers are evaluated on untouched test years with before/after metrics.
+- [x] Calibration CLI can reproduce calibrated classifier artifacts and metrics.
+- [x] Calibrated classifiers are evaluated on untouched test years with before/after metrics.
 - [x] Thresholds are selected on validation data and applied to test data.
 - [x] Duplicate modeling features are removed from training feature lists.
 - [x] Adopted-only timing model exists separately from generic LOS modeling.
 - [ ] Reports and dashboard consistently distinguish generic LOS from days to adoption.
-- [ ] Horizon adoption targets exist for 7, 30, 60, and 90 days.
+- [x] Horizon adoption targets exist for 7, 30, 60, and 90 days.
 - [ ] End-of-dataset follow-up/censoring rules are applied and summarized.
 - [ ] Re-intake matching ambiguity is audited and summarized.
 - [ ] Yearly backtesting table exists.
 - [x] Survival analysis is explicitly documented as descriptive/future work.
 - [ ] If survival is promoted to a model, censoring and competing risks are handled.
 - [ ] Subgroup reliability includes calibration and sample-size safeguards.
-- [ ] Leakage audit classifies suspicious features by risk level.
+- [x] Leakage audit classifies suspicious features by risk level.
 - [ ] Confidence intervals are cluster-aware by `animal_id` or explicitly documented as row-level.
-- [ ] Full pipeline passes after calibration step is fixed.
+- [x] Full pipeline passes after calibration step is fixed.

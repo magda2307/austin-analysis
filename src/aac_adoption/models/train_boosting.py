@@ -152,6 +152,7 @@ def train_boosting_classification(
         "max_iter": 100,
         "max_leaf_nodes": 31,
         "random_state": RANDOM_STATE,
+        "class_weight": "balanced",
     }
     model_params.update(kwargs)
 

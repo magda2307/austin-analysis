@@ -114,6 +114,7 @@ def train_advanced_classification(
         "depth": depth,
         "early_stopping_rounds": early_stopping_rounds,
         "random_seed": RANDOM_STATE,
+        "auto_class_weights": "Balanced",
     }
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
