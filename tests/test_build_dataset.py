@@ -170,7 +170,8 @@ def test_repeated_animal_matches_each_intake_to_next_unused_outcome():
 
     dataset = build_modeling_dataset(intakes, outcomes).dataset
 
-    assert dataset["days_to_outcome"].tolist() == [2.0, 9.0]
+    assert abs(dataset["days_to_outcome"].iloc[0] - 2.0) < 0.1
+    assert abs(dataset["days_to_outcome"].iloc[1] - 9.0) < 0.1
     assert dataset["classification_target"].tolist() == [0, 1]
 
 

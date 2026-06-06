@@ -72,7 +72,7 @@ def make_time_split(
         validation = subset_df.loc[subset_df["intake_year"].between(2022, 2023)].copy()
         test = subset_df.loc[subset_df["intake_year"].between(2024, 2025)].copy()
         
-        if recency_weighting and not train.empty:
+        if recency_weighting and "intake_datetime" in train.columns and not train.empty:
             train = train.copy()
             train["sample_weight"] = train["intake_datetime"].apply(
                 lambda x: 1.0 + 0.5 * (2021 - x.year) / (2021 - 2013)

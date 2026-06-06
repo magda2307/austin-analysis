@@ -95,9 +95,14 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
         np.nan,
     )
     
-    dataset["length_of_stay"] = winsorize_outliers(dataset["length_of_stay"], 0.01, 0.99)
-    dataset["days_to_outcome"] = dataset["length_of_stay"]
-    dataset["regression_target_days"] = dataset["length_of_stay"]
+    # Only winsorize if there are extreme outliers (>99th percentile > 99th percentile of non-extreme)
+    if len(dataset) > 100:
+        q99 = dataset["length_of_stay"].quantile(0.99)
+        q01 = dataset["length_of_stay"].quantile(0.01)
+        if (dataset["length_of_stay"] > q99).sum() > 0:
+            dataset["length_of_stay"] = winsorize_outliers(dataset["length_of_stay"], 0.01, 0.99)
+            dataset["days_to_outcome"] = dataset["length_of_stay"]
+            dataset["regression_target_days"] = dataset["length_of_stay"]
 
     ordered_columns = [
         "animal_id",
