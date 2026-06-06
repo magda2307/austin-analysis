@@ -204,6 +204,7 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
 
 
 def test_build_modeling_dataset_keeps_raw_los_outliers():
+    """Test that build_dataset stores raw LOS outliers (winsorization happens train-only)."""
     rows = []
     outcome_rows = []
     for i in range(101):
@@ -236,4 +237,5 @@ def test_build_modeling_dataset_keeps_raw_los_outliers():
         standardize_column_names(pd.DataFrame(outcome_rows)),
     )
 
+    # Build dataset keeps raw outliers; winsorization happens during training only
     assert result.dataset["regression_target_days"].max() == 1000

@@ -50,3 +50,18 @@ def test_calibration_improves_brier_score(sample_classification_data):
     # Depending on the data, it might not always strictly improve, but it shouldn't degrade much.
     # In many cases it improves. Let's assert it's reasonably bounded.
     assert calibrated_brier < uncalibrated_brier or calibrated_brier < 0.25
+
+
+def test_calibration_platt_method_sigmoid(sample_classification_data):
+    """Test that Platt calibration preserves method='sigmoid' in the calibrator."""
+    X, y = sample_classification_data
+    
+    X_train, y_train = X.iloc[:300], y.iloc[:300]
+    X_val, y_val = X.iloc[300:400], y.iloc[300:400]
+    
+    model = RandomForestClassifier(n_estimators=10, max_depth=3, random_state=42)
+    model.fit(X_train, y_train)
+    
+    calibrated_model = apply_calibration_to_predictions(model, X_train, y_train, X_val, y_val, calib_method="platt")
+    
+    assert calibrated_model.method == "sigmoid"

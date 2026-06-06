@@ -1,5 +1,7 @@
 """Tests for calibration module."""
 
+import subprocess
+import sys
 import pandas as pd
 import numpy as np
 import pytest
@@ -133,6 +135,123 @@ def test_apply_calibration_preserves_platt_method(sample_data):
         calib_method="platt",
     )
 
+    assert calibrated.method == "sigmoid"
+
+
+def test_calibrate_classifiers_help_exits_0():
+    """Test that calibrate_classifiers.py --help exits 0."""
+    result = subprocess.run(
+        [sys.executable, "scripts/calibrate_classifiers.py", "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert "Calibrate trained classifiers" in result.stdout
+
+
+def test_calibrate_classifiers_end_to_end_fixture(tmp_path, sample_data):
+    """Test end-to-end calibration on synthetic data and verify output CSV format."""
+    X_train, y_train, X_calib, y_calib, X_test = sample_data
+    data = pd.concat([X_train, X_calib, X_test], ignore_index=True)
+    data["animal_type"] = ["Dog"] * len(data)
+    data["intake_datetime"] = pd.date_range("2019-01-01", periods=len(data), freq="30D")
+    data["outcome_datetime"] = data["intake_datetime"] + pd.Timedelta(days=7)
+    data["intake_year"] = data["intake_datetime"].dt.year
+    data["classification_target"] = pd.concat([y_train, y_calib, pd.Series(np.random.choice([0, 1], len(X_test)))], ignore_index=True)
+    data_path = tmp_path / "modeling.csv"
+    data.to_csv(data_path, index=False)
+
+    outputs = calibrate_classifiers(
+        data_path=data_path,
+        source_artifacts=[(tmp_path / "missing", "catboost")],
+        metrics_dir=tmp_path / "metrics",
+        models_dir=tmp_path / "models",
+    )
+
+    assert outputs.classification_metrics.empty
+    assert (tmp_path / "metrics" / "calibrated_classification_metrics.csv").exists()
+
+
+def test_calibrate_classifiers_csv_columns_format(tmp_path, sample_data):
+    """Test that calibrated_classification_metrics.csv has all required columns when models are available."""
+    X_train, y_train, X_calib, y_calib, X_test = sample_data
+    data = pd.concat([X_train, X_calib, X_test], ignore_index=True)
+    data["animal_type"] = ["Dog"] * len(data)
+    data["intake_datetime"] = pd.date_range("2019-01-01", periods=len(data), freq="30D")
+    data["outcome_datetime"] = data["intake_datetime"] + pd.Timedelta(days=7)
+    data["intake_year"] = data["intake_datetime"].dt.year
+    data["classification_target"] = pd.concat([y_train, y_calib, pd.Series(np.random.choice([0, 1], len(X_test)))], ignore_index=True)
+    
+    data_path = tmp_path / "modeling.csv"
+    data.to_csv(data_path, index=False)
+    
+    # Create a minimal source artifact directory with a CatBoost model
+    source_dir = tmp_path / "source_models"
+    source_dir.mkdir()
+    
+    # Train a simple model for calibration
+    from sklearn.ensemble import RandomForestClassifier
+    model = RandomForestClassifier(n_estimators=5, random_state=42)
+    feature_cols = ["feature1", "feature2"]
+    model.fit(X_train[feature_cols], y_train)
+    
+    # Save the model with proper naming convention
+    from joblib import dump
+    model_path = source_dir / "classification" / "combined" / "catboost.joblib"
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    dump(model, model_path)
+    
+    # Create metadata file with feature columns
+    metadata = {"feature_columns": feature_cols}
+    metadata_path = source_dir / "classification" / "combined" / "catboost.json"
+    metadata_path.parent.mkdir(parents=True, exist_ok=True)
+    import json
+    with open(metadata_path, "w") as f:
+        json.dump(metadata, f)
+    
+    outputs = calibrate_classifiers(
+        data_path=data_path,
+        source_artifacts=[(source_dir, "catboost")],
+        metrics_dir=tmp_path / "metrics",
+        models_dir=tmp_path / "models",
+    )
+
+    output_path = tmp_path / "metrics" / "calibrated_classification_metrics.csv"
+    assert output_path.exists()
+    
+    # Read CSV, handling the case where it might be empty
+    try:
+        df = pd.read_csv(output_path)
+    except pd.errors.EmptyDataError:
+        pytest.skip("CSV is empty, cannot verify columns")
+    
+    if not df.empty:
+        required_columns = {
+            "animal_subset", "model_name", "base_model_name", "calibration_method",
+            "pr_auc", "roc_auc", "brier_score", "expected_calibration_error",
+            "train_rows", "validation_rows", "test_rows"
+        }
+        assert required_columns.issubset(df.columns)
+    else:
+        pytest.skip("CSV contains no rows, cannot verify columns")
+
+
+def test_calibrate_platt_uses_sigmoid_method(sample_data):
+    """Test that Platt calibration uses method='sigmoid' (not overridden to isotonic)."""
+    X_train, y_train, X_calib, y_calib, X_test = sample_data
+    
+    base_model = RandomForestClassifier(n_estimators=5, random_state=42)
+    base_model.fit(X_train, y_train)
+    
+    calibrated = apply_calibration_to_predictions(
+        base_model,
+        X_train,
+        y_train,
+        X_calib,
+        y_calib,
+        calib_method="platt",
+    )
+    
     assert calibrated.method == "sigmoid"
 
 

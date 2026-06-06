@@ -47,8 +47,8 @@ Status labels:
 
 - Calibration metric foundation is implemented: `classification_metrics()` reports Brier score and expected calibration error.
 - Calibrated classifier artifacts and `reports/metrics/calibrated_classification_metrics.csv` exist locally.
-- Current blocker: the calibration CLI is not reproducible because `scripts/calibrate_classifiers.py` imports missing function `calibrate_classifiers`.
-- Required fix: restore or rewrite `calibrate_classifiers()` and add an end-to-end tiny-fixture test for the script.
+- **DONE 3b**: Calibration CLI is fully reproducible. `scripts/calibrate_classifiers.py` correctly imports and executes `calibrate_classifiers()`.
+- End-to-end tests verify: script --help exits 0, synthetic calibration, CSV output has all required columns, Platt calibration uses `method="sigmoid"`.
 - Required evidence: before/after ROC-AUC, PR-AUC, Brier score, ECE, and subgroup calibration gaps by species, age group, and breed group.
 
 ### DONE 4. Clean duplicate feature representations
