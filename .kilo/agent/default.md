@@ -156,7 +156,7 @@ src/aac_adoption/
 └── config.py      # paths, constants
 
 scripts/           # CLI entrypoints and full-pipeline runners
-docs/              # methodology, target definitions, roadmap, technical guide, thesis draft
+docs/              # methodology, target definitions, roadmap, technical guide
 reports/           # generated tables, figures, diagnostics, summaries, metrics
 models/            # trained model artifacts
 tests/             # pytest test suite
@@ -175,3 +175,10 @@ tests/             # pytest test suite
 ## Thesis Claim Statement
 
 This pipeline demonstrates **predictive associations** between intake-time features and adoption outcomes in Austin Animal Center records (2013-2025). Findings are **descriptive evidence** for the AAC dataset and do not generalize beyond AAC without replication. The models demonstrate **predictive association, not causal effects**.
+
+## Version & Environment
+
+- **Package**: `aac_adoption`
+- **Version**: `0.1.0`
+- **Python**: Requires >=3.10
+- **Key deps**: pandas>=2.0, scikit-learn>=1.3, catboost>=1.2, shap>=0.45, lifelines>=0.27

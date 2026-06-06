@@ -1,0 +1,48 @@
+{
+  "skills": {
+    "ml-expert": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\ml-expert"
+    },
+    "streamlit-expert": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\streamlit-expert"
+    },
+    "pandas-pro": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\pandas-pro"
+    },
+    "developing-with-streamlit": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\developing-with-streamlit"
+    },
+    "azure-ai": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\azure-ai"
+    },
+    "playwright-cli": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\playwright-cli"
+    },
+    "e2e-testing-patterns": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\e2e-testing-patterns"
+    },
+    "webapp-testing": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\webapp-testing"
+    },
+    "docker-expert": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\docker-expert"
+    },
+    "azure-kubernetes": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\azure-kubernetes"
+    },
+    "ci-cd-and-automation": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\ci-cd-and-automation"
+    },
+    "caveman-review": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\caveman-review"
+    },
+    "request-refactor-plan": {
+      "path": "C:\\Users\\paula\\.agents\\skills\\request-refactor-plan"
+    }
+  },
+  "autoLoadSkills": true,
+  "defaultAgentSkills": [
+    "ml-expert",
+    "streamlit-expert"
+  ]
+}
