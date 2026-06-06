@@ -13,6 +13,7 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     roc_auc_score,
+    r2_score,
 )
 
 
@@ -67,4 +68,5 @@ def regression_metrics(y_true, y_pred) -> dict[str, float]:
         "mae": mean_absolute_error(y_true, y_pred),
         "rmse": float(np.sqrt(mse)),
         "median_absolute_error": median_absolute_error(y_true, y_pred),
+        "r2": r2_score(y_true, y_pred),
     }
