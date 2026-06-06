@@ -37,6 +37,8 @@ LIMITATION_COLUMNS = [
     "observed_adoption_rate",
     "mean_predicted_adoption_probability",
     "calibration_gap",
+    "brier_score",
+    "is_reliable",
     "mae",
     "false_positive_rate",
     "false_negative_rate",
@@ -245,8 +247,11 @@ def model_limitations_by_cohort(predictions: pd.DataFrame, min_records: int = 10
             records = len(group)
             observed = float(group["classification_target"].mean())
             predicted = float(group["predicted_adoption_probability"].mean())
+            calibration_gap = abs(observed - predicted)
             false_positive = float(((group["predicted_adopted"] == 1) & (group["classification_target"] == 0)).mean())
             false_negative = float(((group["predicted_adopted"] == 0) & (group["classification_target"] == 1)).mean())
+            brier_score = float(((group["predicted_adoption_probability"] - group["classification_target"])**2).mean())
+            is_reliable = (records >= min_records) and (calibration_gap <= 0.10) and (brier_score <= 0.25)
             rows.append(
                 {
                     "cohort": column,
@@ -255,7 +260,9 @@ def model_limitations_by_cohort(predictions: pd.DataFrame, min_records: int = 10
                     "small_cohort_flag": records < min_records,
                     "observed_adoption_rate": observed,
                     "mean_predicted_adoption_probability": predicted,
-                    "calibration_gap": abs(observed - predicted),
+                    "calibration_gap": calibration_gap,
+                    "brier_score": brier_score,
+                    "is_reliable": is_reliable,
                     "mae": float(group["absolute_error"].mean()),
                     "false_positive_rate": false_positive,
                     "false_negative_rate": false_negative,
@@ -264,7 +271,7 @@ def model_limitations_by_cohort(predictions: pd.DataFrame, min_records: int = 10
     result = pd.DataFrame(rows, columns=LIMITATION_COLUMNS)
     if result.empty:
         return result
-    return result.sort_values(["small_cohort_flag", "calibration_gap", "records"], ascending=[True, False, False])
+    return result.sort_values(["small_cohort_flag", "is_reliable", "calibration_gap", "records"], ascending=[True, True, False, False])
 
 
 def subgroup_reliability(predictions: pd.DataFrame, min_records: int = 100) -> pd.DataFrame:

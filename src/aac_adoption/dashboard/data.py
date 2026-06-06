@@ -74,6 +74,7 @@ TABLE_FILES = {
     "model_failure_modes": "model_failure_modes.csv",
     "animal_journey_examples": "animal_journey_examples.csv",
     "context_model_comparison": "context_model_comparison.csv",
+    "final_model_selection": "final_model_selection.csv",
 }
 
 DIAGNOSTIC_FILES = {
@@ -267,20 +268,53 @@ def model_feature_columns(
     return list(record.columns)
 
 
+def _infer_models_dir(model_name: str) -> str:
+    if "catboost" in model_name:
+        return "models/advanced"
+    if "boosting" in model_name:
+        return "models/boosting"
+    return "models/baseline"
+
 def predict_from_record(
     record: pd.DataFrame,
-    models_dir: str | Path = "models/advanced",
+    models_dir: str | Path | None = None,
     subset: str = "combined",
 ) -> dict[str, float]:
     """Predict adoption probability and expected days to outcome for one row."""
-    classifier = load_model(models_dir, "classification", subset)
-    regressor = load_model(models_dir, "regression", subset)
-    classification_features = model_feature_columns(record, models_dir, "classification", subset)
-    regression_features = model_feature_columns(record, models_dir, "regression", subset)
-    classification_record = prepare_catboost_frame(record, classification_features)
-    regression_record = prepare_catboost_frame(record, regression_features)
-    probability = float(classifier.predict_proba(classification_record)[:, 1][0])
-    days = max(0.0, float(regressor.predict(regression_record)[0]))
+    selection = load_table("reports/tables", "final_model_selection")
+    
+    clf_name = "catboost"
+    clf_dir = "models/advanced"
+    reg_name = "catboost"
+    reg_dir = "models/advanced"
+
+    if not selection.empty and "selected" in selection.columns:
+        clf_rows = selection[(selection["selected"] == True) & (selection["task"] == "classification") & (selection["animal_subset"] == subset)]
+        if not clf_rows.empty:
+            clf_name = clf_rows.iloc[0]["model_name"]
+            clf_dir = _infer_models_dir(clf_name)
+            
+        reg_rows = selection[(selection["selected"] == True) & (selection["task"] == "regression") & (selection["animal_subset"] == subset)]
+        if not reg_rows.empty:
+            reg_name = reg_rows.iloc[0]["model_name"]
+            reg_dir = _infer_models_dir(reg_name)
+
+    if models_dir is not None:
+        clf_dir = models_dir
+        reg_dir = models_dir
+
+    classifier = load_model(clf_dir, "classification", subset, clf_name)
+    regressor = load_model(reg_dir, "regression", subset, reg_name)
+    
+    clf_features = model_feature_columns(record, clf_dir, "classification", subset, clf_name)
+    reg_features = model_feature_columns(record, reg_dir, "regression", subset, reg_name)
+    
+    clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
+    reg_record = prepare_catboost_frame(record, reg_features) if "catboost" in reg_name else record[reg_features]
+    
+    probability = float(classifier.predict_proba(clf_record)[:, 1][0])
+    days = max(0.0, float(regressor.predict(reg_record)[0]))
+    
     return {
         "adoption_probability": probability,
         "predicted_days_to_outcome": days,

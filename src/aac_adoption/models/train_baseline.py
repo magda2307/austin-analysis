@@ -136,7 +136,12 @@ def _fit_and_save(
 ):
     preprocessor = make_preprocessor(split.train[feature_columns])
     pipeline = Pipeline(steps=[("preprocess", preprocessor), ("model", model)])
-    pipeline.fit(split.train[feature_columns], split.train[target_column])
+    
+    fit_params = {}
+    if "sample_weight" in split.train.columns and "dummy" not in model_name:
+        fit_params["model__sample_weight"] = split.train["sample_weight"]
+
+    pipeline.fit(split.train[feature_columns], split.train[target_column], **fit_params)
 
     metadata = base_training_metadata(
         model_name=model_name,

@@ -35,4 +35,4 @@ def test_boosting_classification_reproducibility(tmp_path: Path):
     combined_result = next(r for r in results if r["animal_subset"] == "combined")
     
     # Assert exactly 5 decimal places match to ensure absolute deterministic output
-    assert round(combined_result["roc_auc"], 5) == 0.63158
+    assert round(combined_result["roc_auc"], 5) == 0.66029

@@ -29,9 +29,18 @@ def save_model_artifact(
     metadata: dict[str, Any],
 ) -> Path:
     """Save fitted pipeline and sidecar metadata."""
+    from aac_adoption.models.metadata import _get_package_versions
+    
     path = artifact_path(base_dir, task, animal_subset, model_name)
     path.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pipeline, path)
-    path.with_suffix(".json").write_text(json.dumps(metadata, indent=2, default=str), encoding="utf-8")
+    
+    sidecar_metadata = metadata.copy()
+    sidecar_metadata["artifact_path"] = str(path)
+    sidecar_metadata["environment"] = {
+        "packages": _get_package_versions(),
+        "git_sha": "unknown"
+    }
+    path.with_suffix(".json").write_text(json.dumps(sidecar_metadata, indent=2, default=str), encoding="utf-8")
     return path
 

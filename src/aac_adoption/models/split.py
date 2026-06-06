@@ -49,8 +49,6 @@ def make_time_split(
     target_column: str,
     animal_subset: str | None = None,
     recency_weighting: bool = True,
-    censoring_safeguards: bool = True,
-    max_los_days: int = 90,
 ) -> DatasetSplit:
     """Create thesis default split with recency weighting and censoring safeguards."""
     if target_column not in df.columns:
@@ -62,10 +60,6 @@ def make_time_split(
     subset_df = subset_df.dropna(subset=[target_column]).copy()
     if subset_df.empty:
         raise ValueError(f"no rows available for subset={subset_name}, target={target_column}")
-
-    if censoring_safeguards and "days_to_outcome" in subset_df.columns:
-        subset_df = subset_df.copy()
-        subset_df["censoring_flag"] = subset_df["days_to_outcome"] >= max_los_days
     
     if _has_time_split(subset_df):
         train = subset_df.loc[subset_df["intake_year"].between(2013, 2021)].copy()
@@ -75,7 +69,7 @@ def make_time_split(
         if recency_weighting and "intake_datetime" in train.columns and not train.empty:
             train = train.copy()
             train["sample_weight"] = train["intake_datetime"].apply(
-                lambda x: 1.0 + 0.5 * (2021 - x.year) / (2021 - 2013)
+                lambda x: 1.0 + 0.5 * (x.year - 2013) / (2021 - 2013)
             )
         
         if not train.empty and not test.empty:

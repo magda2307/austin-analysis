@@ -11,6 +11,7 @@ from aac_adoption.models.calibrate import (
     calibrate_with_platt,
     post_hoc_calibration_pipeline,
     apply_calibration_to_predictions,
+    calibrate_classifiers,
 )
 
 
@@ -115,3 +116,43 @@ def test_apply_calibration_to_predictions(sample_data):
     
     predictions = calibrated.predict(X_calib)
     assert len(predictions) == 30
+
+
+def test_apply_calibration_preserves_platt_method(sample_data):
+    X_train, y_train, X_calib, y_calib, X_test = sample_data
+
+    base_model = RandomForestClassifier(n_estimators=5, random_state=42)
+    base_model.fit(X_train, y_train)
+
+    calibrated = apply_calibration_to_predictions(
+        base_model,
+        X_train,
+        y_train,
+        X_calib,
+        y_calib,
+        calib_method="platt",
+    )
+
+    assert calibrated.method == "sigmoid"
+
+
+def test_calibrate_classifiers_handles_missing_artifacts(tmp_path, sample_data):
+    X_train, y_train, X_calib, y_calib, X_test = sample_data
+    data = pd.concat([X_train, X_calib, X_test], ignore_index=True)
+    data["animal_type"] = ["Dog"] * len(data)
+    data["intake_datetime"] = pd.date_range("2019-01-01", periods=len(data), freq="30D")
+    data["outcome_datetime"] = data["intake_datetime"] + pd.Timedelta(days=7)
+    data["intake_year"] = data["intake_datetime"].dt.year
+    data["classification_target"] = pd.concat([y_train, y_calib, pd.Series(np.random.choice([0, 1], len(X_test)))], ignore_index=True)
+    data_path = tmp_path / "modeling.csv"
+    data.to_csv(data_path, index=False)
+
+    outputs = calibrate_classifiers(
+        data_path=data_path,
+        source_artifacts=[(tmp_path / "missing", "catboost")],
+        metrics_dir=tmp_path / "metrics",
+        models_dir=tmp_path / "models",
+    )
+
+    assert outputs.classification_metrics.empty
+    assert (tmp_path / "metrics" / "calibrated_classification_metrics.csv").exists()

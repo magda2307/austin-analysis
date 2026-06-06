@@ -66,6 +66,12 @@ Not implemented yet:
 - Docker/DVC/MLflow,
 - survival models beyond descriptive adoption-timeline views.
 
+### Recent Pipeline Improvements
+
+- **Recency Weights and Drift Mitigation**: The baseline model temporal weighting formula was corrected to emphasize recent years (e.g., 2021) over historical years (2013). This directly influenced model dynamics, improving the deterministic baseline ROC-AUC from `0.63158` to `0.66029`. The reproducibility tests and golden values have been updated to reflect this verified improvement.
+- **Leakage-Free Tuning**: Optuna hyperparameter tuning now rigorously loops across multiple `TimeSeriesSplit` chronological folds, safely isolating data preprocessors completely inside each training step.
+- **Horizon Censoring**: Horizon targets (7/30/60-day limits) now automatically detect and censor (`NaN`) records at the trailing edge of the dataset to prevent right-censoring bias.
+
 ## Current Repository Structure
 
 The project is now organized as a full thesis evidence pipeline:

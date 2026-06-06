@@ -201,3 +201,39 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
     assert dataset.loc[dataset["animal_id"] == "A1", "animal_311_requests_7d"].item() == 3
     assert "found_location_kind" in dataset.columns
     assert (tmp_path / "processed" / "context_feature_columns.json").exists()
+
+
+def test_build_modeling_dataset_keeps_raw_los_outliers():
+    rows = []
+    outcome_rows = []
+    for i in range(101):
+        animal_id = f"A{i}"
+        rows.append(
+            {
+                "Animal ID": animal_id,
+                "Animal Type": "Dog",
+                "Intake DateTime": "2021-01-01 10:00:00",
+                "Intake Type": "Stray",
+                "Intake Condition": "Normal",
+                "Sex upon Intake": "Unknown",
+                "Age upon Intake": "2 years",
+                "Breed": "Mix",
+                "Color": "Black",
+            }
+        )
+        days = 1000 if i == 100 else 5
+        outcome_rows.append(
+            {
+                "Animal ID": animal_id,
+                "Animal Type": "Dog",
+                "Outcome DateTime": pd.Timestamp("2021-01-01 10:00:00") + pd.Timedelta(days=days),
+                "Outcome Type": "Adoption",
+            }
+        )
+
+    result = build_modeling_dataset(
+        standardize_column_names(pd.DataFrame(rows)),
+        standardize_column_names(pd.DataFrame(outcome_rows)),
+    )
+
+    assert result.dataset["regression_target_days"].max() == 1000

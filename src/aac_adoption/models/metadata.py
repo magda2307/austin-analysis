@@ -6,6 +6,30 @@ from aac_adoption.features.feature_sets import feature_set_label
 from aac_adoption.models.split import DatasetSplit
 
 
+def _get_package_versions() -> dict[str, str]:
+    versions = {}
+    try:
+        import pandas
+        versions["pandas"] = pandas.__version__
+    except ImportError:
+        pass
+    try:
+        import sklearn
+        versions["scikit-learn"] = sklearn.__version__
+    except ImportError:
+        pass
+    try:
+        import catboost
+        versions["catboost"] = catboost.__version__
+    except ImportError:
+        pass
+    try:
+        import numpy
+        versions["numpy"] = numpy.__version__
+    except ImportError:
+        pass
+    return versions
+
 def base_training_metadata(
     *,
     model_name: str,

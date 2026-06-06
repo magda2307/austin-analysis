@@ -91,7 +91,12 @@ def _fit_and_save(
             ("model", model),
         ]
     )
-    pipeline.fit(split.train[feature_columns], split.train[target_column])
+    
+    fit_params = {}
+    if "sample_weight" in split.train.columns:
+        fit_params["model__sample_weight"] = split.train["sample_weight"]
+        
+    pipeline.fit(split.train[feature_columns], split.train[target_column], **fit_params)
     metadata = base_training_metadata(
         model_name=model_name,
         task=task,
@@ -114,7 +119,8 @@ def _permutation_table(
     repeats: int,
     max_rows: int,
 ) -> pd.DataFrame:
-    sample = split.test
+    sample = split.validation if not split.validation.empty else split.test
+    importance_split = "validation" if not split.validation.empty else "test"
     if len(sample) > max_rows:
         sample = sample.sample(n=max_rows, random_state=RANDOM_STATE)
     result = permutation_importance(
@@ -131,6 +137,7 @@ def _permutation_table(
             "feature": feature_columns,
             "importance_mean": result.importances_mean,
             "importance_std": result.importances_std,
+            "importance_split": importance_split,
             **metadata,
         }
     ).sort_values("importance_mean", ascending=False)

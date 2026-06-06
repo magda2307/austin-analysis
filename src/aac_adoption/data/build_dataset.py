@@ -11,7 +11,7 @@ from aac_adoption.data.clean_data import clean_intakes, clean_outcomes
 from aac_adoption.data.context_data import CONTEXT_FEATURES, add_context_features_from_dir
 from aac_adoption.data.load_data import load_intakes, load_outcomes
 from aac_adoption.data.match_records import match_intakes_to_future_outcomes
-from aac_adoption.features.feature_engineering import add_intake_features, winsorize_outliers
+from aac_adoption.features.feature_engineering import add_intake_features
 from aac_adoption.features.feature_sets import (
     TARGET_COLUMNS,
     available_intake_features,
@@ -68,7 +68,7 @@ def _keep_existing_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
     return df[[column for column in columns if column in df.columns]].copy()
 
 
-def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> DatasetBuildResult:
+def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extract_end_date: pd.Timestamp | None = None) -> DatasetBuildResult:
     """Clean, join, feature-engineer, and validate AAC modeling dataset."""
     clean_intake_df = _keep_existing_columns(clean_intakes(intakes), INTAKE_COLUMNS_TO_KEEP)
     clean_outcome_df = _keep_existing_columns(clean_outcomes(outcomes), OUTCOME_COLUMNS_TO_KEEP)
@@ -96,29 +96,21 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame) -> Dat
     )
     
     # Horizon-based targets and right-censoring safeguards
-    max_date = max(dataset["intake_datetime"].max(), dataset["outcome_datetime"].max())
+    max_date = extract_end_date if extract_end_date is not None else max(dataset["intake_datetime"].max(), dataset["outcome_datetime"].max())
+    dataset["followup_days_available"] = (max_date - dataset["intake_datetime"]).dt.total_seconds() / 86400
+
     for horizon in [7, 30, 60, 90]:
-        has_full_followup = dataset["intake_datetime"] <= (max_date - pd.Timedelta(days=horizon))
+        has_full_followup = dataset["followup_days_available"] >= horizon
         # They are adopted within horizon if they are adopted AND the days to outcome <= horizon
         adopted_in_horizon = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
         
         # If they don't have full follow-up time (intake was too recent), 
         # their outcome is biased towards fast outcomes, so we censor the target (NaN).
         dataset[f"adopted_in_{horizon}d"] = np.where(
-            has_full_followup,
-            adopted_in_horizon,
+            has_full_followup | adopted_in_horizon,  # Safe if adopted quickly OR if we had enough follow-up time
+            np.where(adopted_in_horizon, 1.0, 0.0),
             np.nan
         )
-        
-    # Only winsorize if there are extreme outliers (>99th percentile > 99th percentile of non-extreme)
-    if len(dataset) > 100:
-        q99 = dataset["length_of_stay"].quantile(0.99)
-        q01 = dataset["length_of_stay"].quantile(0.01)
-        if (dataset["length_of_stay"] > q99).sum() > 0:
-            dataset["length_of_stay"] = winsorize_outliers(dataset["length_of_stay"], 0.01, 0.99)
-            dataset["days_to_outcome"] = dataset["length_of_stay"]
-            dataset["regression_target_days"] = dataset["length_of_stay"]
-
     ordered_columns = [
         "animal_id",
         "animal_type",

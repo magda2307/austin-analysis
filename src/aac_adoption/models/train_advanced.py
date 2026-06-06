@@ -17,13 +17,12 @@ from aac_adoption.features.feature_sets import (
     available_features_for_df,
     model_feature_columns,
 )
-from aac_adoption.models.artifacts import save_model_artifact
+from aac_adoption.models.artifacts import artifact_path, save_model_artifact
 from aac_adoption.models.evaluate import classification_metrics, regression_metrics
 from aac_adoption.models.split import DatasetSplit, make_time_split
 from aac_adoption.models.train_baseline import ANIMAL_SUBSETS, CATEGORICAL_FEATURES, limit_rows
 from aac_adoption.models.metadata import base_training_metadata
-from aac_adoption.analysis.survival_analysis import log_transform_LOS, compute_kaplan_meier_survival
-from aac_adoption.features.feature_engineering import winsorize_outliers
+from aac_adoption.analysis.survival_analysis import log_transform_LOS
 
 
 @dataclass(frozen=True)
@@ -72,6 +71,8 @@ def _fit_and_save(
         "cat_features": categorical_features,
         "verbose": False,
     }
+    if "sample_weight" in split.train.columns:
+        fit_kwargs["sample_weight"] = split.train["sample_weight"]
     if validation_x is not None:
         fit_kwargs["eval_set"] = (validation_x, split.validation[target_column])
         fit_kwargs["use_best_model"] = True
@@ -92,7 +93,16 @@ def _fit_and_save(
     return model, metadata
 
 
-from aac_adoption.models.calibrate import apply_calibration_to_predictions, save_calibration
+from aac_adoption.models.calibrate import apply_calibration_to_predictions
+
+
+def _split_validation_for_calibration(validation: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split validation chronologically into early-stop and calibration frames."""
+    if validation.empty or len(validation) < 4:
+        return validation, validation.iloc[0:0].copy()
+    sorted_validation = validation.sort_values("intake_datetime") if "intake_datetime" in validation.columns else validation
+    midpoint = len(sorted_validation) // 2
+    return sorted_validation.iloc[:midpoint].copy(), sorted_validation.iloc[midpoint:].copy()
 
 def train_advanced_classification(
     df: pd.DataFrame,
@@ -119,10 +129,22 @@ def train_advanced_classification(
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
+        early_stop_validation, calibration_validation = _split_validation_for_calibration(split.validation)
+        fit_split = DatasetSplit(
+            full_data=split.full_data,
+            train=split.train,
+            validation=early_stop_validation,
+            test=split.test,
+            strategy=split.strategy,
+            train_period=split.train_period,
+            validation_period=split.validation_period,
+            test_period=split.test_period,
+            animal_subset=split.animal_subset,
+        )
         model, metadata = _fit_and_save(
             model=CatBoostClassifier(**params),
             task="classification",
-            split=split,
+            split=fit_split,
             feature_columns=feature_columns,
             target_column="classification_target",
             models_dir=models_dir,
@@ -140,22 +162,47 @@ def train_advanced_classification(
             scores,
             compute_ci=(subset in ["dogs", "cats"])
         )
+        rows.append({**metadata, **metrics, "calibration_method": None})
         
         # Apply Post-Hoc Calibration if validation set is available
-        if not split.validation.empty:
-            val_x = prepare_catboost_frame(split.validation, feature_columns)
+        if not calibration_validation.empty:
+            val_x = prepare_catboost_frame(calibration_validation, feature_columns)
             calibrated_model = apply_calibration_to_predictions(
                 base_model=model,
                 X_train=prepare_catboost_frame(split.train, feature_columns),
                 y_train=split.train["classification_target"],
                 X_calib=val_x,
-                y_calib=split.validation["classification_target"],
+                y_calib=calibration_validation["classification_target"],
                 calib_method="isotonic"
             )
             
             # Save calibrated artifact
-            calibrated_path = Path(metadata["artifact_path"]).with_name(Path(metadata["artifact_path"]).stem + "_calibrated.joblib")
-            save_calibration(calibrated_model, str(calibrated_path))
+            calibrated_metadata = {
+                **metadata,
+                "model_name": "catboost_calibrated",
+                "task": "classification_calibrated",
+                "base_model_name": "catboost",
+                "base_artifact_path": metadata["artifact_path"],
+                "calibration_method": "isotonic",
+                "calibration_rows": len(calibration_validation),
+                "early_stopping_rows": len(early_stop_validation),
+            }
+            calibrated_metadata["artifact_path"] = str(
+                artifact_path(
+                    models_dir,
+                    "classification_calibrated",
+                    split.animal_subset,
+                    "catboost_calibrated",
+                )
+            )
+            calibrated_path = save_model_artifact(
+                calibrated_model,
+                models_dir,
+                "classification_calibrated",
+                split.animal_subset,
+                "catboost_calibrated",
+                calibrated_metadata,
+            )
             
             calib_predictions = calibrated_model.predict(test_x).astype(int)
             calib_scores = calibrated_model.predict_proba(test_x)[:, 1]
@@ -165,13 +212,7 @@ def train_advanced_classification(
                 calib_scores,
                 compute_ci=False
             )
-            
-            # Update metrics to record the calibrated ones (like ECE) alongside the metadata
-            metrics["brier_score"] = calib_metrics["brier_score"]
-            metrics["expected_calibration_error"] = calib_metrics["expected_calibration_error"]
-            metadata["calibrated_artifact_path"] = str(calibrated_path)
-            
-        rows.append({**metadata, **metrics})
+            rows.append({**calibrated_metadata, **calib_metrics})
     return rows
 
 
