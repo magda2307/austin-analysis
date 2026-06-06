@@ -63,6 +63,7 @@ def bootstrap_ci(
         animal_ids_arr = np.asarray(animal_ids)
         unique_animals = np.unique(animal_ids_arr)
         animal_to_indices = {aid: np.where(animal_ids_arr == aid)[0] for aid in unique_animals}
+        scores = []
         
         for _ in range(n_bootstraps):
             sampled_animals = rng.choice(unique_animals, size=len(unique_animals), replace=True)
@@ -147,3 +148,58 @@ def regression_metrics(y_true, y_pred, compute_ci=False) -> dict[str, float]:
         metrics["mae_upper"] = ci_mae[1]
         
     return metrics
+
+
+HORIZON_DAYS = [7, 30, 60, 90]
+
+
+def classification_metrics_with_ci(y_true, y_pred, y_score, n_bootstraps: int = 1000) -> dict[str, float]:
+    """Compute classification metrics with bootstrap 95% CI.
+    
+    Returns PR-AUC, ROC-AUC, Brier score, ECE, and their 95% bootstrap CIs.
+    """
+    rng = np.random.default_rng(RANDOM_STATE)
+    y_true_arr = np.asarray(y_true)
+    y_score_arr = np.asarray(y_score)
+    
+    base_metrics = {
+        "pr_auc": float(average_precision_score(y_true_arr, y_score_arr)),
+        "roc_auc": float(roc_auc_score(y_true_arr, y_score_arr)),
+        "brier_score": float(brier_score_loss(y_true_arr, y_score_arr)),
+        "expected_calibration_error": float(expected_calibration_error(y_true_arr, y_score_arr)),
+    }
+    
+    n_samples = len(y_true_arr)
+    pr_auc_scores = []
+    roc_auc_scores = []
+    brier_scores = []
+    ece_scores = []
+    
+    for _ in range(n_bootstraps):
+        idx = rng.choice(n_samples, size=n_samples, replace=True)
+        if len(np.unique(y_true_arr[idx])) < 2:
+            continue
+        pr_auc_scores.append(float(average_precision_score(y_true_arr[idx], y_score_arr[idx])))
+        roc_auc_scores.append(float(roc_auc_score(y_true_arr[idx], y_score_arr[idx])))
+        brier_scores.append(float(brier_score_loss(y_true_arr[idx], y_score_arr[idx])))
+        ece_scores.append(float(expected_calibration_error(y_true_arr[idx], y_score_arr[idx])))
+    
+    if not pr_auc_scores:
+        return {**base_metrics, "pr_auc_lower": np.nan, "pr_auc_upper": np.nan, "roc_auc_lower": np.nan,
+                "roc_auc_upper": np.nan, "brier_lower": np.nan, "brier_upper": np.nan,
+                "ece_lower": np.nan, "ece_upper": np.nan}
+    
+    return {
+        "pr_auc": base_metrics["pr_auc"],
+        "pr_auc_lower": float(np.percentile(pr_auc_scores, 2.5)),
+        "pr_auc_upper": float(np.percentile(pr_auc_scores, 97.5)),
+        "roc_auc": base_metrics["roc_auc"],
+        "roc_auc_lower": float(np.percentile(roc_auc_scores, 2.5)),
+        "roc_auc_upper": float(np.percentile(roc_auc_scores, 97.5)),
+        "brier_score": base_metrics["brier_score"],
+        "brier_lower": float(np.percentile(brier_scores, 2.5)),
+        "brier_upper": float(np.percentile(brier_scores, 97.5)),
+        "expected_calibration_error": base_metrics["expected_calibration_error"],
+        "ece_lower": float(np.percentile(ece_scores, 2.5)),
+        "ece_upper": float(np.percentile(ece_scores, 97.5)),
+    }
