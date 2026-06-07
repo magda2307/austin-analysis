@@ -3,12 +3,15 @@
 import pandas as pd
 import numpy as np
 import pytest
+from unittest.mock import patch
 
 from aac_adoption.optimization.hyperparam_tuning import (
     tune_histgradient_boosting_classification,
     tune_histgradient_boosting_regression,
 )
 from aac_adoption.models.tune import tune_models
+from aac_adoption.models.split import make_time_split
+from aac_adoption.features.feature_sets import model_feature_columns
 
 
 @pytest.fixture
@@ -23,6 +26,32 @@ def sample_data():
         "classification_target": np.random.choice([0, 1], n_samples),
         "regression_target_days": np.random.randint(1, 30, n_samples),
     })
+    
+    return df
+
+
+@pytest.fixture
+def divergent_row_data():
+    np.random.seed(42)
+    n_samples = 200
+    
+    df = pd.DataFrame({
+        "animal_type": np.random.choice(["Dog", "Cat"], n_samples),
+        "intake_type": np.random.choice(["Stray", "Owner Surrender"], n_samples),
+        "intake_condition": np.random.choice(["Normal", "Injured", "Critical", "Deceased"], n_samples),
+        "sex_upon_intake": np.random.choice(["Neutered Male", "Spayed Female", "Intact Male", "Intact Female"], n_samples),
+        "age_days": np.random.choice([1, 5, 10, 100, 500, 1500, 2500, 3500, 4500, 5000], n_samples).astype(float),
+        "age_group": np.random.choice(["Kitten/Puppy", "Adult", "Senior"], n_samples),
+        "intake_year": np.random.choice([2020, 2021, 2022, 2023, 2024], n_samples),
+        "intake_datetime": pd.date_range("2020-01-01", periods=n_samples, freq="D"),
+        "classification_target": np.random.choice([0, 1], n_samples, p=[0.85, 0.15]),
+        "regression_target_days": np.random.choice([1, 2, 3, 5, 7, 14, 21, 30], n_samples).astype(float),
+    })
+    
+    divergent_indices = [5, 25, 50, 75, 100, 125, 150, 175]
+    for idx in divergent_indices:
+        df.loc[idx, "age_days"] = np.random.choice([0, 10000, 15000, 20000]).astype(float)
+        df.loc[idx, "regression_target_days"] = np.random.choice([0, 45, 60, 90]).astype(float)
     
     return df
 
@@ -88,7 +117,6 @@ def test_tune_models_runs_successfully():
         "regression_target_days": np.random.randint(1, 30, n_samples).astype(float),
     })
     
-    # Run tune_models with n_trials=2 for speed
     best_params, studies = tune_models(df, n_trials=2)
     
     assert isinstance(best_params, dict)
@@ -102,3 +130,51 @@ def test_tune_models_runs_successfully():
     assert "catboost_regression" in studies
     assert "hist_gradient_boosting_classification" in studies
     assert "hist_gradient_boosting_regression" in studies
+
+
+def test_tune_models_regression_feature_alignment(divergent_row_data):
+    df = divergent_row_data
+    
+    split_clf = make_time_split(df, "classification_target", animal_subset="combined")
+    train_df_clf = split_clf.train.sort_values("intake_datetime").reset_index(drop=True)
+    feature_columns_clf = model_feature_columns(train_df_clf)
+    X_clf = train_df_clf[feature_columns_clf]
+    y_clf = train_df_clf["classification_target"]
+    
+    split_reg = make_time_split(df, "regression_target_days", animal_subset="combined")
+    train_df_reg = split_reg.train.sort_values("intake_datetime").reset_index(drop=True)
+    feature_columns_reg = model_feature_columns(train_df_reg)
+    X_reg = train_df_reg[feature_columns_reg]
+    y_reg = train_df_reg["regression_target_days"]
+    
+    assert X_reg.index.equals(y_reg.index), "Regression feature frame index must match regression target index"
+    
+    assert len(X_reg) == len(y_reg), "Regression feature frame row count must match regression target row count"
+    
+    assert X_reg.index.intersection(y_reg.index).equals(X_reg.index), "No misaligned rows in regression feature frame and target"
+
+
+def test_tune_models_catboost_regression_fit_spy(divergent_row_data):
+    df = divergent_row_data
+    
+    split_reg = make_time_split(df, "regression_target_days", animal_subset="combined")
+    train_df_reg = split_reg.train.sort_values("intake_datetime").reset_index(drop=True)
+    y_reg_original = train_df_reg["regression_target_days"]
+    
+    with patch("catboost.CatBoostRegressor.fit") as mock_fit:
+        best_params, studies = tune_models(df, n_trials=2)
+        
+        assert mock_fit.call_count >= 1
+        
+        for call in mock_fit.call_args_list:
+            X_tr = call[0][0]
+            y_tr = call[0][1]
+            assert isinstance(X_tr, pd.DataFrame), "X_tr must be a DataFrame"
+            assert isinstance(y_tr, pd.Series), "y_tr must be a Series"
+            assert X_tr.index.equals(y_tr.index), "X_tr and y_tr indices must match for each CV fold"
+        
+        actual_y_values = [call[0][1] for call in mock_fit.call_args_list]
+        
+        for y in actual_y_values:
+            original_y_tr = y_reg_original[y.index]
+            assert np.allclose(y, np.log1p(original_y_tr)), "y_tr passed to fit must be log-transformed"

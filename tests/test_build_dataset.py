@@ -110,6 +110,30 @@ def test_build_modeling_dataset_filters_and_creates_targets():
     assert bool(dataset.loc[dataset["animal_id"] == "A1", "is_black_or_dark"].item()) is True
     assert bool(dataset.loc[dataset["animal_id"] == "A2", "is_named"].item()) is False
 
+    assert "outcome_subtype" in dataset.columns
+    assert "sex_upon_outcome" in dataset.columns
+    assert "age_upon_outcome" in dataset.columns
+    assert "has_name" in dataset.columns
+    assert "is_censored" in dataset.columns
+    assert "censoring_reason" in dataset.columns
+    assert "event_type" in dataset.columns
+    assert "followup_days_censored" in dataset.columns
+
+    assert bool(dataset.loc[dataset["animal_id"] == "A1", "is_censored"].item()) is False
+    assert dataset.loc[dataset["animal_id"] == "A1", "censoring_reason"].item() == ""
+    assert dataset.loc[dataset["animal_id"] == "A1", "event_type"].item() == "adoption"
+    assert abs(dataset.loc[dataset["animal_id"] == "A1", "followup_days_censored"].item() - dataset.loc[dataset["animal_id"] == "A1", "days_to_outcome"].item()) < 0.001
+    assert dataset.loc[dataset["animal_id"] == "A2", "event_type"].item() == "transfer"
+
+    assert dataset.loc[dataset["animal_id"] == "A1", "adopted"].item() is True
+    assert dataset.loc[dataset["animal_id"] == "A1", "is_adopted"].item() is True
+    assert dataset.loc[dataset["animal_id"] == "A1", "target_adopted"].item() == 1
+    assert dataset.loc[dataset["animal_id"] == "A2", "adopted"].item() is False
+    assert dataset.loc[dataset["animal_id"] == "A2", "is_adopted"].item() is False
+    assert dataset.loc[dataset["animal_id"] == "A2", "target_adopted"].item() == 0
+    assert abs(dataset.loc[dataset["animal_id"] == "A1", "length_of_stay"].item() - dataset.loc[dataset["animal_id"] == "A1", "days_to_outcome"].item()) < 0.001
+    assert abs(dataset.loc[dataset["animal_id"] == "A2", "length_of_stay"].item() - dataset.loc[dataset["animal_id"] == "A2", "days_to_outcome"].item()) < 0.001
+
 
 def test_validate_rejects_negative_los():
     result = build_modeling_dataset(_sample_intakes(), _sample_outcomes())

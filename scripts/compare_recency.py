@@ -48,6 +48,12 @@ def main():
         action="store_true",
         help="Enable quick mode with reduced bootstrap iterations and model complexity.",
     )
+    parser.add_argument(
+        "--validation-gap-years",
+        type=int,
+        default=3,
+        help="Gap years between training end and test start (default: 3).",
+    )
 
     # Parse args immediately so --help exits instantly without imports
     args = parser.parse_args()
@@ -80,6 +86,7 @@ def main():
         iterations=iterations,
         test_period=args.test_period,
         quick=args.quick,
+        validation_gap_years=args.validation_gap_years,
     )
 
     if results_df.empty:

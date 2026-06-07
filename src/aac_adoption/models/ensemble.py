@@ -98,9 +98,11 @@ class StackedEnsembleClassifier(BaseEstimator, ClassifierMixin):
         stratification_possible = all(count >= actual_n_splits for count in class_counts)
         
         if actual_n_splits < 2 or not stratification_possible:
-            self.base_estimators_ = [clone(est).fit(X, y) for est in self.base_estimators]
-            base_predictions = np.column_stack([est.predict_proba(X)[:, 1] for est in self.base_estimators_])
-            self.meta_estimator_ = clone(self.meta_estimator).fit(base_predictions, y)
+            raise ValueError(
+                f"Stacking ensemble requires at least {actual_n_splits}-fold cross-validation. "
+                f"Got {len(X)} samples with {len(np.unique(y))} classes. "
+                "Increase dataset size or use simple ensemble instead."
+            )
         else:
             cv = StratifiedKFold(n_splits=actual_n_splits, shuffle=True, random_state=self.random_state)
             oof_predictions = np.zeros((len(X), len(self.base_estimators)))
@@ -152,9 +154,11 @@ class StackedEnsembleRegressor(BaseEstimator, RegressorMixin):
         actual_n_splits = min(self.n_splits, len(X))
         
         if actual_n_splits < 2:
-            self.base_estimators_ = [clone(est).fit(X, y) for est in self.base_estimators]
-            base_predictions = np.column_stack([est.predict(X) for est in self.base_estimators_])
-            self.meta_estimator_ = clone(self.meta_estimator).fit(base_predictions, y)
+            raise ValueError(
+                f"Stacking ensemble requires at least 2-fold cross-validation. "
+                f"Got {len(X)} samples. "
+                "Increase dataset size or use simple ensemble instead."
+            )
         else:
             cv = KFold(n_splits=actual_n_splits, shuffle=True, random_state=self.random_state)
             oof_predictions = np.zeros((len(X), len(self.base_estimators)))

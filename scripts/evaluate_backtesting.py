@@ -32,10 +32,12 @@ def main():
     parser.add_argument("--subset", type=str, default=DEFAULT_SUBSET,
                         choices=["combined", "dogs", "cats"],
                         help="Animal subset")
-    parser.add_argument("--n_bootstraps", type=int, default=100,
-                        help="Number of bootstrap iterations for CI")
+    parser.add_argument("--n_bootstraps", type=int, default=None,
+                        help="Number of bootstrap iterations for CI (default: 5 for quick, 100 otherwise)")
     parser.add_argument("--quick", action="store_true",
                         help="Quick mode: run only 2 windows")
+    parser.add_argument("--iterations", type=int, default=None,
+                        help="Number of iterations for CatBoost/HGB (default: 20 for quick, 100 otherwise)")
     
     args = parser.parse_args()
     
@@ -56,14 +58,24 @@ def main():
     all_results = []
     for target in targets:
         print(f"Running backtesting for target: {target}")
+        if args.iterations is None:
+            iterations = 20 if args.quick else 100
+        else:
+            iterations = args.iterations
+        if args.n_bootstraps is None:
+            n_bootstraps = 5 if args.quick else 100
+        else:
+            n_bootstraps = args.n_bootstraps
         results = run_yearly_backtesting(
             df,
             target_column=target,
             animal_subset=args.subset,
             output_path=None,
             compute_ci=True,
-            bootstrap_n=args.n_bootstraps,
+            bootstrap_n=n_bootstraps,
             quick=args.quick,
+            strict=True,
+            iterations=iterations,
         )
         if not results.empty:
             all_results.append(results)

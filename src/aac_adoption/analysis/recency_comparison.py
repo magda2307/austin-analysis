@@ -34,6 +34,7 @@ def run_recency_comparison(
     iterations: int = 300,
     test_period: str = "2024-2025",
     quick: bool = False,
+    validation_gap_years: int = 4,
 ) -> pd.DataFrame:
     """Evaluate and compare training recency strategies on a test period.
 
@@ -49,9 +50,19 @@ def run_recency_comparison(
         iterations: CatBoost model iterations (trees)
         test_period: Test period years, e.g. "2024-2025"
         quick: Quick mode override (uses lower default iterations/bootstraps)
+        validation_gap_years: Gap years between training end and test start (default=4,
+            meaning train_end = test_start - validation_gap_years; validation window = gap - 1 years)
 
     Returns:
         DataFrame with strategy evaluation results
+
+    Validation Strategy:
+        The function uses a validation gap between training and test periods to prevent
+        temporal data leakage. The training period ends at (test_start - validation_gap_years),
+        creating a buffer zone that ensures the model is evaluated on truly unseen future data.
+        Default gap of 4 years provides a 3-year validation window (train_end+1 to test_start-1,
+        i.e., gap - 1 years) before the test period begins. For test_start=2024, gap=4 means
+        train_end=2020, validation years 2021-2023.
     """
     if quick:
         n_bootstraps = n_bootstraps if n_bootstraps != 100 else 5
@@ -67,7 +78,11 @@ def run_recency_comparison(
         test_years = [2024, 2025]
     
     test_start = min(test_years)
-    train_end = test_start - 3  # Leave a 2-year validation gap before the test period (e.g., 2021 for 2024 test start)
+    # Gap logic: train_end is the last training year, test_start is first test year
+    # validation_gap_years = test_start - train_end
+    # validation_window_years = validation_gap_years - 1 (years between train_end+1 and test_start-1)
+    # For test_start=2024, gap=4 → train_end=2020, validation window 2021-2023 (3 years)
+    train_end = test_start - validation_gap_years
 
     # Dynamic training year ranges
     strategies = [
@@ -369,8 +384,8 @@ def plot_performance_comparison(df: pd.DataFrame, path: Path) -> None:
                         l = subset_strat_df[lower_col].values[0]
                         u = subset_strat_df[upper_col].values[0]
                         if not pd.isna(l) and not pd.isna(u):
-                            yerr_lower.append(val - l)
-                            yerr_upper.append(u - val)
+                            yerr_lower.append(max(0.0, val - l))
+                            yerr_upper.append(max(0.0, u - val))
                         else:
                             yerr_lower.append(0.0)
                             yerr_upper.append(0.0)

@@ -374,11 +374,8 @@ def test_stacked_ensemble_classifier_fallback():
         random_state=42
     )
     
-    ensemble.fit(X, y)
-    
-    # Check that it bypasses CV and fits on the full dataset (in-sample predictions)
-    assert ensemble.meta_estimator_.fitted_X_ is not None
-    assert ensemble.meta_estimator_.fitted_X_.shape == (10, 1)
+    with pytest.raises(ValueError, match="Stacking ensemble requires at least"):
+        ensemble.fit(X, y)
 
 
 def test_stacked_ensemble_regressor_fallback():
@@ -398,11 +395,8 @@ def test_stacked_ensemble_regressor_fallback():
         random_state=42
     )
     
-    ensemble.fit(X, y)
-    
-    # Check that it bypasses CV and fits on the full dataset (in-sample predictions)
-    assert ensemble.meta_estimator_.fitted_X_ is not None
-    assert ensemble.meta_estimator_.fitted_X_.shape == (1, 1)
+    with pytest.raises(ValueError, match="Stacking ensemble requires at least"):
+        ensemble.fit(X, y)
 
 
 def test_weighted_ensemble_classifier_string_labels():

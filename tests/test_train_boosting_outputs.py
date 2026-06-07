@@ -73,3 +73,36 @@ def test_train_all_boosting_writes_metrics_artifacts_and_permutation_tables(tmp_
     assert (tables_dir / "permutation_importance_classification.csv").exists()
     assert (tables_dir / "permutation_importance_regression.csv").exists()
 
+
+def test_train_all_boosting_permutation_tables_evaluation_period(tmp_path):
+    data_path = tmp_path / "modeling_dataset.csv"
+    metrics_dir = tmp_path / "metrics"
+    models_dir = tmp_path / "models"
+    tables_dir = tmp_path / "tables"
+    _small_modeling_dataset().to_csv(data_path, index=False)
+
+    train_all_boosting(
+        data_path=data_path,
+        metrics_dir=metrics_dir,
+        models_dir=models_dir,
+        tables_dir=tables_dir,
+        max_rows=None,
+        permutation_repeats=1,
+    )
+
+    perm_reg = pd.read_csv(tables_dir / "permutation_importance_regression.csv")
+    assert "evaluation_period" in perm_reg.columns
+    assert "importance_split" in perm_reg.columns
+    assert set(perm_reg["evaluation_period"].unique()) == {"validation"}
+    assert set(perm_reg["importance_split"].unique()) == {"validation"}
+    assert perm_reg["evaluation_period"].equals(perm_reg["importance_split"])
+    assert not perm_reg["evaluation_period"].isna().any()
+
+    perm_clf = pd.read_csv(tables_dir / "permutation_importance_classification.csv")
+    assert "evaluation_period" in perm_clf.columns
+    assert "importance_split" in perm_clf.columns
+    assert set(perm_clf["evaluation_period"].unique()) == {"validation"}
+    assert set(perm_clf["importance_split"].unique()) == {"validation"}
+    assert perm_clf["evaluation_period"].equals(perm_clf["importance_split"])
+    assert not perm_clf["evaluation_period"].isna().any()
+

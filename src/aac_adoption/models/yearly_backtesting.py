@@ -72,6 +72,7 @@ def run_yearly_backtesting(
     use_model_features: bool = True,
     quick: bool = False,
     strict: bool = False,
+    iterations: int = 100,
 ) -> pd.DataFrame:
     """Run rolling window backtesting across years.
     
@@ -87,6 +88,7 @@ def run_yearly_backtesting(
         use_model_features: Whether to use model_feature_columns from feature_sets
         quick: Whether to run in quick mode (only 2 windows)
         strict: Whether to raise exceptions instead of logging and continuing
+        iterations: Number of boosting iterations (default: 100, 20 for quick mode)
         
     Returns:
         DataFrame with one row per train_window/test_year combination
@@ -116,8 +118,8 @@ def run_yearly_backtesting(
             if test_df.empty:
                 continue
             if train_df.empty:
-                # Handle empty train set for testing fixtures
-                train_df = test_df.copy()
+                logger.warning(f"Empty train set for {subset_name} in test year {test_year}. Skipping iteration.")
+                continue
             
             if len(train_df) < 2 or len(test_df) < 2:
                 continue
@@ -169,7 +171,7 @@ def run_yearly_backtesting(
                     if model_name.endswith("_classifier"):
                         if is_hgb:
                             model = model_class(
-                                max_iter=100,
+                                max_iter=iterations,
                                 max_depth=6,
                                 learning_rate=0.1,
                                 min_samples_leaf=10,
@@ -178,7 +180,7 @@ def run_yearly_backtesting(
                             )
                         else:
                             model = model_class(
-                                iterations=100,
+                                iterations=iterations,
                                 depth=6,
                                 learning_rate=0.1,
                                 verbose=0,
@@ -242,7 +244,7 @@ def run_yearly_backtesting(
                     else:
                         if is_hgb:
                             model = model_class(
-                                max_iter=100,
+                                max_iter=iterations,
                                 max_depth=6,
                                 learning_rate=0.1,
                                 min_samples_leaf=10,
@@ -251,7 +253,7 @@ def run_yearly_backtesting(
                             )
                         else:
                             model = model_class(
-                                iterations=100,
+                                iterations=iterations,
                                 depth=6,
                                 learning_rate=0.1,
                                 verbose=0,
@@ -365,11 +367,12 @@ def _train_classifier(
     X_test: pd.DataFrame,
     y_test: pd.Series,
     compute_ci: bool = True,
+    iterations: int = 100,
 ) -> dict:
     """Train and evaluate a classifier."""
     if model_type == "catboost":
         model = CatBoostClassifier(
-            iterations=100,
+            iterations=iterations,
             depth=6,
             learning_rate=0.1,
             verbose=0,
@@ -381,7 +384,7 @@ def _train_classifier(
         y_pred = (y_score >= 0.5).astype(int)
     elif model_type == "histgradientboosting":
         model = HistGradientBoostingClassifier(
-            max_iter=100,
+            max_iter=iterations,
             max_depth=6,
             learning_rate=0.1,
             min_samples_leaf=10,
@@ -405,11 +408,12 @@ def _train_regressor(
     X_test: pd.DataFrame,
     y_test: pd.Series,
     compute_ci: bool = True,
+    iterations: int = 100,
 ) -> dict:
     """Train and evaluate a regressor."""
     if model_type == "catboost":
         model = CatBoostRegressor(
-            iterations=100,
+            iterations=iterations,
             depth=6,
             learning_rate=0.1,
             verbose=0,
@@ -419,7 +423,7 @@ def _train_regressor(
         y_pred = model.predict(X_test)
     elif model_type == "histgradientboosting":
         model = HistGradientBoostingRegressor(
-            max_iter=100,
+            max_iter=iterations,
             max_depth=6,
             learning_rate=0.1,
             min_samples_leaf=10,

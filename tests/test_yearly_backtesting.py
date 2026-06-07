@@ -75,6 +75,7 @@ def test_yearly_backtesting_output_schema(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     assert result is not None
@@ -139,6 +140,7 @@ def test_yearly_backtesting_catboost_classifier_metrics(six_year_fixture, tmp_pa
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     catboost_classifier = result[result["model"].str.contains("catboost_classifier")]
@@ -160,6 +162,7 @@ def test_yearly_backtesting_histgradientboosting_classifier_metrics(six_year_fix
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     hist_classifier = result[result["model"].str.contains("histgradientboosting_classifier")]
@@ -179,8 +182,9 @@ def test_yearly_backtesting_catboost_regressor_metrics(six_year_fixture, tmp_pat
         df,
         target_column="regression_target_days",
         animal_subset="combined",
-        output_path=str(output_path),
+        output_path=None,
         compute_ci=False,
+        quick=True,
     )
     
     catboost_regressor = result[result["model"].str.contains("catboost_regressor")]
@@ -201,8 +205,9 @@ def test_yearly_backtesting_histgradientboosting_regressor_metrics(six_year_fixt
         df,
         target_column="regression_target_days",
         animal_subset="combined",
-        output_path=str(output_path),
+        output_path=None,
         compute_ci=False,
+        quick=True,
     )
     
     hist_regressor = result[result["model"].str.contains("histgradientboosting_regressor")]
@@ -226,6 +231,7 @@ def test_yearly_backtesting_bootstrap_confidence_intervals(six_year_fixture, tmp
         output_path=str(output_path),
         compute_ci=True,
         bootstrap_n=10,
+        quick=True,
     )
     
     has_ci_columns = any(col.endswith("_lower") or col.endswith("_upper") for col in result.columns)
@@ -249,6 +255,7 @@ def test_yearly_backtesting_animal_subsets(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     subsets = result["subset"].unique()
@@ -268,6 +275,7 @@ def test_yearly_backtesting_horizon_targets(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     test_years = sorted(result["test_year"].unique())
@@ -280,7 +288,7 @@ def test_yearly_backtesting_horizon_targets(six_year_fixture, tmp_path):
         assert expected_train in train_years
 
 
-def test_yearly_backtesting_empty_splits_skipped():
+def test_yearly_backtesting_empty_splits_skipped(tmp_path):
     """Test empty train/test splits are skipped gracefully."""
     df = pd.DataFrame({
         "animal_id": ["A0001", "A0002"],
@@ -290,12 +298,14 @@ def test_yearly_backtesting_empty_splits_skipped():
         "intake_age_days": [100, 200],
     })
     
+    output_path = tmp_path / "yearly_backtesting.csv"
     result = run_yearly_backtesting(
         df,
         target_column="classification_target",
         animal_subset="combined",
-        output_path=None,
+        output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     assert result is not None
@@ -312,6 +322,7 @@ def test_yearly_backtesting_multiple_targets(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=None,
         compute_ci=False,
+        quick=True,
     )
     
     result_reg = run_yearly_backtesting(
@@ -320,6 +331,7 @@ def test_yearly_backtesting_multiple_targets(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=None,
         compute_ci=False,
+        quick=True,
     )
     
     assert len(result_class) > 0
@@ -345,6 +357,7 @@ def test_yearly_backtesting_output_csv(six_year_fixture, tmp_path):
         animal_subset="combined",
         output_path=str(output_path),
         compute_ci=False,
+        quick=True,
     )
     
     assert output_path.exists()

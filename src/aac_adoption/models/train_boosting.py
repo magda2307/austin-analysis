@@ -135,8 +135,14 @@ def _permutation_table(
     repeats: int,
     max_rows: int,
 ) -> pd.DataFrame:
-    sample = split.validation if not split.validation.empty else split.test
-    importance_split = "validation" if not split.validation.empty else "test"
+    if split.validation.empty:
+        raise ValueError(
+            f"Permutation importance requires validation data for {split.animal_subset}. "
+            f"Validation split is empty. This violates validation-only methodology. "
+            f"Check time-based split parameters (validation_years=2022-2023)."
+        )
+    sample = split.validation
+    importance_split = "validation"
     if len(sample) > max_rows:
         sample = sample.sample(n=max_rows, random_state=RANDOM_STATE)
     result = permutation_importance(

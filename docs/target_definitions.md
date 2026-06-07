@@ -10,7 +10,7 @@ This document is designed for machine reading by AI agents and for human reviewe
 
 ## Target Taxonomy
 
-### 1. Classification Target
+### 1. Binary Adoption Outcome
 
 | Property | Value |
 |---|---|
@@ -37,7 +37,7 @@ dataset["classification_target"] = dataset["adopted"].astype(int)
 
 ---
 
-### 2. Regression Target — Primary (Length of Stay / Days to Matched Outcome)
+### 2. Length of Stay / Days to Matched Outcome
 
 | Property | Value |
 |---|---|
@@ -101,39 +101,30 @@ dataset["days_to_adoption"] = np.where(
 
 ---
 
-### 4. Survival / Time-to-Event Target — Future Work
+## Intake-Time Features and Leakage Control
 
-| Property | Value |
-|---|---|
-| Column name | Not yet defined |
-| Framework | Kaplan–Meier / Cox proportional hazards (not implemented as main model) |
-| Censoring | Intakes without a future outcome (cannot determine final outcome) |
-| Competing risks | Transfer, Euthanasia, Return-to-Owner all "compete" with Adoption |
-| Status | **Not the main modeling framework.** Discussed as future work. |
+### Intake-Time Feature Set
 
-**What IS implemented (descriptive only):**
-- Empirical adoption survival curves by `animal_type`, `age_group`, `covid_period`, and `intake_type`.
-- Kaplan–Meier descriptive curves using `lifelines` library.
-- These are descriptive time-to-adoption views for adopted animals, NOT a full survival model.
+All model features are available at the moment of intake (before any outcome is known). This is the fundamental leakage-safety guarantee.
 
-**Artifacts generated (descriptive only):**
-- `reports/tables/adoption_survival_curves.csv`
-- `reports/figures/km_adoption_by_animal_type.png`
-- `reports/figures/km_adoption_by_age_group.png`
-- `reports/figures/km_adoption_by_covid_period.png`
-- `reports/summary/survival_descriptive_note.md`
+| Family | Features | Notes |
+|--------|----------|-------|
+| Animal identity | `animal_type`, `breed`, `primary_breed`, `simplified_breed_group` | Fixed at intake |
+| Appearance | `color`, `primary_color`, `simplified_color_group`, `is_black_or_dark` | Fixed at intake |
+| Age | `age_upon_intake`, `age_days`, `age_months`, `age_years`, `age_group` | Measured at intake |
+| Intake circumstances | `intake_type`, `intake_condition` | Recorded at intake |
+| Timing | `intake_year`, `intake_month`, `intake_quarter`, `intake_season`, `covid_period` | Derived from intake date |
+| Location | `found_location_kind`, `found_location_area`, `is_austin_found_location` | Fixed at intake |
+| Sex | `sex_upon_intake` | Measured at intake |
 
-**Thesis framing:**
-> "These curves are descriptive time-to-adoption views among adopted animals. They are not the main modeling framework and do not replace the supervised ML comparison. Full time-to-event survival modeling with censoring and competing risks is outside the scope of this thesis and is noted as a natural extension for future work."
+**Important:** All features use information available **before** the outcome occurs. This prevents data leakage.
 
----
-
-## Leakage Control Summary
+### Leakage Control
 
 The following columns are **targets or outcome-derived metadata** and must never appear in `feature_columns.json` or be passed to any trained model as predictors:
 
 | Column | Category | Reason |
-|---|---|---|
+|---|---|
 | `classification_target` | target | binary adoption label |
 | `regression_target_days` | target | days to outcome |
 | `days_to_outcome` | target/alias | same as regression_target_days |
@@ -148,21 +139,10 @@ The following columns are **targets or outcome-derived metadata** and must never
 | `sex_upon_outcome` | metadata | post-intake measurement |
 | `age_upon_outcome` | metadata | post-intake measurement |
 
+**Why leakage matters:** Using outcome information to predict the same outcome creates artificially high performance metrics that will collapse in production. The model would simply be looking at the answer key rather than learning from intake-time features.
+
 **Validation:** `src/aac_adoption/features/feature_sets.py` — `LEAKAGE_COLUMNS` set and `validate_no_leakage()` function.
 **Leakage audit script:** `scripts/generate_leakage_audit.py`
-
----
-
-## Consistent Label Rules for All Files
-
-| Context | Correct label | Incorrect label |
-|---|---|---|
-| Regression model output (all animals) | "predicted days to outcome" / "predicted length of stay" | "predicted adoption speed", "days to adoption" |
-| Regression MAE in reports | "MAE X days for length-of-stay prediction" | "adoption speed error" |
-| H3 table (all animals) | "median days to outcome by age group" | "adoption speed by age" |
-| H3 adopted-only table | "median days to adoption (adopted animals only)" | "adoption speed" without qualification |
-| Dashboard regression metric card | "Predicted days to outcome" | "Predicted wait until adoption" |
-| SHAP regression interpretation | "associated with predicted days to outcome" | "causes faster adoption" |
 
 ---
 
@@ -177,3 +157,16 @@ All matched intake/outcome episodes (N = 162,390)
 regression_target_days = days_to_outcome (ALL episodes, regardless of outcome type)
     ↑ Main regression target: predicts length of stay, not adoption speed
 ```
+
+---
+
+## Consistent Label Rules for All Files
+
+| Context | Correct label | Incorrect label |
+|---|---|---|
+| Regression model output (all animals) | "predicted days to outcome" / "predicted length of stay" | "predicted adoption speed", "days to adoption" |
+| Regression MAE in reports | "MAE X days for length-of-stay prediction" | "adoption speed error" |
+| H3 table (all animals) | "median days to outcome by age group" | "adoption speed by age" |
+| H3 adopted-only table | "median days to adoption (adopted animals only)" | "adoption speed" without qualification |
+| Dashboard regression metric card | "Predicted days to outcome" | "Predicted wait until adoption" |
+| SHAP regression interpretation | "associated with predicted days to outcome" | "causes faster adoption" |

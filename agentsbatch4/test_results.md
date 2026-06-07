@@ -1,55 +1,76 @@
-# Batch 4 Test Results - Updated 2026-06-07T14:36:07+02:00
+# Batch 4 Focused Validator Test Results
+
+**Date:** 2026-06-07  
+**Agent:** Batch 4 Focused Validator
 
 ## Summary
-✅ **Batch 4 P1-P2 issues resolved** - All tests passing
 
-## Validation Session
+| Test File | Tests Passed | Duration | Status |
+|-----------|-------------|----------|--------|
+| test_dashboard_data.py | 9/9 | 3.51s | PASS |
+| test_ensemble.py | 14/14 | 3.79s | PASS |
+| test_hyperparam_tuning.py | 4/4 | 32.87s | PASS |
+| test_build_dataset.py | 5/5 | 1.26s | PASS |
+| **Total** | **32/32** | 41.43s | **PASS** |
 
-### Test Results
+## Test Details
 
-| Test File | Passed | Failed |
-|-----------|--------|--------|
-| test_dashboard_data.py | 9 | 0 |
-| test_ensemble.py | 13 | 0 |
-| test_hyperparam_tuning.py | 5 | 0 |
-| **Total** | **27** | **0** |
+### test_dashboard_data.py (3.51s)
+- test_best_model_rows_selects_expected_metrics ✓
+- test_build_prediction_record_creates_model_features ✓
+- test_build_profile_prediction_record_uses_representative_values ✓
+- test_model_feature_columns_uses_artifact_metadata ✓
+- test_similar_historical_cases_returns_outcome_mix ✓
+- test_profile_global_shap_reasons_maps_profile_values ✓
+- test_visibility_need_from_prediction_labels_quadrants ✓
+- test_los_days_to_bucket ✓
+- test_predict_from_record_handles_calibration ✓
 
-## Fix Verification
+**P1 Fix Verified:** Line 261 uses `math.log1p(15)` ✓
 
-### P1: CatBoost Regression Mock (tests/test_dashboard_data.py:261)
-**Problem:** Mock returned 15.0, but code applies expm1 for catboost → exp(15)-1 = 3269016.37
-**Fix:** Changed mock to return `math.log1p(15)` so expm1 produces expected 15.0
-**Status:** ✅ Fixed and verified
+### test_ensemble.py (3.79s)
+- test_weighted_ensemble_classifier ✓
+- test_weighted_ensemble_from_dict ✓
+- test_stacked_ensemble_classifier ✓
+- test_weighted_ensemble_equal_weights ✓
+- test_weighted_ensemble_regressor ✓
+- test_stacked_ensemble_regressor ✓
+- test_stacked_ensemble_oof_classifier ✓
+- test_stacked_ensemble_oof_regressor ✓
+- test_stacked_ensemble_classifier_oof ✓
+- test_stacked_ensemble_regressor_oof ✓
+- test_stacked_ensemble_classifier_fallback ✓
+- test_stacked_ensemble_regressor_fallback ✓
+- test_weighted_ensemble_classifier_string_labels ✓
+- test_stacked_ensemble_classifier_string_labels ✓
 
-### P2: models_dir Override (src/aac_adoption/dashboard/data.py:352)
-**Problem:** models_dir override forced both clf_dir and reg_dir to same path, bypassing per-model family inference
-**Fix:** Removed override, preserved _infer_models_dir() per selected model
-**Status:** ✅ Fixed and verified
+**Warnings:** 5 (feature name warnings, non-blocking)
 
-## Syntax Check
-- ✅ src/aac_adoption/dashboard/data.py: No syntax errors
-- ✅ tests/test_dashboard_data.py: No syntax errors
+### test_hyperparam_tuning.py (32.87s ⚠️ over 30s)
+- test_tune_histgradient_classification ✓
+- test_tune_histgradient_regression ✓
+- test_tune_empty_data ✓
+- test_tune_models_runs_successfully ✓
 
-## Regression Check
-- ✅ 27 tests passed, 0 failed
-- ✅ No regression in existing tests
+**Note:** This test exceeded 30s threshold but was included for P2 fix validation.
 
-## Commands Run
-```powershell
-python -m pytest tests/test_dashboard_data.py -q
-python -m pytest tests/test_ensemble.py tests/test_hyperparam_tuning.py -q
-python -m py_compile src/aac_adoption/dashboard/data.py
-python -m py_compile tests/test_dashboard_data.py
-```
+### test_build_dataset.py (1.26s)
+- test_build_modeling_dataset_filters_and_creates_targets ✓
+- test_validate_rejects_negative_los ✓
+- test_repeated_animal_matches_each_intake_to_next_unused_outcome ✓
+- test_build_modeling_dataset_from_files_adds_context_features ✓
+- test_build_modeling_dataset_keeps_raw_los_outliers ✓
 
-## Validation Date: 2026-06-07T14:36:07+02:00
-- test_dashboard_data.py: 9/9 passed ✅
-- test_ensemble.py: 13/13 passed ✅
-- test_hyperparam_tuning.py: 5/5 passed ✅
+## Code Fixes Verified
 
-## Agent Roles
-- **Validator:** Run tests, verify acceptance
-- **Reviewer:** Check code quality, side effects
-- **Implementation:** Made fixes per plan
+### P1: test_dashboard_data.py line 261
+**Status:** ✓ PASSED
+The test uses `math.log1p(15)` for proper log transformation.
 
-## Status: READY FOR BATCH 5
+### P2: data.py models_dir logic
+**Status:** ✓ PASSED
+Per-model family directories are preserved in the data.py models_dir logic.
+
+## Conclusion
+
+All 32 tests passed. Both Batch 4 fixes (P1 and P2) are verified working.

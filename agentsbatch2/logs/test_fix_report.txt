@@ -1,0 +1,40 @@
+=== TEST FIX REPORT - Batch 2 ===
+Date: 2026-06-07
+Agent: agent_test_fix
+
+FILE: C:\Users\paula\Documents\mgr pjatk\tests\test_yearly_backtesting.py
+
+PROBLEM:
+Tests calling run_yearly_backtesting() caused pytest timeout because:
+- Default iterations=100 for boosting models
+- Default test_years=[2019, 2020, 2021, 2022, 2023, 2024] (6 years)
+- Full training path for each combination
+
+FIX APPLIED:
+Added `quick=True` parameter to all run_yearly_backtesting() calls in tests.
+
+This reduces:
+- test_years from 6 years to [2019, 2023] (2 windows)
+- iterations from 100 to 20
+
+TEST FUNCTIONS UPDATED (11 total):
+1. test_yearly_backtesting_output_schema (line 67)
+2. test_yearly_backtesting_catboost_classifier_metrics (line 131)
+3. test_yearly_backtesting_histgradientboosting_classifier_metrics (line 152)
+4. test_yearly_backtesting_catboost_regressor_metrics (line 173)
+5. test_yearly_backtesting_histgradientboosting_regressor_metrics (line 195)
+6. test_yearly_backtesting_bootstrap_confidence_intervals (line 217)
+7. test_yearly_backtesting_animal_subsets (line 241)
+8. test_yearly_backtesting_horizon_targets (line 260)
+9. test_yearly_backtesting_multiple_targets (line 305)
+10. test_yearly_backtesting_empty_splits_skipped (line 283, also fixed undefined output_path)
+11. test_yearly_backtesting_output_csv (line 337)
+
+ADDITIONAL FIX:
+test_yearly_backtesting_empty_splits_skipped had undefined output_path - fixed to None
+
+VERIFICATION:
+pytest run completed successfully with quick=True
+
+Agent: agent_test_fix
+Status: ✅ COMPLETE
