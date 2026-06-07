@@ -29,14 +29,31 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
         n_trials: Number of trials per model
         sampler_type: 'tpe', 'random', or 'cmaes'
     """
-    split = make_time_split(df, "classification_target", animal_subset="combined")
-    train_df = split.train.sort_values("intake_datetime").reset_index(drop=True)
-    feature_columns = model_feature_columns(train_df)
-    cat_features = categorical_features_for(feature_columns)
+    # 1. Decoupled Classification Setup
+    # Sort chronologically by intake_datetime before setting up TimeSeriesSplit
+    split_clf = make_time_split(df, "classification_target", animal_subset="combined")
+    train_df_clf = split_clf.train.sort_values("intake_datetime").reset_index(drop=True)
+    feature_columns_clf = model_feature_columns(train_df_clf)
+    cat_features_clf = categorical_features_for(feature_columns_clf)
+    X_clf = train_df_clf[feature_columns_clf]
+    y_clf = train_df_clf["classification_target"]
+    cat_X_clf = prepare_catboost_frame(train_df_clf, feature_columns_clf)
     
-    reg_split = make_time_split(df, "regression_target_days", animal_subset="combined")
-    reg_train_df = reg_split.train.sort_values("intake_datetime").reset_index(drop=True)
+    # 2. Decoupled Regression Setup
+    # Sort chronologically by intake_datetime before setting up TimeSeriesSplit
+    split_reg = make_time_split(df, "regression_target_days", animal_subset="combined")
+    train_df_reg = split_reg.train.sort_values("intake_datetime").reset_index(drop=True)
+    feature_columns_reg = model_feature_columns(train_df_reg)
+    cat_features_reg = categorical_features_for(feature_columns_reg)
+    X_reg = train_df_reg[feature_columns_reg]
+    y_reg = train_df_reg["regression_target_days"]
+    cat_X_reg = prepare_catboost_frame(train_df_reg, feature_columns_reg)
 
+    # Chronological cross-validation using TimeSeriesSplit with 5 splits.
+    # This prevents data leakage by ensuring that training folds always precede
+    # validation folds chronologically, matching the temporal splitting strategy.
+    # Since the input DataFrames are sorted chronologically by intake_datetime,
+    # the splits created by TimeSeriesSplit represent successive chronological steps.
     cv = TimeSeriesSplit(n_splits=5)
     
     best_params: dict[str, Any] = {}
@@ -53,9 +70,6 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
             raise ValueError(f"Unsupported sampler_type: {sampler_type}")
 
     # 1. CatBoost Classification
-    cat_X = prepare_catboost_frame(train_df, feature_columns)
-    cat_y = train_df["classification_target"]
-    
     def catboost_clf_objective(trial: optuna.Trial) -> float:
         params = {
             "iterations": 5000,
@@ -65,35 +79,36 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
             "subsample": trial.suggest_float("subsample", 0.5, 1.0),
             "bootstrap_type": "Bernoulli",
             "loss_function": "Logloss",
-            "eval_metric": "AUC",
+            "eval_metric": "PRAUC",
             "random_seed": RANDOM_STATE,
             "verbose": False,
             "auto_class_weights": "Balanced",
         }
         
-        scores = []
-        for train_idx, val_idx in cv.split(cat_X):
-            X_tr, y_tr = cat_X.iloc[train_idx], cat_y.iloc[train_idx]
-            X_va, y_va = cat_X.iloc[val_idx], cat_y.iloc[val_idx]
-            
-            model = CatBoostClassifier(**params)
-            model.fit(
-                X_tr, y_tr,
-                cat_features=cat_features,
-                eval_set=(X_va, y_va),
-                early_stopping_rounds=50,
-            )
-            preds = model.predict_proba(X_va)[:, 1]
-            scores.append(average_precision_score(y_va, preds))
-        return np.mean(scores)
+        try:
+            scores = []
+            for train_idx, val_idx in cv.split(cat_X_clf):
+                X_tr, y_tr = cat_X_clf.iloc[train_idx], y_clf.iloc[train_idx]
+                X_va, y_va = cat_X_clf.iloc[val_idx], y_clf.iloc[val_idx]
+                
+                model = CatBoostClassifier(**params)
+                model.fit(
+                    X_tr, y_tr,
+                    cat_features=cat_features_clf,
+                    eval_set=(X_va, y_va),
+                    early_stopping_rounds=50,
+                )
+                preds = model.predict_proba(X_va)[:, 1]
+                scores.append(average_precision_score(y_va, preds))
+            return np.mean(scores)
+        except Exception:
+            return 0.0
 
     study_cat_clf = optuna.create_study(direction="maximize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
     study_cat_clf.optimize(catboost_clf_objective, n_trials=n_trials)
     best_params["catboost_classification"] = study_cat_clf.best_params
 
     # 2. CatBoost Regression
-    cat_y_reg = reg_train_df["regression_target_days"]
-    
     def catboost_reg_objective(trial: optuna.Trial) -> float:
         params = {
             "iterations": 5000,
@@ -108,29 +123,31 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
             "verbose": False,
         }
         
-        scores = []
-        for train_idx, val_idx in cv.split(cat_X):
-            X_tr, y_tr_reg = cat_X.iloc[train_idx], cat_y_reg.iloc[train_idx]
-            X_va, y_va_reg = cat_X.iloc[val_idx], cat_y_reg.iloc[val_idx]
+        try:
+            scores = []
+            for train_idx, val_idx in cv.split(cat_X_reg):
+                X_tr, y_tr_reg = cat_X_reg.iloc[train_idx], y_reg.iloc[train_idx]
+                X_va, y_va_reg = cat_X_reg.iloc[val_idx], y_reg.iloc[val_idx]
 
-            model = CatBoostRegressor(**params)
-            model.fit(
-                X_tr, y_tr_reg,
-                cat_features=cat_features,
-                eval_set=(X_va, y_va_reg),
-                early_stopping_rounds=50,
-            )
-            preds = model.predict(X_va)
-            scores.append(mean_absolute_error(y_va_reg, preds))
-        return np.mean(scores)
+                model = CatBoostRegressor(**params)
+                model.fit(
+                    X_tr, np.log1p(y_tr_reg),
+                    cat_features=cat_features_reg,
+                    eval_set=(X_va, np.log1p(y_va_reg)),
+                    early_stopping_rounds=50,
+                )
+                preds_log = model.predict(X_va)
+                preds = np.expm1(preds_log)
+                scores.append(mean_absolute_error(y_va_reg, preds))
+            return np.mean(scores)
+        except Exception:
+            return 1e9
 
     study_cat_reg = optuna.create_study(direction="minimize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
     study_cat_reg.optimize(catboost_reg_objective, n_trials=n_trials)
     best_params["catboost_regression"] = study_cat_reg.best_params
 
     # 3. HistGradientBoosting Classification
-    hist_X = train_df[feature_columns]
-    
     def hist_clf_objective(trial: optuna.Trial) -> float:
         params = {
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
@@ -145,21 +162,26 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
             "class_weight": "balanced",
         }
         
-        scores = []
-        for train_idx, val_idx in cv.split(hist_X):
-            X_tr, y_tr = hist_X.iloc[train_idx], cat_y.iloc[train_idx]
-            X_va, y_va = hist_X.iloc[val_idx], cat_y.iloc[val_idx]
-            
-            # Preprocessor fitted strictly inside CV loop on training subset
-            preprocessor = make_boosting_preprocessor(X_tr)
-            X_tr_transformed = preprocessor.fit_transform(X_tr)
-            X_va_transformed = preprocessor.transform(X_va)
+        try:
+            scores = []
+            for train_idx, val_idx in cv.split(X_clf):
+                X_tr, y_tr = X_clf.iloc[train_idx], y_clf.iloc[train_idx]
+                X_va, y_va = X_clf.iloc[val_idx], y_clf.iloc[val_idx]
+                
+                # Preprocessor fitted strictly inside CV loop on training subset
+                preprocessor = make_boosting_preprocessor(X_tr)
+                X_tr_transformed = preprocessor.fit_transform(X_tr)
+                X_va_transformed = preprocessor.transform(X_va)
 
-            model = HistGradientBoostingClassifier(**params)
-            model.fit(X_tr_transformed, y_tr)
-            preds = model.predict_proba(X_va_transformed)[:, 1]
-            scores.append(average_precision_score(y_va, preds))
-        return np.mean(scores)
+                # Disable early stopping if fold has fewer than 100 samples to avoid split crash
+                fold_params = {**params, "early_stopping": (len(X_tr) >= 100)}
+                model = HistGradientBoostingClassifier(**fold_params)
+                model.fit(X_tr_transformed, y_tr)
+                preds = model.predict_proba(X_va_transformed)[:, 1]
+                scores.append(average_precision_score(y_va, preds))
+            return np.mean(scores)
+        except Exception:
+            return 0.0
 
     study_hist_clf = optuna.create_study(direction="maximize", sampler=get_sampler())
     study_hist_clf.optimize(hist_clf_objective, n_trials=n_trials)
@@ -168,6 +190,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
     # 4. HistGradientBoosting Regression
     def hist_reg_objective(trial: optuna.Trial) -> float:
         params = {
+            "loss": "absolute_error",
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
             "max_iter": 5000,
             "early_stopping": True,
@@ -179,21 +202,26 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
             "random_state": RANDOM_STATE,
         }
         
-        scores = []
-        for train_idx, val_idx in cv.split(hist_X):
-            X_tr, y_tr_reg = hist_X.iloc[train_idx], cat_y_reg.iloc[train_idx]
-            X_va, y_va_reg = hist_X.iloc[val_idx], cat_y_reg.iloc[val_idx]
-            
-            # Preprocessor fitted strictly inside CV loop on training subset
-            preprocessor = make_boosting_preprocessor(X_tr)
-            X_tr_transformed = preprocessor.fit_transform(X_tr)
-            X_va_transformed = preprocessor.transform(X_va)
+        try:
+            scores = []
+            for train_idx, val_idx in cv.split(X_reg):
+                X_tr, y_tr_reg = X_reg.iloc[train_idx], y_reg.iloc[train_idx]
+                X_va, y_va_reg = X_reg.iloc[val_idx], y_reg.iloc[val_idx]
+                
+                # Preprocessor fitted strictly inside CV loop on training subset
+                preprocessor = make_boosting_preprocessor(X_tr)
+                X_tr_transformed = preprocessor.fit_transform(X_tr)
+                X_va_transformed = preprocessor.transform(X_va)
 
-            model = HistGradientBoostingRegressor(**params)
-            model.fit(X_tr_transformed, y_tr_reg)
-            preds = model.predict(X_va_transformed)
-            scores.append(mean_absolute_error(y_va_reg, preds))
-        return np.mean(scores)
+                # Disable early stopping if fold has fewer than 100 samples to avoid split crash
+                fold_params = {**params, "early_stopping": (len(X_tr) >= 100)}
+                model = HistGradientBoostingRegressor(**fold_params)
+                model.fit(X_tr_transformed, y_tr_reg)
+                preds = model.predict(X_va_transformed)
+                scores.append(mean_absolute_error(y_va_reg, preds))
+            return np.mean(scores)
+        except Exception:
+            return 1e9
 
     study_hist_reg = optuna.create_study(direction="minimize", sampler=get_sampler())
     study_hist_reg.optimize(hist_reg_objective, n_trials=n_trials)

@@ -143,6 +143,7 @@ PL = {
     "Predicted wait": "Prognozowane oczekiwanie",
     "Predicted Time to Any Outcome": "Prognozowany czas do zakończenia pobytu",
     "Model visibility label": "Etykieta widoczności modelu",
+    "Length-of-stay bucket": "Przedział długości pobytu",
     "Representative model record": "Reprezentatywny rekord modelu",
     "high visibility need": "wysoka potrzeba widoczności",
     "medium visibility need": "średnia potrzeba widoczności",
@@ -317,6 +318,17 @@ PL = {
     "Operational Risk & Model Reliability Red Flags": "Ryzyko operacyjne i czerwone flagi niezawodności modelu",
     "Data Pipeline Audit & Attrition Logging": "Audyt potoku danych i logowanie atrycji",
     "Reproducibility Snapshot & Environment Info": "Migawka odtwarzalności i informacje o środowisku",
+    "quick placement likely": "prawdopodobne szybkie umieszczenie",
+    "needs visibility": "wymaga promowania",
+    "long-stay risk": "ryzyko długiego pobytu",
+    "outcome support priority": "priorytet wsparcia",
+    "Classification PR-AUC": "Klasyfikacja PR-AUC",
+    "Classification ROC-AUC": "Klasyfikacja ROC-AUC",
+    "Classification F1": "Klasyfikacja F1",
+    "Regression MAE": "Regresja MAE",
+    "Regression RMSE": "Regresja RMSE",
+    "Predicted adoption chance (calibrated)": "Prognozowana szansa adopcji (skalibrowana)",
+    "Predicted adoption probability (calibrated)": "Prognozowane prawdopodobieństwo adopcji (skalibrowane)",
 }
 
 
@@ -574,7 +586,7 @@ with tabs[2]:
         profile_similarity = similar_historical_cases(DATA_PATH, profile_record)
         try:
             profile_prediction = predict_from_record(profile_record, MODELS_DIR)
-        except FileNotFoundError:
+        except Exception:
             profile_prediction = None
 
         col1, col2, col3, col4 = st.columns(4)
@@ -602,19 +614,14 @@ with tabs[2]:
         else:
             predicted_probability = profile_prediction["adoption_probability"]
             predicted_days = profile_prediction["predicted_days_to_outcome"]
-            if predicted_days <= 7:
-                wait_bucket = "0-7 days"
-            elif predicted_days <= 30:
-                wait_bucket = "8-30 days"
-            elif predicted_days <= 60:
-                wait_bucket = "31-60 days"
-            else:
-                wait_bucket = "60+ days"
+            wait_bucket = profile_prediction["los_bucket"]
 
-            model_cols = st.columns(3)
-            model_cols[0].metric(t("Predicted adoption chance"), f"{predicted_probability * 100:.1f}%")
-            model_cols[1].metric(t("Predicted Time to Any Outcome"), wait_bucket)
-            model_cols[2].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
+            model_cols = st.columns(4)
+            prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.get("is_calibrated") else t("Predicted adoption chance")
+            model_cols[0].metric(prob_label, f"{predicted_probability * 100:.1f}%")
+            model_cols[1].metric(t("Predicted days to outcome"), f"{predicted_days:.1f} days")
+            model_cols[2].metric(t("Length-of-stay bucket"), wait_bucket)
+            model_cols[3].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
             with st.expander(t("Representative model record")):
                 st.dataframe(profile_record, width='stretch', hide_index=True)
 
@@ -679,6 +686,7 @@ with tabs[2]:
 with tabs[3]:
     left, right = st.columns(2)
     with left:
+        figure(FIGURES_DIR / "model_comparison_classification_pr_auc.png", "Classification PR-AUC")
         figure(FIGURES_DIR / "model_comparison_classification_roc_auc.png", "Classification ROC-AUC")
         figure(FIGURES_DIR / "model_comparison_classification_f1.png", "Classification F1")
     with right:
@@ -1009,23 +1017,19 @@ with tabs[9]:
             prediction = predict_from_record(record, MODELS_DIR)
             probability_pct = prediction["adoption_probability"] * 100
             days = prediction["predicted_days_to_outcome"]
-            if days <= 7:
-                wait_bucket = "0-7 days"
-            elif days <= 30:
-                wait_bucket = "8-30 days"
-            elif days <= 60:
-                wait_bucket = "31-60 days"
-            else:
-                wait_bucket = "60+ days"
-            col1, col2 = st.columns(2)
-            col1.metric(t("Predicted adoption probability"), f"{probability_pct:.1f}%")
-            col2.metric(t("Predicted Time to Any Outcome"), wait_bucket)
+            wait_bucket = prediction["los_bucket"]
+            
+            col1, col2, col3 = st.columns(3)
+            prob_label = t("Predicted adoption probability (calibrated)") if prediction.get("is_calibrated") else t("Predicted adoption probability")
+            col1.metric(prob_label, f"{probability_pct:.1f}%")
+            col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
+            col3.metric(t("Length-of-stay bucket"), wait_bucket)
             st.dataframe(record, width='stretch', hide_index=True)
             similar = similar_historical_cases(DATA_PATH, record)
             if not similar.empty:
                 st.subheader(t("Similar Historical Cases"))
                 st.dataframe(similar, width='stretch', hide_index=True)
-        except FileNotFoundError as error:
+        except Exception as error:
             st.error(str(error))
             st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first."))
 

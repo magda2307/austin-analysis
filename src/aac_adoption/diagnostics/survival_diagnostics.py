@@ -1,7 +1,8 @@
-"""Model diagnostic artifact generation."""
+"""Survival diagnostics module - DEPRECATED. Use aac_adoption.analysis.survival_diagnostics instead."""
 
 from aac_adoption.analysis.survival_diagnostics import (
     check_proportional_hazards_assumption,
+    validate_proportional_hazards_schoenfeld,
     create_log_log_plot,
     check_calibration_survival,
     compute_dfbeta_values,
@@ -13,10 +14,15 @@ from aac_adoption.analysis.survival_diagnostics import (
     validate_data_for_survival,
     generate_comprehensive_diagnostics,
     SurvivalDiagnosticsRunner,
+    compute_survival_curves_by_group,
+    validate_censoring_patterns,
+    generate_survival_diagnostics_report,
+    plot_survival_curves_with_censoring,
 )
 
 __all__ = [
     "check_proportional_hazards_assumption",
+    "validate_proportional_hazards_schoenfeld",
     "create_log_log_plot",
     "check_calibration_survival",
     "compute_dfbeta_values",
@@ -28,5 +34,8 @@ __all__ = [
     "validate_data_for_survival",
     "generate_comprehensive_diagnostics",
     "SurvivalDiagnosticsRunner",
+    "compute_survival_curves_by_group",
+    "validate_censoring_patterns",
+    "generate_survival_diagnostics_report",
+    "plot_survival_curves_with_censoring",
 ]
-

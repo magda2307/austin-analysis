@@ -153,6 +153,42 @@ def regression_metrics(y_true, y_pred, compute_ci=False) -> dict[str, float]:
 HORIZON_DAYS = [7, 30, 60, 90]
 
 
+def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=None):
+    """Compute metrics separately for each subgroup (e.g., dogs/cats).
+    
+    Args:
+        y_true: Ground truth values
+        y_pred: Predicted values
+        y_score: Probability scores
+        subgroup_column: Array or Series of subgroup labels
+        subgroup_names: Optional list of subgroup names for ordered output
+    
+    Returns:
+        DataFrame with metrics by subgroup
+    """
+    subgroup_arr = np.asarray(subgroup_column)
+    unique_subgroups = np.unique(subgroup_arr)
+    
+    if subgroup_names is None:
+        subgroup_names = sorted(unique_subgroups)
+    
+    results = []
+    for subgroup in subgroup_names:
+        mask = subgroup_arr == subgroup
+        y_true_sub = np.asarray(y_true)[mask]
+        y_score_sub = np.asarray(y_score)[mask]
+        
+        if len(y_true_sub) < 2 or len(np.unique(y_true_sub)) < 2:
+            continue
+        
+        metrics = classification_metrics_with_ci(y_true_sub, y_pred[mask], y_score_sub, n_bootstraps=1000)
+        metrics["subgroup"] = subgroup
+        metrics["n_samples"] = int(mask.sum())
+        results.append(metrics)
+    
+    return pd.DataFrame(results)
+
+
 def classification_metrics_with_ci(y_true, y_pred, y_score, n_bootstraps: int = 1000) -> dict[str, float]:
     """Compute classification metrics with bootstrap 95% CI.
     

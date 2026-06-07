@@ -11,9 +11,11 @@ def test_backtesting_output_schema():
         "regression_target_days": [10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0],
         "animal_type": ["Dog", "Cat", "Dog", "Cat"] * 3,
         "intake_age_days": [100, 200, 100, 200] * 3,
+        "intake_datetime": pd.to_datetime(["2018-01-01", "2018-02-01", "2018-03-01", "2018-04-01"] * 3),
+        "outcome_datetime": pd.to_datetime(["2018-01-05", "2018-02-05", "2018-03-05", "2018-04-05"] * 3),
     })
     
-    from aac_adoption.models.yearly_backtesting import run_yearly_backtesting
+    from aac_adoption.models.yearly_backtesting import run_yearly_backtesting, _detect_categorical_features
     
     result = run_yearly_backtesting(
         df,
@@ -31,3 +33,8 @@ def test_backtesting_output_schema():
     assert "model" in result.columns
     assert "pr_auc" in result.columns
     assert "roc_auc" in result.columns
+    
+    X_train = df.drop(columns=["classification_target", "animal_id", "intake_year"])
+    categorical_features = _detect_categorical_features(X_train)
+    assert "intake_datetime" not in categorical_features
+    assert "outcome_datetime" not in categorical_features

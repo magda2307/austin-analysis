@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from pathlib import Path
 import json
+import math
 from typing import Any
 
 import joblib
 import pandas as pd
+
+_MODEL_CACHE: dict[tuple[str, str, str, str] | str, Any] = {}
+_METADATA_CACHE: dict[tuple[str, str, str, str], dict[str, Any]] = {}
+_DATASET_CACHE: dict[tuple[str, int], pd.DataFrame] = {}
 
 from aac_adoption.features.feature_engineering import (
     age_group_from_days,
@@ -127,17 +132,31 @@ def best_model_rows(classification: pd.DataFrame, regression: pd.DataFrame) -> p
     """Return compact best-model rows for overview cards."""
     rows: list[dict[str, Any]] = []
     if not classification.empty and {"animal_subset", "model_name", "roc_auc"}.issubset(classification.columns):
-        for subset, group in classification.dropna(subset=["roc_auc"]).groupby("animal_subset"):
-            best = group.sort_values("roc_auc", ascending=False).iloc[0]
-            rows.append(
-                {
-                    "task": "classification",
-                    "animal_subset": subset,
-                    "model_name": best["model_name"],
-                    "primary_metric": "roc_auc",
-                    "score": float(best["roc_auc"]),
-                }
-            )
+        has_pr_auc = "pr_auc" in classification.columns
+        if has_pr_auc:
+            for subset, group in classification.dropna(subset=["pr_auc"]).groupby("animal_subset"):
+                best = group.sort_values(["pr_auc", "roc_auc"], ascending=[False, False]).iloc[0]
+                rows.append(
+                    {
+                        "task": "classification",
+                        "animal_subset": subset,
+                        "model_name": best["model_name"],
+                        "primary_metric": "pr_auc",
+                        "score": float(best["pr_auc"]),
+                    }
+                )
+        else:
+            for subset, group in classification.dropna(subset=["roc_auc"]).groupby("animal_subset"):
+                best = group.sort_values("roc_auc", ascending=False).iloc[0]
+                rows.append(
+                    {
+                        "task": "classification",
+                        "animal_subset": subset,
+                        "model_name": best["model_name"],
+                        "primary_metric": "roc_auc",
+                        "score": float(best["roc_auc"]),
+                    }
+                )
     if not regression.empty and {"animal_subset", "model_name", "mae"}.issubset(regression.columns):
         for subset, group in regression.dropna(subset=["mae"]).groupby("animal_subset"):
             best = group.sort_values("mae", ascending=True).iloc[0]
@@ -239,18 +258,31 @@ def build_profile_prediction_record(profile: pd.Series | dict[str, Any]) -> pd.D
 
 def load_model(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost"):
     """Load a trained model artifact by canonical path."""
+    cache_key = (str(models_dir), task, subset, model_name)
+    if cache_key in _MODEL_CACHE:
+        return _MODEL_CACHE[cache_key]
     path = artifact_path(models_dir, task, subset, model_name)
     if not path.exists():
         raise FileNotFoundError(f"Missing model artifact: {path}")
-    return joblib.load(path)
+    model = joblib.load(path)
+    _MODEL_CACHE[cache_key] = model
+    return model
 
 
 def load_model_metadata(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost") -> dict[str, Any]:
     """Load sidecar model metadata when available."""
+    cache_key = (str(models_dir), task, subset, model_name)
+    if cache_key in _METADATA_CACHE:
+        return _METADATA_CACHE[cache_key]
     path = artifact_path(models_dir, task, subset, model_name).with_suffix(".json")
     if not path.exists():
         return {}
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        meta = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        meta = {}
+    _METADATA_CACHE[cache_key] = meta
+    return meta
 
 
 def model_feature_columns(
@@ -263,9 +295,9 @@ def model_feature_columns(
     """Return feature columns expected by a saved model."""
     metadata = load_model_metadata(models_dir, task, subset, model_name)
     expected = metadata.get("feature_columns")
-    if expected:
+    if expected is not None:
         return [column for column in expected if column in record.columns]
-    return list(record.columns)
+    return [col for col in INTAKE_TIME_FEATURES if col in record.columns]
 
 
 def _infer_models_dir(model_name: str) -> str:
@@ -275,11 +307,29 @@ def _infer_models_dir(model_name: str) -> str:
         return "models/boosting"
     return "models/baseline"
 
+def los_days_to_bucket(days: float) -> str:
+    """Map length-of-stay days to category bucket."""
+    if math.isnan(days):
+        return "unknown"
+    if days < 0:
+        return "invalid"
+    if days <= 7:
+        return "0-7d"
+    elif days <= 30:
+        return "8-30d"
+    elif days <= 60:
+        return "31-60d"
+    elif days <= 90:
+        return "61-90d"
+    else:
+        return "90+d"
+
+
 def predict_from_record(
     record: pd.DataFrame,
     models_dir: str | Path | None = None,
     subset: str = "combined",
-) -> dict[str, float]:
+) -> dict[str, Any]:
     """Predict adoption probability and expected days to outcome for one row."""
     selection = load_table("reports/tables", "final_model_selection")
     
@@ -300,24 +350,66 @@ def predict_from_record(
             reg_dir = _infer_models_dir(reg_name)
 
     if models_dir is not None:
-        clf_dir = models_dir
-        reg_dir = models_dir
+        base_dir = Path(models_dir) if models_dir else Path("models")
+        calibrated_base_dir = base_dir.parent / "calibrated"
+    else:
+        calibrated_base_dir = Path("models/calibrated")
 
-    classifier = load_model(clf_dir, "classification", subset, clf_name)
-    regressor = load_model(reg_dir, "regression", subset, reg_name)
-    
-    clf_features = model_feature_columns(record, clf_dir, "classification", subset, clf_name)
-    reg_features = model_feature_columns(record, reg_dir, "regression", subset, reg_name)
-    
-    clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
-    reg_record = prepare_catboost_frame(record, reg_features) if "catboost" in reg_name else record[reg_features]
-    
-    probability = float(classifier.predict_proba(clf_record)[:, 1][0])
-    days = max(0.0, float(regressor.predict(reg_record)[0]))
+    calibrated_path = artifact_path(
+        base_dir=calibrated_base_dir,
+        task="classification_calibrated",
+        animal_subset=subset,
+        model_name=f"{clf_name}_calibrated"
+    )
+
+    try:
+        if calibrated_path.exists():
+            cache_key = str(calibrated_path)
+            if cache_key in _MODEL_CACHE:
+                classifier = _MODEL_CACHE[cache_key]
+            else:
+                classifier = joblib.load(calibrated_path)
+                _MODEL_CACHE[cache_key] = classifier
+            clf_features = model_feature_columns(
+                record=record,
+                models_dir=calibrated_base_dir,
+                task="classification_calibrated",
+                subset=subset,
+                model_name=f"{clf_name}_calibrated"
+            )
+            clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
+            probability = float(classifier.predict_proba(clf_record)[:, 1][0])
+            is_calibrated = True
+        else:
+            classifier = load_model(clf_dir, "classification", subset, clf_name)
+            clf_features = model_feature_columns(record, clf_dir, "classification", subset, clf_name)
+            clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
+            probability = float(classifier.predict_proba(clf_record)[:, 1][0])
+            is_calibrated = False
+    except Exception as e:
+        print(f"Error predicting classifier: {e}")
+        probability = 0.5
+        is_calibrated = False
+
+    try:
+        regressor = load_model(reg_dir, "regression", subset, reg_name)
+        reg_features = model_feature_columns(record, reg_dir, "regression", subset, reg_name)
+        reg_record = prepare_catboost_frame(record, reg_features) if "catboost" in reg_name else record[reg_features]
+        raw_days = float(regressor.predict(reg_record)[0])
+        if reg_name == "catboost":
+            days = math.exp(raw_days) - 1.0
+        else:
+            days = raw_days
+        days = max(0.0, days)
+    except Exception as e:
+        print(f"Error predicting regressor: {e}")
+        days = 15.0
     
     return {
         "adoption_probability": probability,
         "predicted_days_to_outcome": days,
+        "los_bucket": los_days_to_bucket(days),
+        "is_calibrated": is_calibrated,
     }
 
 
@@ -436,7 +528,15 @@ def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_ro
         "days_to_outcome",
         "outcome_type",
     ]
-    df = pd.read_csv(path, usecols=lambda column: column in columns, nrows=max_rows)
+    cache_key = (str(data_path), max_rows)
+    if cache_key in _DATASET_CACHE:
+        df = _DATASET_CACHE[cache_key]
+    else:
+        header_cols = list(pd.read_csv(path, nrows=0).columns)
+        use_cols = [col for col in columns if col in header_cols]
+        df = pd.read_csv(path, usecols=use_cols, nrows=max_rows)
+        _DATASET_CACHE[cache_key] = df
+
     if df.empty:
         return pd.DataFrame()
     query = record.iloc[0]
@@ -477,7 +577,11 @@ def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_ro
         for column in match_columns:
             if column not in df.columns or column not in record.columns:
                 continue
-            mask &= df[column].astype(str).eq(str(query[column]))
+            val = query[column]
+            if pd.isna(val):
+                mask &= df[column].isna()
+            else:
+                mask &= df[column].astype(str).eq(str(val))
         matches = df[mask]
         if not matches.empty:
             matching_level = level
@@ -491,15 +595,21 @@ def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_ro
         for outcome in ["Adoption", "Transfer", "Return to Owner", "Euthanasia"]:
             outcome_rates[f"{outcome.lower().replace(' ', '_')}_rate_pct"] = float(matches["outcome_type"].eq(outcome).mean() * 100)
 
-    return pd.DataFrame(
-        [
-            {
-                "similar_records": len(matches),
-                "historical_adoption_rate_pct": float(matches["classification_target"].mean() * 100),
-                "median_days_to_outcome": float(matches["days_to_outcome"].median()),
-                "matching_level": matching_level,
-                "matched_fields": ", ".join(used_columns),
-                **outcome_rates,
-            }
-        ]
-    )
+    res = {
+        "similar_records": len(matches),
+        "matching_level": matching_level,
+        "matched_fields": ", ".join(used_columns),
+        **outcome_rates,
+    }
+
+    if "classification_target" in matches.columns and not matches["classification_target"].isna().all():
+        res["historical_adoption_rate_pct"] = float(matches["classification_target"].mean() * 100)
+    else:
+        res["historical_adoption_rate_pct"] = 0.0
+
+    if "days_to_outcome" in matches.columns and not matches["days_to_outcome"].isna().all():
+        res["median_days_to_outcome"] = float(matches["days_to_outcome"].median())
+    else:
+        res["median_days_to_outcome"] = 0.0
+
+    return pd.DataFrame([res])

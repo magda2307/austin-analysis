@@ -29,6 +29,10 @@ REQUIRED_MODELING_COLUMNS = {
     "adopted",
     "classification_target",
     "regression_target_days",
+    "is_censored",
+    "censoring_reason",
+    "event_type",
+    "followup_days_censored",
 }
 
 INTAKE_COLUMNS_TO_KEEP = [
@@ -68,6 +72,46 @@ def _keep_existing_columns(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame
     return df[[column for column in columns if column in df.columns]].copy()
 
 
+def _fill_missing_and_select(df: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
+    """Safely select columns, filling any missing expected columns with nulls or safe defaults."""
+    df = df.copy()
+    for col in columns:
+        if col not in df.columns:
+            # Set safe defaults/nulls for missing expected columns
+            if col in ["is_censored"]:
+                df[col] = False
+            elif col in ["censoring_reason"]:
+                df[col] = ""
+            elif col in ["event_type"]:
+                if "outcome_type" in df.columns:
+                    df[col] = df["outcome_type"].fillna("").astype(str).str.strip().str.lower()
+                else:
+                    df[col] = ""
+            elif col in ["followup_days_censored"]:
+                df[col] = df.get("days_to_outcome", np.nan)
+            elif col in ["outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]:
+                df[col] = pd.Series(pd.NA, index=df.index, dtype="object")
+            elif col in ["adopted", "is_adopted"]:
+                df[col] = False
+            elif col in ["target_adopted", "classification_target"]:
+                df[col] = 0
+            elif col in [
+                "is_austin_found_location",
+                "is_outside_jurisdiction",
+                "is_intersection_location",
+                "is_address_like_location",
+                "is_airport_location",
+                "is_black_or_dark",
+                "is_mixed_breed",
+                "has_name",
+                "is_named"
+            ]:
+                df[col] = False
+            else:
+                df[col] = np.nan
+    return df[columns]
+
+
 def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extract_end_date: pd.Timestamp | None = None) -> DatasetBuildResult:
     """Clean, join, feature-engineer, and validate AAC modeling dataset."""
     clean_intake_df = _keep_existing_columns(clean_intakes(intakes), INTAKE_COLUMNS_TO_KEEP)
@@ -88,6 +132,11 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
     dataset["target_adopted"] = dataset["adopted"].astype(int)
     dataset["classification_target"] = dataset["adopted"].astype(int)
     dataset["regression_target_days"] = dataset["days_to_outcome"]
+    
+    dataset["is_censored"] = False
+    dataset["censoring_reason"] = ""
+    dataset["event_type"] = outcome_type_normalized
+    dataset["followup_days_censored"] = dataset["days_to_outcome"]
     dataset["length_of_stay"] = dataset["days_to_outcome"]
     dataset["days_to_adoption"] = np.where(
         dataset["adopted"],
@@ -101,17 +150,75 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
 
     for horizon in [7, 30, 60, 90]:
         has_full_followup = dataset["followup_days_available"] >= horizon
-        # They are adopted within horizon if they are adopted AND the days to outcome <= horizon
         adopted_in_horizon = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
         
-        # If they don't have full follow-up time (intake was too recent), 
-        # their outcome is biased towards fast outcomes, so we censor the target (NaN).
         dataset[f"adopted_in_{horizon}d"] = np.where(
-            has_full_followup | adopted_in_horizon,  # Safe if adopted quickly OR if we had enough follow-up time
+            has_full_followup | adopted_in_horizon,
             np.where(adopted_in_horizon, 1.0, 0.0),
             np.nan
         )
-    ordered_columns = [
+    
+    required_columns = [
+        "animal_id",
+        "animal_type",
+        "intake_datetime",
+        "outcome_datetime",
+        "outcome_type",
+        "days_to_outcome",
+        "adopted",
+        "classification_target",
+        "regression_target_days",
+    ]
+    missing = set(required_columns) - set(dataset.columns)
+    if missing:
+        raise ValueError(f"Missing required columns after dataset build: {missing}")
+    
+    # Normalize aliases before final selection (Rule 7)
+    if "is_named" not in dataset.columns:
+        if "name" in dataset.columns:
+            dataset["is_named"] = dataset["name"].fillna("").astype(str).str.strip().ne("")
+        else:
+            dataset["is_named"] = False
+            
+    if "has_name" not in dataset.columns:
+        dataset["has_name"] = dataset["is_named"]
+
+    if "age_days" not in dataset.columns:
+        if "age_in_days" in dataset.columns:
+            dataset["age_days"] = dataset["age_in_days"]
+        elif "age_upon_intake" in dataset.columns:
+            from aac_adoption.features.feature_engineering import parse_age_to_days
+            dataset["age_days"] = dataset["age_upon_intake"].map(parse_age_to_days)
+        else:
+            dataset["age_days"] = np.nan
+
+    if "age_in_days" not in dataset.columns:
+        dataset["age_in_days"] = dataset["age_days"]
+
+    if "age_months" not in dataset.columns:
+        if "age_in_months" in dataset.columns:
+            dataset["age_months"] = dataset["age_in_months"]
+        else:
+            dataset["age_months"] = dataset["age_days"] / 30.0
+
+    if "age_years" not in dataset.columns:
+        if "age_in_years" in dataset.columns:
+            dataset["age_years"] = dataset["age_in_years"]
+        else:
+            dataset["age_years"] = dataset["age_days"] / 365.0
+
+    if "age_in_months" not in dataset.columns:
+        dataset["age_in_months"] = dataset["age_months"]
+
+    if "age_in_years" not in dataset.columns:
+        dataset["age_in_years"] = dataset["age_years"]
+
+    # Optional outcome metadata (Rule 8)
+    for col in ["outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]:
+        if col not in dataset.columns:
+            dataset[col] = pd.Series(pd.NA, index=dataset.index, dtype="object")
+
+    final_columns = [
         "animal_id",
         "animal_type",
         "intake_datetime",
@@ -167,8 +274,12 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
         "adopted_in_30d",
         "adopted_in_60d",
         "adopted_in_90d",
+        "is_censored",
+        "censoring_reason",
+        "event_type",
+        "followup_days_censored"
     ]
-    dataset = dataset[[column for column in ordered_columns if column in dataset.columns]]
+    dataset = _fill_missing_and_select(dataset, final_columns)
     validate_modeling_dataset(dataset)
 
     return DatasetBuildResult(
@@ -198,6 +309,11 @@ def validate_modeling_dataset(dataset: pd.DataFrame) -> None:
     target_mismatch = dataset["classification_target"].ne(dataset["adopted"].astype(int)).any()
     if target_mismatch:
         raise ValueError("classification_target does not match adopted flag")
+
+    required_censoring_cols = ["is_censored", "censoring_reason", "event_type", "followup_days_censored"]
+    missing_censoring = set(required_censoring_cols) - set(dataset.columns)
+    if missing_censoring:
+        raise ValueError(f"Missing censoring columns: {missing_censoring}")
 
 
 def build_modeling_dataset_from_files(

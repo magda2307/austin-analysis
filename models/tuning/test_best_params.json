@@ -1,0 +1,26 @@
+{
+  "catboost_classification": {
+    "learning_rate": 0.0024348773534554596,
+    "depth": 4,
+    "l2_leaf_reg": 0.0017073967431528124,
+    "subsample": 0.9330880728874675
+  },
+  "catboost_regression": {
+    "learning_rate": 0.008468008575248327,
+    "depth": 10,
+    "l2_leaf_reg": 0.8471801418819978,
+    "subsample": 0.7993292420985183
+  },
+  "hist_gradient_boosting_classification": {
+    "learning_rate": 0.008468008575248327,
+    "max_leaf_nodes": 122,
+    "l2_regularization": 0.8471801418819978,
+    "min_samples_leaf": 64
+  },
+  "hist_gradient_boosting_regression": {
+    "learning_rate": 0.008468008575248327,
+    "max_leaf_nodes": 122,
+    "l2_regularization": 0.8471801418819978,
+    "min_samples_leaf": 64
+  }
+}

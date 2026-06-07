@@ -154,6 +154,7 @@ def _permutation_table(
             "importance_mean": result.importances_mean,
             "importance_std": result.importances_std,
             "importance_split": importance_split,
+            "evaluation_period": importance_split,
             **metadata,
         }
     ).sort_values("importance_mean", ascending=False)

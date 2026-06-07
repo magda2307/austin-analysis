@@ -1,3 +1,4 @@
+import math
 import pandas as pd
 import pytest
 
@@ -9,14 +10,20 @@ from aac_adoption.dashboard.data import (
     profile_global_shap_reasons,
     similar_historical_cases,
     visibility_need_from_prediction,
+    los_days_to_bucket,
+    predict_from_record,
 )
 
 
 def test_best_model_rows_selects_expected_metrics():
-    classification = pd.DataFrame(
+    # 1. Test case when pr_auc is present: should sort by pr_auc desc, then roc_auc desc as tie-breaker
+    # and set primary_metric to "pr_auc".
+    classification_with_pr = pd.DataFrame(
         [
-            {"animal_subset": "combined", "model_name": "logistic", "roc_auc": 0.7},
-            {"animal_subset": "combined", "model_name": "boosting", "roc_auc": 0.8},
+            {"animal_subset": "combined", "model_name": "logistic", "roc_auc": 0.7, "pr_auc": 0.6},
+            {"animal_subset": "combined", "model_name": "boosting", "roc_auc": 0.8, "pr_auc": 0.7},
+            # Tie breaker: same pr_auc, higher roc_auc should win
+            {"animal_subset": "combined", "model_name": "random_forest", "roc_auc": 0.9, "pr_auc": 0.7},
         ]
     )
     regression = pd.DataFrame(
@@ -26,11 +33,34 @@ def test_best_model_rows_selects_expected_metrics():
         ]
     )
 
-    result = best_model_rows(classification, regression)
+    result_with_pr = best_model_rows(classification_with_pr, regression)
+    assert len(result_with_pr) == 2
+    # For classification, random_forest should be chosen because pr_auc is 0.7 (higher than 0.6)
+    # and roc_auc is 0.9 (higher than boosting's 0.8)
+    assert set(result_with_pr["model_name"]) == {"random_forest", "boosting"}
+    assert set(result_with_pr["primary_metric"]) == {"pr_auc", "mae"}
 
-    assert len(result) == 2
-    assert set(result["model_name"]) == {"boosting"}
-    assert set(result["primary_metric"]) == {"roc_auc", "mae"}
+    clf_row = result_with_pr[result_with_pr["task"] == "classification"].iloc[0]
+    assert clf_row["model_name"] == "random_forest"
+    assert clf_row["primary_metric"] == "pr_auc"
+    assert clf_row["score"] == 0.7
+
+    # 2. Test fallback to roc_auc sorting when pr_auc is not present
+    classification_no_pr = pd.DataFrame(
+        [
+            {"animal_subset": "combined", "model_name": "logistic", "roc_auc": 0.7},
+            {"animal_subset": "combined", "model_name": "boosting", "roc_auc": 0.8},
+        ]
+    )
+    result_no_pr = best_model_rows(classification_no_pr, regression)
+    assert len(result_no_pr) == 2
+    assert set(result_no_pr["model_name"]) == {"boosting"}
+    assert set(result_no_pr["primary_metric"]) == {"roc_auc", "mae"}
+
+    clf_row_no_pr = result_no_pr[result_no_pr["task"] == "classification"].iloc[0]
+    assert clf_row_no_pr["model_name"] == "boosting"
+    assert clf_row_no_pr["primary_metric"] == "roc_auc"
+    assert clf_row_no_pr["score"] == 0.8
 
 
 def test_build_prediction_record_creates_model_features():
@@ -169,3 +199,111 @@ def test_visibility_need_from_prediction_labels_quadrants():
     assert visibility_need_from_prediction(0.7, 5) == "quick placement likely"
     assert visibility_need_from_prediction(0.7, 20) == "needs visibility"
     assert visibility_need_from_prediction(0.2, 20) == "long-stay risk"
+
+
+def test_los_days_to_bucket():
+    # <= 7
+    assert los_days_to_bucket(0.0) == "0-7d"
+    assert los_days_to_bucket(5.0) == "0-7d"
+    assert los_days_to_bucket(7.0) == "0-7d"
+
+    # 7 < days <= 30
+    assert los_days_to_bucket(7.1) == "8-30d"
+    assert los_days_to_bucket(15.0) == "8-30d"
+    assert los_days_to_bucket(30.0) == "8-30d"
+
+    # 30 < days <= 60
+    assert los_days_to_bucket(30.1) == "31-60d"
+    assert los_days_to_bucket(45.0) == "31-60d"
+    assert los_days_to_bucket(60.0) == "31-60d"
+
+    # 60 < days <= 90
+    assert los_days_to_bucket(60.1) == "61-90d"
+    assert los_days_to_bucket(75.0) == "61-90d"
+    assert los_days_to_bucket(90.0) == "61-90d"
+
+    # days > 90
+    assert los_days_to_bucket(90.1) == "90+d"
+    assert los_days_to_bucket(120.0) == "90+d"
+
+
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
+def test_predict_from_record_handles_calibration():
+    from unittest.mock import patch, MagicMock
+    import numpy as np
+
+    with patch("aac_adoption.dashboard.data.load_table") as mock_load_table, \
+         patch("aac_adoption.dashboard.data.load_model_metadata") as mock_load_model_metadata, \
+         patch("aac_adoption.dashboard.data.load_model") as mock_load_model, \
+         patch("aac_adoption.dashboard.data.artifact_path") as mock_artifact_path, \
+         patch("aac_adoption.dashboard.data.joblib.load") as mock_joblib_load:
+
+        # 1. Setup mock data
+        selection_df = pd.DataFrame([
+            {"selected": True, "task": "classification", "animal_subset": "combined", "model_name": "catboost"},
+            {"selected": True, "task": "regression", "animal_subset": "combined", "model_name": "catboost"},
+        ])
+        mock_load_table.return_value = selection_df
+
+        mock_load_model_metadata.return_value = {
+            "feature_columns": ["animal_type", "intake_type", "age_days"]
+        }
+
+        # 2. Setup mock models
+        mock_calibrated_clf = MagicMock()
+        mock_calibrated_clf.predict_proba.return_value = np.array([[0.1, 0.9]])
+        mock_joblib_load.return_value = mock_calibrated_clf
+
+        mock_base_clf = MagicMock()
+        mock_base_clf.predict_proba.return_value = np.array([[0.3, 0.7]])
+
+        mock_regressor = MagicMock()
+        mock_regressor.predict.return_value = np.array([math.log1p(15)])
+
+        def side_effect_load_model(models_dir, task, subset="combined", model_name="catboost"):
+            if task == "classification":
+                return mock_base_clf
+            else:
+                return mock_regressor
+
+        mock_load_model.side_effect = side_effect_load_model
+
+        # 3. Setup mock path
+        mock_path = MagicMock()
+        mock_artifact_path.return_value = mock_path
+
+        # Create test record
+        record = build_prediction_record(
+            animal_type="Dog",
+            intake_type="Stray",
+            intake_condition="Normal",
+            sex_upon_intake="Intact Male",
+            age_days=365.25 * 2,
+            breed="Labrador Retriever Mix",
+            color="Black/White",
+            has_name=True,
+            intake_date=pd.Timestamp("2024-06-01"),
+        )
+
+        # CASE A: Calibrated model exists
+        mock_path.exists.return_value = True
+
+        res_calibrated = predict_from_record(record, models_dir="models/advanced", subset="combined")
+
+        # Assertions for calibrated
+        assert res_calibrated["adoption_probability"] == 0.9
+        assert res_calibrated["predicted_days_to_outcome"] == pytest.approx(15.0)
+        assert res_calibrated["los_bucket"] == "8-30d"
+        mock_joblib_load.assert_called_once_with(mock_path)
+
+        # CASE B: Calibrated model does NOT exist (fallback to base classifier)
+        mock_joblib_load.reset_mock()
+        mock_path.exists.return_value = False
+
+        res_fallback = predict_from_record(record, models_dir="models/advanced", subset="combined")
+
+        # Assertions for fallback
+        assert res_fallback["adoption_probability"] == 0.7
+        assert res_fallback["predicted_days_to_outcome"] == pytest.approx(15.0)
+        assert res_fallback["los_bucket"] == "8-30d"
+        mock_joblib_load.assert_not_called()

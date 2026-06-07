@@ -8,6 +8,7 @@ from aac_adoption.optimization.hyperparam_tuning import (
     tune_histgradient_boosting_classification,
     tune_histgradient_boosting_regression,
 )
+from aac_adoption.models.tune import tune_models
 
 
 @pytest.fixture
@@ -68,3 +69,36 @@ def test_tune_empty_data():
     result = tune_histgradient_boosting_classification(empty_df)
     
     assert result["best_score"] > -float("inf") or result["best_params"] is None
+
+
+def test_tune_models_runs_successfully():
+    np.random.seed(42)
+    n_samples = 200
+    
+    df = pd.DataFrame({
+        "animal_type": np.random.choice(["Dog", "Cat"], n_samples),
+        "intake_type": np.random.choice(["Stray", "Owner Surrender"], n_samples),
+        "intake_condition": np.random.choice(["Normal", "Injured"], n_samples),
+        "sex_upon_intake": np.random.choice(["Neutered Male", "Spayed Female"], n_samples),
+        "age_days": np.random.randint(1, 3000, n_samples).astype(float),
+        "age_group": np.random.choice(["Adult", "Kitten/Puppy"], n_samples),
+        "intake_year": np.random.choice([2020, 2021, 2022], n_samples),
+        "intake_datetime": pd.date_range("2020-01-01", periods=n_samples, freq="D"),
+        "classification_target": np.random.choice([0, 1], n_samples, p=[0.85, 0.15]),
+        "regression_target_days": np.random.randint(1, 30, n_samples).astype(float),
+    })
+    
+    # Run tune_models with n_trials=2 for speed
+    best_params, studies = tune_models(df, n_trials=2)
+    
+    assert isinstance(best_params, dict)
+    assert isinstance(studies, dict)
+    assert "catboost_classification" in best_params
+    assert "catboost_regression" in best_params
+    assert "hist_gradient_boosting_classification" in best_params
+    assert "hist_gradient_boosting_regression" in best_params
+    
+    assert "catboost_classification" in studies
+    assert "catboost_regression" in studies
+    assert "hist_gradient_boosting_classification" in studies
+    assert "hist_gradient_boosting_regression" in studies

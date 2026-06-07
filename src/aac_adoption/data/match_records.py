@@ -46,6 +46,23 @@ def verify_reintake_patterns(
     return pd.DataFrame(episodes)
 
 
+def infer_censoring_reason(outcome_type: str) -> str:
+    """Determine censoring reason based on outcome type."""
+    outcome_lower = str(outcome_type).lower().strip() if pd.notna(outcome_type) else ""
+    if outcome_lower == "adoption":
+        return "adopted"
+    elif outcome_lower in ["transfer", "moved", "reintake"]:
+        return "censored_transfer"
+    elif outcome_lower in ["euthanize", "euthanasia"]:
+        return "censored_euthanasia"
+    elif outcome_lower in ["return_to_owner", "returned"]:
+        return "censored_return"
+    elif outcome_lower in ["din", "disappear", "missing"]:
+        return "censored_lost"
+    else:
+        return "censored_unknown"
+
+
 def match_intakes_to_future_outcomes(
     intakes: pd.DataFrame,
     outcomes: pd.DataFrame,
@@ -69,6 +86,11 @@ def match_intakes_to_future_outcomes(
     outcomes_by_animal = {}
     for row in outcomes_sorted:
         outcomes_by_animal.setdefault(row["animal_id"], []).append(row)
+    
+    if "intake_datetime" not in intakes.columns:
+        raise ValueError("Intake data must contain intake_datetime column")
+    if "outcome_datetime" not in outcomes.columns:
+        raise ValueError("Outcome data must contain outcome_datetime column")
 
     intakes_sorted = intakes.sort_values("intake_datetime").to_dict("records")
     intakes_by_animal = {}
@@ -102,7 +124,11 @@ def match_intakes_to_future_outcomes(
                 row["is_reintake"] = episode_info.get("is_reintake", False)
                 row["days_since_last_stay"] = episode_info.get("days_since_last_stay")
                 
-                # Check for ambiguity: does another intake happen before this outcome?
+                reason = infer_censoring_reason(outcome.get("outcome_type"))
+                row["censoring_reason"] = reason
+                row["event_type"] = "adoption" if reason == "adopted" else "censored"
+                row["censoring_date"] = outcome.get("outcome_datetime")
+                
                 row["is_ambiguous_match"] = False
                 for next_intake in animal_intakes_list:
                     if next_intake["intake_datetime"] > intake["intake_datetime"] and next_intake["intake_datetime"] < outcome["outcome_datetime"]:
@@ -113,5 +139,25 @@ def match_intakes_to_future_outcomes(
                 outcome_index += 1
             else:
                 unmatched_intakes += 1
+
+    if unmatched_intakes > 0:
+        intakes_with_no_outcome = [
+            intake for animal_id, animal_intakes_list in intakes_by_animal.items()
+            for intake in animal_intakes_list
+            if animal_id not in outcomes_by_animal or not any(
+                o["outcome_datetime"] >= intake["intake_datetime"] 
+                for o in outcomes_by_animal.get(animal_id, [])
+            )
+        ]
+        for intake in intakes_with_no_outcome:
+            row = intake.copy()
+            row["censoring_reason"] = "still_in_shelter"
+            row["event_type"] = "censored"
+            row["censoring_date"] = None
+            episode_info = episodes_by_time.get(intake["intake_datetime"], {})
+            row["episode_number"] = episode_info.get("episode_number", 1)
+            row["is_reintake"] = episode_info.get("is_reintake", False)
+            row["days_since_last_stay"] = episode_info.get("days_since_last_stay")
+            rows.append(row)
 
     return pd.DataFrame(rows), unmatched_intakes

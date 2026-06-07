@@ -27,13 +27,15 @@ def main():
                         help="Path to modeling dataset")
     parser.add_argument("--output", type=str, default=DEFAULT_OUTPUT,
                         help="Output CSV path")
-    parser.add_argument("--target", type=str, default=DEFAULT_TARGET,
-                        help="Target column name")
+    parser.add_argument("--target", type=str, default=None,
+                        help="Target column name (if None, runs both classification and regression)")
     parser.add_argument("--subset", type=str, default=DEFAULT_SUBSET,
                         choices=["combined", "dogs", "cats"],
                         help="Animal subset")
     parser.add_argument("--n_bootstraps", type=int, default=100,
                         help="Number of bootstrap iterations for CI")
+    parser.add_argument("--quick", action="store_true",
+                        help="Quick mode: run only 2 windows")
     
     args = parser.parse_args()
     
@@ -44,21 +46,41 @@ def main():
     df = pd.read_csv(data_path)
     
     print(f"Running yearly backtesting on {len(df)} records...")
-    print(f"Target: {args.target}, Subset: {args.subset}")
+    print(f"Subset: {args.subset}, Quick mode: {args.quick}")
     
-    results = run_yearly_backtesting(
-        df,
-        target_column=args.target,
-        animal_subset=args.subset,
-        output_path=args.output,
-        compute_ci=True,
-        bootstrap_n=args.n_bootstraps,
-    )
+    if args.target:
+        targets = [args.target]
+    else:
+        targets = ["classification_target", "regression_target_days"]
     
-    print(f"Generated {len(results)} backtesting rows")
-    print(f"Saved to: {args.output}")
-    
-    return results
+    all_results = []
+    for target in targets:
+        print(f"Running backtesting for target: {target}")
+        results = run_yearly_backtesting(
+            df,
+            target_column=target,
+            animal_subset=args.subset,
+            output_path=None,
+            compute_ci=True,
+            bootstrap_n=args.n_bootstraps,
+            quick=args.quick,
+        )
+        if not results.empty:
+            all_results.append(results)
+            
+    if all_results:
+        final_df = pd.concat(all_results, ignore_index=True)
+    else:
+        final_df = pd.DataFrame()
+        
+    if args.output and not final_df.empty:
+        output_path = Path(args.output)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        final_df.to_csv(output_path, index=False)
+        print(f"Generated {len(final_df)} backtesting rows")
+        print(f"Saved to: {args.output}")
+        
+    return final_df
 
 
 if __name__ == "__main__":

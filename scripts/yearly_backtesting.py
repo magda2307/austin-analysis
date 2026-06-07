@@ -1,4 +1,20 @@
-"""Yearly temporal backtesting for slice 13."""
+"""Yearly temporal backtesting for slice 13.
+
+Uses train periods 2013-2018, 2013-2019, 2013-2020, 2013-2021, 2013-2022, 2013-2023
+and tests on corresponding next years: 2019, 2020, 2021, 2022, 2023, 2024.
+
+Tests multiple models:
+- CatBoostClassifier (auto_class_weights="Balanced")
+- CatBoostRegressor
+- HistGradientBoostingClassifier (class_weight="balanced")
+- HistGradientBoostingRegressor
+
+Metrics per model/year:
+- Classification: PR-AUC, ROC-AUC, Brier score, ECE
+- Regression: MAE, RMSE, R²
+
+Cluster-aware bootstrap confidence intervals (95%) for key metrics.
+"""
 
 from __future__ import annotations
 
@@ -10,14 +26,15 @@ SRC_DIR = PROJECT_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 from catboost import CatBoostClassifier, CatBoostRegressor
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
+from sklearn.metrics import roc_auc_score, average_precision_score, brier_score_loss
 
 from aac_adoption.config import RANDOM_STATE
 from aac_adoption.features.feature_sets import (
@@ -33,7 +50,9 @@ from aac_adoption.models.evaluate import (
 )
 from aac_adoption.models.split import make_time_split
 
-TRAIN_YEARS = [2013, 2014, 2015, 2016, 2017, 2018]
+TRAIN_START = 2013
+TRAIN_ENDS = [2018, 2019, 2020, 2021, 2022, 2023]
+TEST_YEARS = [2019, 2020, 2021, 2022, 2023, 2024]
 ANIMAL_SUBSETS = ["combined", "dogs", "cats"]
 
 
@@ -63,11 +82,11 @@ def make_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     categorical_features = [c for c in categorical_features if c in native_categorical]
     
     numeric_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median"))
+        ("imputer", SimpleImputer(strategy="constant", fill_value=0))
     ])
     categorical_pipeline = Pipeline(steps=[
         ("as_object", FunctionTransformer(categorical_to_object, feature_names_out="one-to-one")),
-        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("imputer", SimpleImputer(strategy="constant", fill_value="Unknown")),
         ("onehot", OneHotEncoder(handle_unknown="ignore", min_frequency=20, sparse_output=False)),
     ])
     
@@ -80,8 +99,8 @@ def make_preprocessor(df: pd.DataFrame) -> ColumnTransformer:
     )
 
 
-def prepare_data(df: pd.DataFrame, target_column: str, years: list[int]) -> pd.DataFrame:
-    subset_df = df[df["intake_year"].isin(years)]
+def prepare_data(df: pd.DataFrame, target_column: str, train_years: list[int]) -> pd.DataFrame:
+    subset_df = df[df["intake_year"].isin(train_years)]
     subset_df = subset_df.dropna(subset=[target_column])
     return subset_df
 
@@ -92,96 +111,99 @@ def get_test_data(df: pd.DataFrame, target_column: str, test_year: int) -> pd.Da
     return test_df
 
 
-def fit_and_evaluate_catboost(
-    model_cls,
-    df: pd.DataFrame,
-    target_column: str,
-    feature_columns: list[str],
-    train_years: list[int],
-    test_year: int,
-    subset: str,
-    model_params: dict,
-) -> dict | None:
-    train_df = prepare_data(df, target_column, train_years)
-    test_df = get_test_data(df, target_column, test_year)
+def compute_classification_metrics_with_bootstrap(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    y_score: np.ndarray,
+    animal_ids: np.ndarray | None,
+) -> dict:
+    """Compute classification metrics with cluster-aware bootstrap CI."""
+    base_metrics = classification_metrics(y_true, y_pred, y_score, compute_ci=False)
     
-    if train_df.empty or test_df.empty:
-        return None
+    if animal_ids is not None:
+        animal_ids_arr = np.asarray(animal_ids)
+    else:
+        animal_ids_arr = None
     
-    split = make_time_split(train_df, target_column, animal_subset=subset)
-    if split.train.empty or (subset in ["dogs", "cats"] and split.test.empty):
-        return None
+    base_metrics["pr_auc"] = float(average_precision_score(y_true, y_score))
+    base_metrics["roc_auc"] = float(roc_auc_score(y_true, y_score))
+    base_metrics["brier_score"] = float(brier_score_loss(y_true, y_score))
+    base_metrics["expected_calibration_error"] = expected_calibration_error(y_true, y_score)
     
-    pipeline = Pipeline(steps=[
-        ("preprocess", make_preprocessor(split.train[feature_columns])),
-        ("model", model_cls(**model_params)),
-    ])
+    if animal_ids_arr is not None and len(np.unique(animal_ids_arr)) >= 2:
+        ci_pr = bootstrap_ci(
+            y_true, y_pred, average_precision_score,
+            y_score=y_score, n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        ci_roc = bootstrap_ci(
+            y_true, y_pred, roc_auc_score,
+            y_score=y_score, n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        ci_brier = bootstrap_ci(
+            y_true, y_pred, brier_score_loss,
+            y_score=y_score, n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        ci_ece = bootstrap_ci(
+            y_true, y_pred, expected_calibration_error,
+            y_score=y_score, n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        
+        base_metrics["pr_auc_lower"], base_metrics["pr_auc_upper"] = ci_pr
+        base_metrics["roc_auc_lower"], base_metrics["roc_auc_upper"] = ci_roc
+        base_metrics["brier_lower"], base_metrics["brier_upper"] = ci_brier
+        base_metrics["ece_lower"], base_metrics["ece_upper"] = ci_ece
+    else:
+        base_metrics["pr_auc_lower"] = base_metrics["pr_auc_upper"] = np.nan
+        base_metrics["roc_auc_lower"] = base_metrics["roc_auc_upper"] = np.nan
+        base_metrics["brier_lower"] = base_metrics["brier_upper"] = np.nan
+        base_metrics["ece_lower"] = base_metrics["ece_upper"] = np.nan
     
-    fit_params = {}
-    if target_column == "classification_target" and "sample_weight" in split.train.columns:
-        fit_params["model__sample_weight"] = split.train["sample_weight"]
-    
-    pipeline.fit(split.train[feature_columns], split.train[target_column], **fit_params)
-    
-    predictions = pipeline.predict(test_df[feature_columns])
-    y_score = None
-    if hasattr(pipeline, "predict_proba"):
-        proba = pipeline.predict_proba(test_df[feature_columns])
-        if proba.shape[1] == 2:
-            y_score = proba[:, 1]
-    
-    metrics = classification_metrics(
-        test_df[target_column],
-        predictions,
-        y_score,
-        compute_ci=True
-    )
-    
-    return metrics
+    return base_metrics
 
 
-def fit_and_evaluate_histgradient(
-    model_cls,
-    df: pd.DataFrame,
-    target_column: str,
-    feature_columns: list[str],
-    train_years: list[int],
-    test_year: int,
-    subset: str,
-    model_params: dict,
-) -> dict | None:
-    train_df = prepare_data(df, target_column, train_years)
-    test_df = get_test_data(df, target_column, test_year)
+def compute_regression_metrics_with_bootstrap(
+    y_true: np.ndarray,
+    y_pred: np.ndarray,
+    animal_ids: np.ndarray | None,
+) -> dict:
+    """Compute regression metrics with cluster-aware bootstrap CI."""
+    base_metrics = regression_metrics(y_true, y_pred, compute_ci=False)
     
-    if train_df.empty or test_df.empty:
-        return None
+    if animal_ids is not None:
+        animal_ids_arr = np.asarray(animal_ids)
+    else:
+        animal_ids_arr = None
     
-    split = make_time_split(train_df, target_column, animal_subset=subset)
-    if split.train.empty or (subset in ["dogs", "cats"] and split.test.empty):
-        return None
+    if animal_ids_arr is not None and len(np.unique(animal_ids_arr)) >= 2:
+        ci_mae = bootstrap_ci(
+            y_true, y_pred, lambda yt, yp: np.mean(np.abs(yt - yp)),
+            n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        ci_rmse = bootstrap_ci(
+            y_true, y_pred, lambda yt, yp: np.sqrt(np.mean((yt - yp) ** 2)),
+            n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        ci_r2 = bootstrap_ci(
+            y_true, y_pred, lambda yt, yp: 1 - np.sum((yt - yp) ** 2) / np.sum((yt - np.mean(yt)) ** 2),
+            n_bootstraps=1000, random_state=RANDOM_STATE,
+            animal_ids=animal_ids_arr
+        )
+        
+        base_metrics["mae_lower"], base_metrics["mae_upper"] = ci_mae
+        base_metrics["rmse_lower"], base_metrics["rmse_upper"] = ci_rmse
+        base_metrics["r2_lower"], base_metrics["r2_upper"] = ci_r2
+    else:
+        base_metrics["mae_lower"] = base_metrics["mae_upper"] = np.nan
+        base_metrics["rmse_lower"] = base_metrics["rmse_upper"] = np.nan
+        base_metrics["r2_lower"] = base_metrics["r2_upper"] = np.nan
     
-    pipeline = Pipeline(steps=[
-        ("preprocess", make_preprocessor(split.train[feature_columns])),
-        ("model", model_cls(**model_params)),
-    ])
-    
-    pipeline.fit(split.train[feature_columns], split.train[target_column])
-    
-    predictions = pipeline.predict(test_df[feature_columns])
-    y_score = None
-    if hasattr(pipeline, "predict_proba"):
-        proba = pipeline.predict_proba(test_df[feature_columns])
-        if proba.shape[1] == 2:
-            y_score = proba[:, 1]
-    
-    metrics = classification_metrics(
-        test_df[target_column],
-        predictions,
-        y_score,
-        compute_ci=True
-    )
-    
-    return metrics
+    return base_metrics
 
 
 def run_yearly_backtesting(
@@ -194,28 +216,22 @@ def run_yearly_backtesting(
     
     results = []
     
-    for subset in ANIMAL_SUBSETS:
-        for i, train_start in enumerate(TRAIN_YEARS):
-            train_years = list(range(train_start, 2019))
-            test_year = 2019 + i
-            
-            for target_type, target_column in [("classification", "classification_target"), ("regression", "regression_target_days")]:
+    for target_type, target_column in [("classification", "classification_target"), ("regression", "regression_target_days")]:
+        for subset in ANIMAL_SUBSETS:
+            for i, train_end in enumerate(TRAIN_ENDS):
+                train_years = list(range(TRAIN_START, train_end + 1))
+                test_year = TEST_YEARS[i]
+                
                 train_df = prepare_data(df, target_column, train_years)
-                train_df_subset, _ = (subset.lower(), "combined") if subset.lower() == "combined" else (subset.lower(), subset.lower())
-                if train_df_subset == "dogs":
-                    train_df = train_df[train_df["animal_type"].astype(str).str.lower() == "dog"]
-                elif train_df_subset == "cats":
-                    train_df = train_df[train_df["animal_type"].astype(str).str.lower() == "cat"]
-                
-                train_df = train_df.dropna(subset=[target_column])
-                
                 test_df = get_test_data(df, target_column, test_year)
-                if train_df_subset == "dogs":
-                    test_df = test_df[test_df["animal_type"].astype(str).str.lower() == "dog"]
-                elif train_df_subset == "cats":
-                    test_df = test_df[test_df["animal_type"].astype(str).str.lower() == "cat"]
                 
-                test_df = test_df.dropna(subset=[target_column])
+                if train_df.empty or test_df.empty:
+                    continue
+                
+                if subset != "combined":
+                    subset_lower = subset.lower()
+                    train_df = train_df[train_df["animal_type"].astype(str).str.lower() == subset_lower]
+                    test_df = test_df[test_df["animal_type"].astype(str).str.lower() == subset_lower]
                 
                 if train_df.empty or test_df.empty:
                     continue
@@ -223,6 +239,8 @@ def run_yearly_backtesting(
                 feature_columns = model_feature_columns(train_df)
                 if not feature_columns:
                     continue
+                
+                preprocessor = make_preprocessor(train_df[feature_columns])
                 
                 if target_type == "classification":
                     catboost_model = CatBoostClassifier(
@@ -243,15 +261,12 @@ def run_yearly_backtesting(
                         random_state=RANDOM_STATE,
                     )
                 
-                catboost_preprocessor = make_preprocessor(train_df[feature_columns])
-                hist_preprocessor = make_preprocessor(train_df[feature_columns])
-                
                 catboost_pipeline = Pipeline(steps=[
-                    ("preprocess", catboost_preprocessor),
+                    ("preprocess", preprocessor),
                     ("model", catboost_model),
                 ])
                 hist_pipeline = Pipeline(steps=[
-                    ("preprocess", hist_preprocessor),
+                    ("preprocess", preprocessor),
                     ("model", hist_model),
                 ])
                 
@@ -261,49 +276,36 @@ def run_yearly_backtesting(
                 catboost_preds = catboost_pipeline.predict(test_df[feature_columns])
                 hist_preds = hist_pipeline.predict(test_df[feature_columns])
                 
-                catboost_score = None
-                hist_score = None
-                
-                catboost_metrics = {}
-                hist_metrics = {}
-                catboost_metrics_reg = {}
-                hist_metrics_reg = {}
-                
                 if target_type == "classification":
                     catboost_proba = catboost_pipeline.predict_proba(test_df[feature_columns])
                     hist_proba = hist_pipeline.predict_proba(test_df[feature_columns])
+                    
+                    catboost_score = None
+                    hist_score = None
                     if catboost_proba.shape[1] == 2:
                         catboost_score = catboost_proba[:, 1]
                     if hist_proba.shape[1] == 2:
                         hist_score = hist_proba[:, 1]
                     
-                    catboost_metrics = classification_metrics(
-                        test_df[target_column],
+                    if test_df["animal_id"].dtype == "object":
+                        animal_ids = test_df["animal_id"].values
+                    else:
+                        animal_ids = test_df["animal_id"].astype(str).values
+                    
+                    catboost_metrics = compute_classification_metrics_with_bootstrap(
+                        test_df[target_column].values,
                         catboost_preds,
                         catboost_score,
-                        compute_ci=True
+                        animal_ids if catboost_score is not None else None
                     )
-                    hist_metrics = classification_metrics(
-                        test_df[target_column],
+                    
+                    hist_metrics = compute_classification_metrics_with_bootstrap(
+                        test_df[target_column].values,
                         hist_preds,
                         hist_score,
-                        compute_ci=True
+                        animal_ids if hist_score is not None else None
                     )
-                else:
-                    catboost_metrics_reg = regression_metrics(
-                        test_df[target_column],
-                        catboost_preds,
-                        compute_ci=True
-                    )
-                    hist_metrics_reg = regression_metrics(
-                        test_df[target_column],
-                        hist_preds,
-                        compute_ci=True
-                    )
-                
-                test_df["animal_id"] = test_df["animal_id"].astype(str)
-                
-                if target_type == "classification":
+                    
                     results.append({
                         "train_years": f"{train_years[0]}-{train_years[-1]}",
                         "test_year": test_year,
@@ -320,10 +322,10 @@ def run_yearly_backtesting(
                         "pr_auc_upper": catboost_metrics.get("pr_auc_upper"),
                         "roc_auc_lower": catboost_metrics.get("roc_auc_lower"),
                         "roc_auc_upper": catboost_metrics.get("roc_auc_upper"),
-                        "brier_lower": None,
-                        "brier_upper": None,
-                        "ece_lower": None,
-                        "ece_upper": None,
+                        "brier_lower": catboost_metrics.get("brier_lower"),
+                        "brier_upper": catboost_metrics.get("brier_upper"),
+                        "ece_lower": catboost_metrics.get("ece_lower"),
+                        "ece_upper": catboost_metrics.get("ece_upper"),
                         "mae_lower": None,
                         "mae_upper": None,
                         "rmse_lower": None,
@@ -348,10 +350,10 @@ def run_yearly_backtesting(
                         "pr_auc_upper": hist_metrics.get("pr_auc_upper"),
                         "roc_auc_lower": hist_metrics.get("roc_auc_lower"),
                         "roc_auc_upper": hist_metrics.get("roc_auc_upper"),
-                        "brier_lower": None,
-                        "brier_upper": None,
-                        "ece_lower": None,
-                        "ece_upper": None,
+                        "brier_lower": hist_metrics.get("brier_lower"),
+                        "brier_upper": hist_metrics.get("brier_upper"),
+                        "ece_lower": hist_metrics.get("ece_lower"),
+                        "ece_upper": hist_metrics.get("ece_upper"),
                         "mae_lower": None,
                         "mae_upper": None,
                         "rmse_lower": None,
@@ -359,7 +361,25 @@ def run_yearly_backtesting(
                         "r2_lower": None,
                         "r2_upper": None,
                     })
+                
                 else:
+                    if test_df["animal_id"].dtype == "object":
+                        animal_ids = test_df["animal_id"].values
+                    else:
+                        animal_ids = test_df["animal_id"].astype(str).values
+                    
+                    catboost_metrics = compute_regression_metrics_with_bootstrap(
+                        test_df[target_column].values,
+                        catboost_preds,
+                        animal_ids
+                    )
+                    
+                    hist_metrics = compute_regression_metrics_with_bootstrap(
+                        test_df[target_column].values,
+                        hist_preds,
+                        animal_ids
+                    )
+                    
                     results.append({
                         "train_years": f"{train_years[0]}-{train_years[-1]}",
                         "test_year": test_year,
@@ -369,9 +389,9 @@ def run_yearly_backtesting(
                         "roc_auc": None,
                         "brier": None,
                         "ece": None,
-                        "mae": catboost_metrics_reg.get("mae"),
-                        "rmse": catboost_metrics_reg.get("rmse"),
-                        "r2": catboost_metrics_reg.get("r2"),
+                        "mae": catboost_metrics.get("mae"),
+                        "rmse": catboost_metrics.get("rmse"),
+                        "r2": catboost_metrics.get("r2"),
                         "pr_auc_lower": None,
                         "pr_auc_upper": None,
                         "roc_auc_lower": None,
@@ -380,12 +400,12 @@ def run_yearly_backtesting(
                         "brier_upper": None,
                         "ece_lower": None,
                         "ece_upper": None,
-                        "mae_lower": catboost_metrics_reg.get("mae_lower"),
-                        "mae_upper": catboost_metrics_reg.get("mae_upper"),
-                        "rmse_lower": None,
-                        "rmse_upper": None,
-                        "r2_lower": None,
-                        "r2_upper": None,
+                        "mae_lower": catboost_metrics.get("mae_lower"),
+                        "mae_upper": catboost_metrics.get("mae_upper"),
+                        "rmse_lower": catboost_metrics.get("rmse_lower"),
+                        "rmse_upper": catboost_metrics.get("rmse_upper"),
+                        "r2_lower": catboost_metrics.get("r2_lower"),
+                        "r2_upper": catboost_metrics.get("r2_upper"),
                     })
                     
                     results.append({
@@ -397,9 +417,9 @@ def run_yearly_backtesting(
                         "roc_auc": None,
                         "brier": None,
                         "ece": None,
-                        "mae": hist_metrics_reg.get("mae"),
-                        "rmse": hist_metrics_reg.get("rmse"),
-                        "r2": hist_metrics_reg.get("r2"),
+                        "mae": hist_metrics.get("mae"),
+                        "rmse": hist_metrics.get("rmse"),
+                        "r2": hist_metrics.get("r2"),
                         "pr_auc_lower": None,
                         "pr_auc_upper": None,
                         "roc_auc_lower": None,
@@ -408,12 +428,12 @@ def run_yearly_backtesting(
                         "brier_upper": None,
                         "ece_lower": None,
                         "ece_upper": None,
-                        "mae_lower": hist_metrics_reg.get("mae_lower"),
-                        "mae_upper": hist_metrics_reg.get("mae_upper"),
-                        "rmse_lower": None,
-                        "rmse_upper": None,
-                        "r2_lower": None,
-                        "r2_upper": None,
+                        "mae_lower": hist_metrics.get("mae_lower"),
+                        "mae_upper": hist_metrics.get("mae_upper"),
+                        "rmse_lower": hist_metrics.get("rmse_lower"),
+                        "rmse_upper": hist_metrics.get("rmse_upper"),
+                        "r2_lower": hist_metrics.get("r2_lower"),
+                        "r2_upper": hist_metrics.get("r2_upper"),
                     })
     
     results_df = pd.DataFrame(results)
