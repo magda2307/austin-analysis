@@ -42,3 +42,7 @@ def test_boosting_classification_reproducibility(tmp_path: Path):
     # Assert exactly 5 decimal places match to ensure absolute deterministic output
     golden_val = 0.5 if is_fixture else 0.66029
     assert round(combined_result["roc_auc"], 5) == golden_val
+
+
+import pytest
+pytestmark = pytest.mark.slow

@@ -1,10 +1,21 @@
-"""First-level model interpretability outputs."""
+from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
+
+def _scalar_metadata(metadata: dict) -> dict:
+    """Convert list/dict metadata values to JSON strings for safe DataFrame broadcasting."""
+    out = {}
+    for key, val in metadata.items():
+        if isinstance(val, (list, dict)):
+            out[key] = json.dumps(val)
+        else:
+            out[key] = val
+    return out
 
 def get_feature_names(pipeline) -> list[str]:
     """Get transformed feature names from fitted sklearn pipeline."""
@@ -23,9 +34,10 @@ def logistic_regression_coefficients(pipeline, metadata: dict) -> pd.DataFrame:
             "feature": features,
             "coefficient": coefficients,
             "abs_coefficient": np.abs(coefficients),
-            **metadata,
         }
     )
+    for key, val in _scalar_metadata(metadata).items():
+        table[key] = val
     return table.sort_values("abs_coefficient", ascending=False)
 
 
@@ -37,9 +49,10 @@ def random_forest_feature_importance(pipeline, metadata: dict) -> pd.DataFrame:
         {
             "feature": features,
             "importance": model.feature_importances_,
-            **metadata,
         }
     )
+    for key, val in _scalar_metadata(metadata).items():
+        table[key] = val
     return table.sort_values("importance", ascending=False)
 
 

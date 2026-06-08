@@ -51,8 +51,8 @@ def main():
     parser.add_argument(
         "--validation-gap-years",
         type=int,
-        default=3,
-        help="Gap years between training end and test start (default: 3).",
+        default=4,
+        help="Gap years between training end and test start (default: 4).",
     )
 
     # Parse args immediately so --help exits instantly without imports

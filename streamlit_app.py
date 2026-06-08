@@ -466,6 +466,13 @@ selected_language = st.sidebar.selectbox(
 )
 st.session_state["language"] = LANGUAGES[selected_language]
 
+st.sidebar.divider()
+if st.sidebar.button(t("Refresh Data"), key="refresh_data_btn"):
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.session_state.clear()
+    st.rerun()
+
 st.title(t("AAC Adoption Thesis Demo"))
 st.caption(t("Artifact-driven dashboard for model results, hypothesis signals, and model sensitivity checks."))
 
@@ -582,10 +589,12 @@ with tabs[2]:
         selected_label = st.selectbox(t("Animal profile"), labels, format_func=localized_profile_label)
         selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
         profile_record = build_profile_prediction_record(selected)
-        profile_prediction: dict[str, float] | None = None
+        profile_prediction = None
         profile_similarity = similar_historical_cases(DATA_PATH, profile_record)
         try:
             profile_prediction = predict_from_record(profile_record, MODELS_DIR)
+            if not profile_prediction.ok:
+                profile_prediction = None
         except Exception:
             profile_prediction = None
 
@@ -601,7 +610,7 @@ with tabs[2]:
             f"{t(str(selected.get('health_profile', 'unknown health')))} | "
             f"{t(str(selected.get('behavior_support_flag', 'unknown behavior signal')))} | "
             f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
-            f"{t('has recorded name') if bool(selected['is_named']) else t('no recorded name')}"
+            f"{t('has recorded name') if selected['is_named'] == True else t('no recorded name')}"
         )
         mix_cols = st.columns(3)
         mix_cols[0].metric(t("Transfer rate"), f"{selected.get('transfer_rate_pct', 0):.1f}%")
@@ -612,12 +621,12 @@ with tabs[2]:
         if profile_prediction is None:
             st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards."))
         else:
-            predicted_probability = profile_prediction["adoption_probability"]
-            predicted_days = profile_prediction["predicted_days_to_outcome"]
-            wait_bucket = profile_prediction["los_bucket"]
+            predicted_probability = profile_prediction.adoption_probability
+            predicted_days = profile_prediction.predicted_days_to_outcome
+            wait_bucket = profile_prediction.los_bucket
 
             model_cols = st.columns(4)
-            prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.get("is_calibrated") else t("Predicted adoption chance")
+            prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.is_calibrated else t("Predicted adoption chance")
             model_cols[0].metric(prob_label, f"{predicted_probability * 100:.1f}%")
             model_cols[1].metric(t("Predicted days to outcome"), f"{predicted_days:.1f} days")
             model_cols[2].metric(t("Length-of-stay bucket"), wait_bucket)
@@ -759,7 +768,7 @@ with tabs[4]:
             )
         if not limitations.empty:
             st.subheader(t("Cohort Reliability Limits"))
-            reliable = limitations[~limitations["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in limitations.columns else limitations
+            reliable = limitations[~limitations["small_cohort_flag"].fillna(False).astype(bool)] if "small_cohort_flag" in limitations.columns else limitations
             st.dataframe(reliable.head(30), width='stretch', hide_index=True)
             st.altair_chart(
                 alt.Chart(reliable.head(30))
@@ -778,7 +787,7 @@ with tabs[4]:
             subgroup_options = sorted(subgroup_reliability_table["cohort"].dropna().astype(str).unique().tolist())
             subgroup_choice = st.selectbox(t("Reliability subgroup"), subgroup_options)
             subgroup_view = subgroup_reliability_table[subgroup_reliability_table["cohort"].astype(str).eq(subgroup_choice)]
-            stable_view = subgroup_view[~subgroup_view["small_cohort_flag"].astype(bool)] if "small_cohort_flag" in subgroup_view.columns else subgroup_view
+            stable_view = subgroup_view[~subgroup_view["small_cohort_flag"].fillna(False).astype(bool)] if "small_cohort_flag" in subgroup_view.columns else subgroup_view
             st.dataframe(stable_view, width='stretch', hide_index=True)
             st.altair_chart(
                 alt.Chart(stable_view)
@@ -977,7 +986,7 @@ with tabs[9]:
 
     left, right = st.columns(2)
     with left:
-        animal_type = st.selectbox(t("Animal type"), ["Dog", "Cat"], format_func=t)
+        animal_type = st.selectbox(t("Animal type"), ["Dog", "Cat"], format_func=t, key="pred_animal_type")
         intake_type = st.selectbox(
             t("Intake type"),
             ["Stray", "Owner Surrender", "Public Assist", "Abandoned", "Euthanasia Request"],
@@ -1012,26 +1021,37 @@ with tabs[9]:
         intake_date=pd.Timestamp(intake_date),
     )
 
-    if st.button(t("Run prediction"), type="primary"):
+    import hashlib
+    record_hash = hashlib.md5(str(record.to_dict()).encode()).hexdigest()
+
+    if st.button(t("Run prediction"), type="primary", key="run_prediction_btn"):
         try:
             prediction = predict_from_record(record, MODELS_DIR)
-            probability_pct = prediction["adoption_probability"] * 100
-            days = prediction["predicted_days_to_outcome"]
-            wait_bucket = prediction["los_bucket"]
-            
-            col1, col2, col3 = st.columns(3)
-            prob_label = t("Predicted adoption probability (calibrated)") if prediction.get("is_calibrated") else t("Predicted adoption probability")
-            col1.metric(prob_label, f"{probability_pct:.1f}%")
-            col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
-            col3.metric(t("Length-of-stay bucket"), wait_bucket)
-            st.dataframe(record, width='stretch', hide_index=True)
-            similar = similar_historical_cases(DATA_PATH, record)
-            if not similar.empty:
-                st.subheader(t("Similar Historical Cases"))
-                st.dataframe(similar, width='stretch', hide_index=True)
+            st.session_state["prediction_result"] = prediction
+            st.session_state["prediction_hash"] = record_hash
         except Exception as error:
             st.error(str(error))
             st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first."))
+
+    if st.session_state.get("prediction_hash") == record_hash and "prediction_result" in st.session_state:
+        prediction = st.session_state["prediction_result"]
+        probability_pct = prediction.adoption_probability * 100
+        days = prediction.predicted_days_to_outcome
+        wait_bucket = prediction.los_bucket
+        
+        col1, col2, col3 = st.columns(3)
+        prob_label = t("Predicted adoption probability (calibrated)") if prediction.is_calibrated else t("Predicted adoption probability")
+        col1.metric(prob_label, f"{probability_pct:.1f}%")
+        col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
+        col3.metric(t("Length-of-stay bucket"), wait_bucket)
+        st.dataframe(record, width='stretch', hide_index=True)
+        similar = similar_historical_cases(DATA_PATH, record)
+        if not similar.empty:
+            st.subheader(t("Similar Historical Cases"))
+            st.dataframe(similar, width='stretch', hide_index=True)
+    elif "prediction_hash" in st.session_state and st.session_state["prediction_hash"] != record_hash:
+        st.session_state.pop("prediction_result", None)
+        st.session_state.pop("prediction_hash", None)
 
 with tabs[10]:
     st.subheader(t("Adoption Timeline"))
@@ -1176,7 +1196,7 @@ with tabs[12]:
         view = context_comparison.copy()
         view["direction"] = view.apply(
             lambda row: "improved"
-            if (row["delta"] > 0 and bool(row["higher_is_better"])) or (row["delta"] < 0 and not bool(row["higher_is_better"]))
+            if (row["delta"] > 0 and row["higher_is_better"] == True) or (row["delta"] < 0 and row["higher_is_better"] == False)
             else "worsened",
             axis=1,
         )

@@ -29,10 +29,6 @@ REQUIRED_MODELING_COLUMNS = {
     "adopted",
     "classification_target",
     "regression_target_days",
-    "is_censored",
-    "censoring_reason",
-    "event_type",
-    "followup_days_censored",
 }
 
 INTAKE_COLUMNS_TO_KEEP = [
@@ -60,10 +56,20 @@ OUTCOME_COLUMNS_TO_KEEP = [
 
 
 @dataclass(frozen=True)
+class HorizonDatasetBuildResult:
+    """Dataset with horizon-based targets for all intakes (matched + unresolved)."""
+
+    dataset: pd.DataFrame
+    observation_end: pd.Timestamp
+    horizon_days: tuple[int, ...]
+
+
+@dataclass(frozen=True)
 class DatasetBuildResult:
     """Processed dataset plus simple build diagnostics."""
 
     dataset: pd.DataFrame
+    unresolved_intakes: pd.DataFrame
     matched_rows: int
     unmatched_intakes: int
 
@@ -78,18 +84,7 @@ def _fill_missing_and_select(df: pd.DataFrame, columns: list[str]) -> pd.DataFra
     for col in columns:
         if col not in df.columns:
             # Set safe defaults/nulls for missing expected columns
-            if col in ["is_censored"]:
-                df[col] = False
-            elif col in ["censoring_reason"]:
-                df[col] = ""
-            elif col in ["event_type"]:
-                if "outcome_type" in df.columns:
-                    df[col] = df["outcome_type"].fillna("").astype(str).str.strip().str.lower()
-                else:
-                    df[col] = ""
-            elif col in ["followup_days_censored"]:
-                df[col] = df.get("days_to_outcome", np.nan)
-            elif col in ["outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]:
+            if col in ["outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]:
                 df[col] = pd.Series(pd.NA, index=df.index, dtype="object")
             elif col in ["adopted", "is_adopted"]:
                 df[col] = False
@@ -117,11 +112,22 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
     clean_intake_df = _keep_existing_columns(clean_intakes(intakes), INTAKE_COLUMNS_TO_KEEP)
     clean_outcome_df = _keep_existing_columns(clean_outcomes(outcomes), OUTCOME_COLUMNS_TO_KEEP)
 
-    matched, unmatched_intakes = match_intakes_to_future_outcomes(clean_intake_df, clean_outcome_df)
+    match_result = match_intakes_to_future_outcomes(clean_intake_df, clean_outcome_df, extract_end_date=extract_end_date)
+    matched = match_result.matched_episodes
+    unresolved_intakes = match_result.unresolved_intakes
+    unmatched_intakes = match_result.unmatched_intakes
+    
+    assert len(matched) + unmatched_intakes == len(clean_intake_df), "Intake count conservation failed"
+    
     if matched.empty:
         raise ValueError("No valid intake/outcome matches found")
 
     dataset = add_intake_features(matched)
+    if not unresolved_intakes.empty:
+        unresolved_intakes = add_intake_features(unresolved_intakes)
+        
+        pass
+
     dataset["days_to_outcome"] = (
         dataset["outcome_datetime"] - dataset["intake_datetime"]
     ).dt.total_seconds() / 86400
@@ -133,30 +139,12 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
     dataset["classification_target"] = dataset["adopted"].astype(int)
     dataset["regression_target_days"] = dataset["days_to_outcome"]
     
-    dataset["is_censored"] = False
-    dataset["censoring_reason"] = ""
-    dataset["event_type"] = outcome_type_normalized
-    dataset["followup_days_censored"] = dataset["days_to_outcome"]
     dataset["length_of_stay"] = dataset["days_to_outcome"]
     dataset["days_to_adoption"] = np.where(
         dataset["adopted"],
         dataset["days_to_outcome"],
         np.nan,
     )
-    
-    # Horizon-based targets and right-censoring safeguards
-    max_date = extract_end_date if extract_end_date is not None else max(dataset["intake_datetime"].max(), dataset["outcome_datetime"].max())
-    dataset["followup_days_available"] = (max_date - dataset["intake_datetime"]).dt.total_seconds() / 86400
-
-    for horizon in [7, 30, 60, 90]:
-        has_full_followup = dataset["followup_days_available"] >= horizon
-        adopted_in_horizon = dataset["adopted"] & (dataset["days_to_outcome"] <= horizon)
-        
-        dataset[f"adopted_in_{horizon}d"] = np.where(
-            has_full_followup | adopted_in_horizon,
-            np.where(adopted_in_horizon, 1.0, 0.0),
-            np.nan
-        )
     
     required_columns = [
         "animal_id",
@@ -174,44 +162,45 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
         raise ValueError(f"Missing required columns after dataset build: {missing}")
     
     # Normalize aliases before final selection (Rule 7)
-    if "is_named" not in dataset.columns:
-        if "name" in dataset.columns:
-            dataset["is_named"] = dataset["name"].fillna("").astype(str).str.strip().ne("")
-        else:
-            dataset["is_named"] = False
-            
-    if "has_name" not in dataset.columns:
-        dataset["has_name"] = dataset["is_named"]
+    for df in [dataset] + ([unresolved_intakes] if not unresolved_intakes.empty else []):
+        if "is_named" not in df.columns:
+            if "name" in df.columns:
+                df["is_named"] = df["name"].fillna("").astype(str).str.strip().ne("")
+            else:
+                df["is_named"] = False
+                
+        if "has_name" not in df.columns:
+            df["has_name"] = df["is_named"]
 
-    if "age_days" not in dataset.columns:
-        if "age_in_days" in dataset.columns:
-            dataset["age_days"] = dataset["age_in_days"]
-        elif "age_upon_intake" in dataset.columns:
-            from aac_adoption.features.feature_engineering import parse_age_to_days
-            dataset["age_days"] = dataset["age_upon_intake"].map(parse_age_to_days)
-        else:
-            dataset["age_days"] = np.nan
+        if "age_days" not in df.columns:
+            if "age_in_days" in df.columns:
+                df["age_days"] = df["age_in_days"]
+            elif "age_upon_intake" in df.columns:
+                from aac_adoption.features.feature_engineering import parse_age_to_days
+                df["age_days"] = df["age_upon_intake"].map(parse_age_to_days)
+            else:
+                df["age_days"] = np.nan
 
-    if "age_in_days" not in dataset.columns:
-        dataset["age_in_days"] = dataset["age_days"]
+        if "age_in_days" not in df.columns:
+            df["age_in_days"] = df["age_days"]
 
-    if "age_months" not in dataset.columns:
-        if "age_in_months" in dataset.columns:
-            dataset["age_months"] = dataset["age_in_months"]
-        else:
-            dataset["age_months"] = dataset["age_days"] / 30.0
+        if "age_months" not in df.columns:
+            if "age_in_months" in df.columns:
+                df["age_months"] = df["age_in_months"]
+            else:
+                df["age_months"] = df["age_days"] / 30.0
 
-    if "age_years" not in dataset.columns:
-        if "age_in_years" in dataset.columns:
-            dataset["age_years"] = dataset["age_in_years"]
-        else:
-            dataset["age_years"] = dataset["age_days"] / 365.0
+        if "age_years" not in df.columns:
+            if "age_in_years" in df.columns:
+                df["age_years"] = df["age_in_years"]
+            else:
+                df["age_years"] = df["age_days"] / 365.0
 
-    if "age_in_months" not in dataset.columns:
-        dataset["age_in_months"] = dataset["age_months"]
+        if "age_in_months" not in df.columns:
+            df["age_in_months"] = df["age_months"]
 
-    if "age_in_years" not in dataset.columns:
-        dataset["age_in_years"] = dataset["age_years"]
+        if "age_in_years" not in df.columns:
+            df["age_in_years"] = df["age_years"]
 
     # Optional outcome metadata (Rule 8)
     for col in ["outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]:
@@ -268,22 +257,14 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
         "target_adopted",
         "classification_target",
         "regression_target_days",
-        "days_to_adoption",
-        "followup_days_available",
-        "adopted_in_7d",
-        "adopted_in_30d",
-        "adopted_in_60d",
-        "adopted_in_90d",
-        "is_censored",
-        "censoring_reason",
-        "event_type",
-        "followup_days_censored"
+        "days_to_adoption"
     ]
     dataset = _fill_missing_and_select(dataset, final_columns)
     validate_modeling_dataset(dataset)
 
     return DatasetBuildResult(
         dataset=dataset,
+        unresolved_intakes=unresolved_intakes,
         matched_rows=len(dataset),
         unmatched_intakes=unmatched_intakes,
     )
@@ -310,10 +291,47 @@ def validate_modeling_dataset(dataset: pd.DataFrame) -> None:
     if target_mismatch:
         raise ValueError("classification_target does not match adopted flag")
 
-    required_censoring_cols = ["is_censored", "censoring_reason", "event_type", "followup_days_censored"]
-    missing_censoring = set(required_censoring_cols) - set(dataset.columns)
-    if missing_censoring:
-        raise ValueError(f"Missing censoring columns: {missing_censoring}")
+
+def build_horizon_dataset(
+    matched_dataset: pd.DataFrame,
+    unresolved_intakes: pd.DataFrame,
+    extract_end_date: pd.Timestamp,
+    horizons: tuple[int, ...] = (7, 30, 60, 90)
+) -> HorizonDatasetBuildResult:
+    """Build a separate all-intake horizon cohort."""
+    combined = pd.concat([matched_dataset, unresolved_intakes], ignore_index=True)
+    combined = combined.sort_values(["animal_id", "intake_datetime"])
+    
+    combined["next_intake_datetime"] = combined.groupby("animal_id")["intake_datetime"].shift(-1)
+    end_date_series = pd.Series(extract_end_date, index=combined.index)
+    
+    combined["observation_end_actual"] = np.where(
+        combined["next_intake_datetime"].notna(),
+        combined["next_intake_datetime"],
+        end_date_series
+    )
+    
+    combined["followup_days_available"] = (combined["observation_end_actual"] - combined["intake_datetime"]).dt.total_seconds() / 86400
+
+    for h in horizons:
+        is_matched = combined["outcome_datetime"].notna()
+        adopted = combined["adopted"].fillna(False)
+        outcome_within_h = is_matched & (combined["days_to_outcome"] <= h)
+        
+        cond1 = is_matched & adopted & outcome_within_h
+        cond2 = is_matched & (~adopted) & outcome_within_h
+        cond3 = is_matched & (combined["days_to_outcome"] > h)
+        cond4 = (~is_matched) & (combined["followup_days_available"] >= h)
+        
+        combined[f"adopted_in_{h}d"] = np.nan
+        combined.loc[cond1, f"adopted_in_{h}d"] = 1.0
+        combined.loc[cond2 | cond3 | cond4, f"adopted_in_{h}d"] = 0.0
+
+    return HorizonDatasetBuildResult(
+        dataset=combined,
+        observation_end=extract_end_date,
+        horizon_days=horizons
+    )
 
 
 def build_modeling_dataset_from_files(
@@ -321,7 +339,8 @@ def build_modeling_dataset_from_files(
     outcomes_path: str | Path,
     output_path: str | Path,
     context_data_dir: str | Path | None = None,
-    max_intake_volume_threshold: float | None = 100.0,
+    max_intake_volume_threshold: float | None = None,
+    unresolved_out_path: str | Path | None = None,
 ) -> DatasetBuildResult:
     """Load raw CSVs, build modeling dataset, and write processed CSV."""
     intakes = load_intakes(intakes_path)
@@ -336,42 +355,124 @@ def build_modeling_dataset_from_files(
 
     result = build_modeling_dataset(intakes, outcomes, extract_end_date=extract_end_date)
     dataset = result.dataset
-    if max_intake_volume_threshold is not None:
-        if "intake_volume_7d" in dataset.columns:
-            dataset = dataset[dataset["intake_volume_7d"] <= max_intake_volume_threshold]
+
+    context_enabled = False
+    if context_data_dir is not None:
+        ctx_path = Path(context_data_dir)
+        if (ctx_path / "austin_weather_daily.csv").exists() and (ctx_path / "austin_311_animal_requests.csv").exists():
+            context_enabled = True
+            print("Context files found. Context features enabled.")
+            dataset = add_context_features_from_dir(dataset, raw_intakes=intakes, context_data_dir=context_data_dir)
+            unresolved = result.unresolved_intakes
+            if not unresolved.empty:
+                unresolved = add_context_features_from_dir(unresolved, raw_intakes=intakes, context_data_dir=context_data_dir)
             result = DatasetBuildResult(
                 dataset=dataset,
+                unresolved_intakes=unresolved,
                 matched_rows=len(dataset),
                 unmatched_intakes=result.unmatched_intakes,
             )
-    if context_data_dir is not None:
-        dataset = add_context_features_from_dir(dataset, context_data_dir)
-        result = DatasetBuildResult(
-            dataset=dataset,
-            matched_rows=result.matched_rows,
-            unmatched_intakes=result.unmatched_intakes,
-        )
+        else:
+            print("Context files absent. Context features disabled.")
 
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
+    
+    if max_intake_volume_threshold is not None:
+        if "intake_volume_7d" in result.dataset.columns:
+            dataset = result.dataset
+            rows_before = len(dataset)
+            dataset = dataset[dataset["intake_volume_7d"] <= max_intake_volume_threshold]
+            rows_after = len(dataset)
+            rows_removed = rows_before - rows_after
+            result = DatasetBuildResult(
+                dataset=dataset,
+                unresolved_intakes=result.unresolved_intakes,
+                matched_rows=rows_after,
+                unmatched_intakes=result.unmatched_intakes,
+            )
+            audit_metadata = {
+                "threshold_value": max_intake_volume_threshold,
+                "rows_before": rows_before,
+                "rows_removed": rows_removed,
+                "rows_after": rows_after,
+            }
+            (output.parent / "volume_threshold_audit.json").write_text(
+                json.dumps(audit_metadata, indent=2),
+                encoding="utf-8",
+            )
+
     result.dataset.to_csv(output, index=False)
+    
+    # Save horizon dataset
+    if extract_end_date is not None:
+        horizon_result = build_horizon_dataset(result.dataset, result.unresolved_intakes, extract_end_date)
+        horizon_output = output.parent / "horizon_modeling_dataset.csv"
+        horizon_result.dataset.to_csv(horizon_output, index=False)
+        
+        horizon_feature_columns = available_intake_features(horizon_result.dataset.columns)
+        validate_no_leakage(horizon_feature_columns)
+        horizon_target_columns = [column for column in TARGET_COLUMNS if column in horizon_result.dataset.columns]
+        
+        (output.parent / "horizon_feature_columns.json").write_text(
+            json.dumps(horizon_feature_columns, indent=2),
+            encoding="utf-8",
+        )
+        (output.parent / "horizon_target_columns.json").write_text(
+            json.dumps(horizon_target_columns, indent=2),
+            encoding="utf-8",
+        )
+    
+    if unresolved_out_path is not None:
+        unresolved_output = Path(unresolved_out_path)
+    else:
+        unresolved_output = output.parent / "unresolved_intakes.csv"
+    unresolved_output.parent.mkdir(parents=True, exist_ok=True)
+    result.unresolved_intakes.to_csv(unresolved_output, index=False)
 
     feature_columns = available_intake_features(result.dataset.columns)
     validate_no_leakage(feature_columns)
     target_columns = [column for column in TARGET_COLUMNS if column in result.dataset.columns]
 
-    (output.parent / "feature_columns.json").write_text(
-        json.dumps(feature_columns, indent=2),
-        encoding="utf-8",
-    )
-    (output.parent / "target_columns.json").write_text(
-        json.dumps(target_columns, indent=2),
-        encoding="utf-8",
-    )
-    if context_data_dir is not None:
+    if context_enabled:
         context_columns = [column for column in CONTEXT_FEATURES if column in result.dataset.columns]
+        # Write separate context-only file for backward compatibility
         (output.parent / "context_feature_columns.json").write_text(
             json.dumps(context_columns, indent=2),
             encoding="utf-8",
         )
+        # Merge: feature_columns.json now contains base + context so any consumer
+        # reading only this file gets the complete picture for a context-enabled run.
+        # Preserve order: base features first, then context features appended.
+        seen = set(feature_columns)
+        combined_feature_columns = feature_columns + [c for c in context_columns if c not in seen]
+        validate_no_leakage(combined_feature_columns)
+        (output.parent / "feature_columns.json").write_text(
+            json.dumps(combined_feature_columns, indent=2),
+            encoding="utf-8",
+        )
+        (output.parent / "context_metadata.json").write_text(
+            json.dumps({
+                "context_weather_lag_days": 1,
+                "context_enabled": True,
+                "context_feature_count": len(context_columns),
+                "context_features": context_columns,
+            }, indent=2),
+            encoding="utf-8",
+        )
+    else:
+        # No context: write base-only feature_columns.json
+        (output.parent / "feature_columns.json").write_text(
+            json.dumps(feature_columns, indent=2),
+            encoding="utf-8",
+        )
+        (output.parent / "context_metadata.json").write_text(
+            json.dumps({"context_enabled": False}),
+            encoding="utf-8",
+        )
+
+    (output.parent / "target_columns.json").write_text(
+        json.dumps(target_columns, indent=2),
+        encoding="utf-8",
+    )
     return result

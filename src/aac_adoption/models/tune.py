@@ -9,7 +9,7 @@ from typing import Any
 import numpy as np
 import optuna
 import pandas as pd
-from catboost import CatBoostClassifier, CatBoostRegressor
+from catboost import CatBoostClassifier, CatBoostRegressor, CatBoostError
 from sklearn.ensemble import HistGradientBoostingClassifier, HistGradientBoostingRegressor
 from sklearn.metrics import average_precision_score, mean_absolute_error
 from sklearn.model_selection import TimeSeriesSplit
@@ -71,6 +71,13 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
 
     # 1. CatBoost Classification
     def catboost_clf_objective(trial: optuna.Trial) -> float:
+        """Objective function for CatBoost classification hyperparameter tuning.
+        
+        Error handling strategy:
+        - CatBoostError: Trial is pruned (invalid configuration)
+        - ValueError/data issues: Trial is pruned (problem with data)
+        - Unexpected errors: Bubble up with clear context
+        """
         params = {
             "iterations": 5000,
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
@@ -101,15 +108,24 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
                 preds = model.predict_proba(X_va)[:, 1]
                 scores.append(average_precision_score(y_va, preds))
             return np.mean(scores)
-        except Exception:
-            return 0.0
+        except CatBoostError as e:
+            raise optuna.TrialPruned(f"CatBoost failed: {e}")
+        except ValueError as e:
+            raise optuna.TrialPruned(f"Invalid data/configuration: {e}")
 
     study_cat_clf = optuna.create_study(direction="maximize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
     study_cat_clf.optimize(catboost_clf_objective, n_trials=n_trials)
-    best_params["catboost_classification"] = study_cat_clf.best_params
+    best_params["catboost_classification"] = _get_study_result(study_cat_clf)
 
     # 2. CatBoost Regression
     def catboost_reg_objective(trial: optuna.Trial) -> float:
+        """Objective function for CatBoost regression hyperparameter tuning.
+        
+        Error handling strategy:
+        - CatBoostError: Trial is pruned (invalid configuration)
+        - ValueError/data issues: Trial is pruned (problem with data)
+        - Unexpected errors: Bubble up with clear context
+        """
         params = {
             "iterations": 5000,
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
@@ -140,15 +156,26 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
                 preds = np.expm1(preds_log)
                 scores.append(mean_absolute_error(y_va_reg, preds))
             return np.mean(scores)
-        except Exception:
-            return 1e9
+        except CatBoostError as e:
+            raise optuna.TrialPruned(f"CatBoost failed: {e}")
+        except ValueError as e:
+            raise optuna.TrialPruned(f"Invalid data/configuration: {e}")
 
     study_cat_reg = optuna.create_study(direction="minimize", sampler=get_sampler(), pruner=optuna.pruners.MedianPruner())
     study_cat_reg.optimize(catboost_reg_objective, n_trials=n_trials)
-    best_params["catboost_regression"] = study_cat_reg.best_params
+    best_params["catboost_regression"] = _get_study_result(study_cat_reg)
 
     # 3. HistGradientBoosting Classification
     def hist_clf_objective(trial: optuna.Trial) -> float:
+        """Objective function for HistGradientBoosting classification hyperparameter tuning.
+        
+        Error handling strategy:
+        - ValueError/data issues: Trial is pruned (problem with data)
+        - Unexpected errors: Bubble up with clear context
+        
+        NOTE: Broad except blocks turn tuning failures into valid trials.
+        Only specific exceptions should be caught and pruned.
+        """
         params = {
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
             "max_iter": 5000,
@@ -180,15 +207,24 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
                 preds = model.predict_proba(X_va_transformed)[:, 1]
                 scores.append(average_precision_score(y_va, preds))
             return np.mean(scores)
-        except Exception:
-            return 0.0
+        except ValueError as e:
+            raise optuna.TrialPruned(f"Invalid data/configuration: {e}")
 
     study_hist_clf = optuna.create_study(direction="maximize", sampler=get_sampler())
     study_hist_clf.optimize(hist_clf_objective, n_trials=n_trials)
-    best_params["hist_gradient_boosting_classification"] = study_hist_clf.best_params
+    best_params["hist_gradient_boosting_classification"] = _get_study_result(study_hist_clf)
 
     # 4. HistGradientBoosting Regression
     def hist_reg_objective(trial: optuna.Trial) -> float:
+        """Objective function for HistGradientBoosting regression hyperparameter tuning.
+        
+        Error handling strategy:
+        - ValueError/data issues: Trial is pruned (problem with data)
+        - Unexpected errors: Bubble up with clear context
+        
+        NOTE: Broad except blocks turn tuning failures into valid trials.
+        Only specific exceptions should be caught and pruned.
+        """
         params = {
             "loss": "absolute_error",
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
@@ -220,12 +256,12 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
                 preds = model.predict(X_va_transformed)
                 scores.append(mean_absolute_error(y_va_reg, preds))
             return np.mean(scores)
-        except Exception:
-            return 1e9
+        except ValueError as e:
+            raise optuna.TrialPruned(f"Invalid data/configuration: {e}")
 
     study_hist_reg = optuna.create_study(direction="minimize", sampler=get_sampler())
     study_hist_reg.optimize(hist_reg_objective, n_trials=n_trials)
-    best_params["hist_gradient_boosting_regression"] = study_hist_reg.best_params
+    best_params["hist_gradient_boosting_regression"] = _get_study_result(study_hist_reg)
 
     studies = {
         "catboost_classification": study_cat_clf,
@@ -235,6 +271,30 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
     }
 
     return best_params, studies
+
+def _get_study_result(study: optuna.Study) -> dict[str, Any]:
+    try:
+        best_params = study.best_params
+        best_value = study.best_value
+        status = "ok"
+        failure_reason = None
+    except ValueError as e:
+        best_params = None
+        best_value = None
+        status = "failed"
+        failure_reason = str(e)
+
+    completed_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE])
+    pruned_trials = len([t for t in study.trials if t.state == optuna.trial.TrialState.PRUNED])
+
+    return {
+        "status": status,
+        "best_params": best_params,
+        "best_value": best_value,
+        "completed_trials": completed_trials,
+        "pruned_trials": pruned_trials,
+        "failure_reason": failure_reason,
+    }
 
 def run_tuning(df: pd.DataFrame, output_dir: Path, n_trials: int = 20):
     """Run full tuning suite and save results."""

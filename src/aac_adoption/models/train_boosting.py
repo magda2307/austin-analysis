@@ -1,5 +1,6 @@
 """Gradient boosting training for AAC adoption thesis experiments."""
 
+import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -84,6 +85,7 @@ def _fit_and_save(
     target_column: str,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     winsorize_target: bool = False,
     lower_quantile: float = 0.01,
     upper_quantile: float = 0.99,
@@ -93,7 +95,10 @@ def _fit_and_save(
     
     # Train-only winsorization for regression tasks
     train_y = split.train[target_column].copy()
-    metadata = {}
+    metadata = {
+        "training_target_min": float(train_y.min()),
+        "training_target_max": float(train_y.max()),
+    }
     if winsorize_target and "regression" in task:
         train_y = winsorize_outliers(train_y, lower_quantile, upper_quantile)
         metadata["winsorization_lower_quantile"] = lower_quantile
@@ -119,6 +124,8 @@ def _fit_and_save(
         split=split,
         feature_columns=feature_columns,
         run_timestamp=run_timestamp,
+        target_column=target_column,
+        dataset_path=dataset_path,
     ))
     path = save_model_artifact(pipeline, models_dir, task, split.animal_subset, model_name, metadata)
     metadata["artifact_path"] = str(path)
@@ -154,16 +161,18 @@ def _permutation_table(
         scoring=scoring,
         n_jobs=1,
     )
-    return pd.DataFrame(
+    table = pd.DataFrame(
         {
             "feature": feature_columns,
             "importance_mean": result.importances_mean,
             "importance_std": result.importances_std,
             "importance_split": importance_split,
             "evaluation_period": importance_split,
-            **metadata,
         }
-    ).sort_values("importance_mean", ascending=False)
+    )
+    for key, val in metadata.items():
+        table[key] = json.dumps(val) if isinstance(val, (list, dict)) else val
+    return table.sort_values("importance_mean", ascending=False)
 
 
 def train_boosting_classification(
@@ -171,6 +180,7 @@ def train_boosting_classification(
     models_dir: Path,
     tables_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     permutation_repeats: int,
     permutation_max_rows: int,
     **kwargs,
@@ -198,16 +208,45 @@ def train_boosting_classification(
             target_column="classification_target",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
+            dataset_path=dataset_path,
         )
-        predictions = pipeline.predict(split.test[feature_columns])
-        scores = pipeline.predict_proba(split.test[feature_columns])[:, 1]
-        metrics = classification_metrics(
-            split.test["classification_target"], 
-            predictions, 
-            scores,
-            compute_ci=(subset in ["dogs", "cats"])
-        )
-        rows.append({**metadata, **metrics})
+        if not split.selection.empty:
+            sel_predictions = pipeline.predict(split.selection[feature_columns])
+            sel_scores = pipeline.predict_proba(split.selection[feature_columns])[:, 1]
+            sel_metrics = classification_metrics(
+                split.selection["classification_target"], 
+                sel_predictions, 
+                sel_scores,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **sel_metrics,
+                "target_column": "classification_target",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "selection",
+                "selection_eligible": 1,
+            })
+
+        if not split.test.empty:
+            test_predictions = pipeline.predict(split.test[feature_columns])
+            test_scores = pipeline.predict_proba(split.test[feature_columns])[:, 1]
+            test_metrics = classification_metrics(
+                split.test["classification_target"], 
+                test_predictions, 
+                test_scores,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **test_metrics,
+                "target_column": "classification_target",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "test",
+                "selection_eligible": 0,
+            })
         append_table(
             _permutation_table(
                 pipeline,
@@ -215,7 +254,7 @@ def train_boosting_classification(
                 feature_columns,
                 "classification_target",
                 metadata,
-                scoring="roc_auc",
+                scoring="average_precision",
                 repeats=permutation_repeats,
                 max_rows=permutation_max_rows,
             ),
@@ -229,6 +268,7 @@ def train_boosting_regression(
     models_dir: Path,
     tables_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     permutation_repeats: int,
     permutation_max_rows: int,
     **kwargs,
@@ -255,15 +295,42 @@ def train_boosting_regression(
             target_column="regression_target_days",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
+            dataset_path=dataset_path,
             winsorize_target=True,
         )
-        predictions = pipeline.predict(split.test[feature_columns])
-        metrics = regression_metrics(
-            split.test["regression_target_days"], 
-            predictions,
-            compute_ci=(subset in ["dogs", "cats"])
-        )
-        rows.append({**metadata, **metrics})
+        if not split.selection.empty:
+            sel_predictions = pipeline.predict(split.selection[feature_columns])
+            sel_metrics = regression_metrics(
+                split.selection["regression_target_days"], 
+                sel_predictions,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **sel_metrics,
+                "target_column": "regression_target_days",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "selection",
+                "selection_eligible": 1,
+            })
+
+        if not split.test.empty:
+            test_predictions = pipeline.predict(split.test[feature_columns])
+            test_metrics = regression_metrics(
+                split.test["regression_target_days"], 
+                test_predictions,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **test_metrics,
+                "target_column": "regression_target_days",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "test",
+                "selection_eligible": 0,
+            })
         append_table(
             _permutation_table(
                 pipeline,
@@ -289,6 +356,7 @@ def train_all_boosting(
     permutation_repeats: int = 3,
     permutation_max_rows: int = 3000,
     tuned_params_path: str | Path | None = None,
+    allow_default_params: bool = False,
 ) -> BoostingTrainingOutputs:
     """Train all sklearn gradient boosting models and save outputs."""
     header = pd.read_csv(data_path, nrows=0)
@@ -316,10 +384,14 @@ def train_all_boosting(
         p = Path(tuned_params_path)
         if p.exists():
             d = json.loads(p.read_text(encoding="utf-8"))
-            if "hist_gradient_boosting_classification" in d:
-                clf_kwargs.update(d["hist_gradient_boosting_classification"])
-            if "hist_gradient_boosting_regression" in d:
-                reg_kwargs.update(d["hist_gradient_boosting_regression"])
+            for key, kwargs_dict in [("hist_gradient_boosting_classification", clf_kwargs), ("hist_gradient_boosting_regression", reg_kwargs)]:
+                if key in d:
+                    tune_info = d[key]
+                    if tune_info.get("status") == "failed":
+                        if not allow_default_params:
+                            raise ValueError(f"Tuning failed for {key}. Explicit development flag required to use defaults.")
+                    elif tune_info.get("best_params") is not None:
+                        kwargs_dict.update(tune_info["best_params"])
 
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(
@@ -328,6 +400,7 @@ def train_all_boosting(
             model_output_dir,
             table_output_dir,
             run_timestamp,
+            str(data_path),
             permutation_repeats,
             permutation_max_rows,
             **clf_kwargs
@@ -339,6 +412,7 @@ def train_all_boosting(
             model_output_dir,
             table_output_dir,
             run_timestamp,
+            str(data_path),
             permutation_repeats,
             permutation_max_rows,
             **reg_kwargs

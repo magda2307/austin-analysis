@@ -69,8 +69,9 @@ def _fit_and_save_adopted(
         categorical_features=categorical_features,
         params=params,
     )
-    metadata["feature_columns"] = feature_columns
     metadata["target_transform"] = "log1p"
+    metadata["training_target_min"] = float(train_y.min())
+    metadata["training_target_max"] = float(train_y.max())
     path = save_model_artifact(model, models_dir, task, split.animal_subset, "catboost", metadata)
     metadata["artifact_path"] = str(path)
     return model, metadata
@@ -99,28 +100,55 @@ def train_adopted_regression(
     }
     
     # Filter to adopted only
-    adopted_df = df[df["classification_target"] == 1].copy()
+    adopted_df = df.loc[
+        df["classification_target"].eq(1) & df["days_to_adoption"].notna()
+    ].copy()
 
     for subset in ANIMAL_SUBSETS:
-        split = make_time_split(adopted_df, "regression_target_days", animal_subset=subset)
+        split = make_time_split(adopted_df, "days_to_adoption", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
         model, metadata = _fit_and_save_adopted(
             model=CatBoostRegressor(**params),
             task="regression_adopted",
             split=split,
             feature_columns=feature_columns,
-            target_column="regression_target_days",
+            target_column="days_to_adoption",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
             params=params,
         )
-        test_x = prepare_catboost_frame(split.test, feature_columns)
         
-        log_predictions = model.predict(test_x)
-        predictions = np.expm1(log_predictions)
-        predictions = np.maximum(predictions, 0.0)
-        
-        rows.append({**metadata, **regression_metrics(split.test["regression_target_days"], predictions)})
+        if not split.selection.empty:
+            sel_x = prepare_catboost_frame(split.selection, feature_columns)
+            log_predictions = model.predict(sel_x)
+            predictions = np.expm1(log_predictions)
+            predictions = np.maximum(predictions, 0.0)
+            sel_metrics = regression_metrics(split.selection["days_to_adoption"], predictions)
+            rows.append({
+                **metadata,
+                **sel_metrics,
+                "target_column": "days_to_adoption",
+                "target_transform": "log1p",
+                "prediction_inverse_transform": "expm1",
+                "metric_split": "selection",
+                "selection_eligible": 1,
+            })
+            
+        if not split.test.empty:
+            test_x = prepare_catboost_frame(split.test, feature_columns)
+            log_predictions = model.predict(test_x)
+            predictions = np.expm1(log_predictions)
+            predictions = np.maximum(predictions, 0.0)
+            metrics = regression_metrics(split.test["days_to_adoption"], predictions)
+            rows.append({
+                **metadata,
+                **metrics,
+                "target_column": "days_to_adoption",
+                "target_transform": "log1p",
+                "prediction_inverse_transform": "expm1",
+                "metric_split": "test",
+                "selection_eligible": 0,
+            })
     return rows
 
 

@@ -16,6 +16,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+import os
+
 ROOT = Path(__file__).resolve().parents[1]
 DATA_ARG = "data/processed/modeling_dataset.csv"
 
@@ -46,6 +48,7 @@ STEPS = [
             "--intakes", "data/raw/intakes.csv",
             "--outcomes", "data/raw/outcomes.csv",
             "--output", DATA_ARG,
+            "--context-data-dir", "data/raw",
         ],
         None,
     ),
@@ -134,18 +137,12 @@ STEPS = [
     ),
     (
         16,
-        "Generate artifact manifest",
-        [sys.executable, "scripts/generate_artifact_manifest.py"],
-        None,
-    ),
-    (
-        17,
         "Evaluate backtesting",
         [sys.executable, "scripts/evaluate_backtesting.py"],
         "expensive",
     ),
     (
-        18,
+        17,
         "Run test suite",
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
         None,
@@ -157,7 +154,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="One-command thesis pipeline runner.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=""""
+        epilog="""
 Examples:
   Run the full pipeline:
     python scripts/run_full_pipeline.py
@@ -199,6 +196,17 @@ Examples:
         default="",
         help="Path to write the run log. Defaults to logs/pipeline_TIMESTAMP.log.",
     )
+    parser.add_argument(
+        "--resume-run",
+        type=str,
+        dest="run_id",
+        help="Resume an existing run ID instead of starting a new one.",
+    )
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="Continue executing remaining steps even if one fails.",
+    )
     return parser.parse_args()
 
 
@@ -209,7 +217,7 @@ def should_skip(step_number: int, tag: str | None, args: argparse.Namespace, onl
         return True
     if tag == "shap" and (args.skip_shap or args.quick):
         return True
-    if step_number == 18 and args.quick:
+    if step_number == 17 and args.quick:
         return True
     return False
 
@@ -222,6 +230,33 @@ def main() -> None:
         only_steps = {int(s.strip()) for s in args.steps.split(",") if s.strip()}
 
     timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    
+    # Run ID setup
+    try:
+        shortsha = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, text=True).strip()
+    except Exception:
+        shortsha = "unknown"
+
+    run_id = getattr(args, "run_id", None)
+    if not run_id:
+        run_id = f"{timestamp}-{shortsha}"
+    
+    receipt_path = ROOT / "reports" / "run_receipt.json"
+    receipt_data = {
+        "run_id": run_id,
+        "producer_source_sha": shortsha,
+        "started_at": datetime.now(tz=timezone.utc).isoformat(),
+        "completed_at": None,
+        "status": "running",
+        "executed_steps": [],
+        "skipped_steps": [],
+        "failed_step": None,
+    }
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    import json
+    with receipt_path.open("w", encoding="utf-8") as f:
+        json.dump(receipt_data, f, indent=2)
+
     log_path = Path(args.log_file) if args.log_file else ROOT / "logs" / f"pipeline_{timestamp}.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -233,10 +268,35 @@ def main() -> None:
             log_file.write(msg + "\n")
             log_file.flush()
 
+        def update_receipt(failed: bool = False):
+            if failed:
+                receipt_data["status"] = "failed"
+                failed_items = [r["step"] for r in results if r["status"] == "failed"]
+                if failed_items:
+                    receipt_data["failed_step"] = failed_items[0]
+            else:
+                receipt_data["status"] = "ok"
+                receipt_data["completed_at"] = datetime.now(tz=timezone.utc).isoformat()
+            
+            receipt_data["executed_steps"] = [r["step"] for r in results if r["status"] == "ok"]
+            receipt_data["skipped_steps"] = [r["step"] for r in results if r["status"] == "skipped"]
+            
+            if not failed:
+                tmp_receipt = receipt_path.with_suffix(".tmp")
+                with tmp_receipt.open("w", encoding="utf-8") as f:
+                    json.dump(receipt_data, f, indent=2)
+                tmp_receipt.replace(receipt_path)
+            else:
+                with receipt_path.open("w", encoding="utf-8") as f:
+                    json.dump(receipt_data, f, indent=2)
+
         _log(f"=== AAC Thesis Pipeline Run ===")
         _log(f"Started:  {timestamp}")
         _log(f"Root:     {ROOT}")
+        _log(f"Run ID:   {run_id}")
         _log(f"Log file: {log_path}")
+        if only_steps:
+            _log(f"WARNING:  Running partial pipeline with steps {sorted(list(only_steps))}. This may skip required dependencies.")
         _log("")
 
         for step_number, name, cmd, tag in STEPS:
@@ -249,12 +309,59 @@ def main() -> None:
             _log(f"[STEP {step_number:02d}] RUNNING  {name}")
             _log(f"          cmd: {' '.join(cmd)}")
 
+            # Pass run context via environment variables
+            run_env = os.environ.copy()
+            run_env["AAC_RUN_ID"] = run_id
+
+            # Discover inputs from command arguments
+            inputs = []
+            for arg in cmd:
+                if str(arg).endswith(".csv") or str(arg).endswith(".json"):
+                    if (ROOT / arg).exists():
+                        inputs.append(ROOT / arg)
+
+            # Scan state before
+            def scan_state():
+                state = {}
+                for d in ["data", "models", "reports"]:
+                    p = ROOT / d
+                    if p.exists():
+                        for f in p.rglob("*"):
+                            if f.is_file() and ".tmp" not in f.name and not f.name.endswith(".log") and "run_receipts" not in str(f) and f.name != "run_receipt.json":
+                                try:
+                                    state[str(f.relative_to(ROOT))] = f.stat().st_mtime
+                                except Exception:
+                                    pass
+                return state
+
+            before_state = scan_state()
+
             proc = subprocess.run(
                 cmd,
                 cwd=ROOT,
+                env=run_env,
                 capture_output=False,
                 text=True,
             )
+
+            after_state = scan_state()
+
+            # Find changed or new files
+            outputs = []
+            for path, mtime in after_state.items():
+                if path not in before_state or before_state[path] != mtime:
+                    outputs.append(ROOT / path)
+
+            # Write receipt
+            import sys
+            sys.path.insert(0, str(ROOT / "src"))
+            from aac_adoption.provenance import get_current_run_context, write_producer_receipt
+            
+            ctx = get_current_run_context(command=cmd, inputs=inputs)
+            safe_name = Path(cmd[1]).stem if len(cmd) > 1 else f"step_{step_number}"
+            status_str = "ok" if proc.returncode == 0 else "error"
+            err_msg = f"Exit code {proc.returncode}" if proc.returncode != 0 else None
+            write_producer_receipt(f"{step_number:02d}-{safe_name}", ctx, outputs, status=status_str, error_message=err_msg)
 
             if proc.returncode == 0:
                 status = "ok"
@@ -266,12 +373,18 @@ def main() -> None:
             results.append({"step": step_number, "name": name, "status": status})
             _log("")
 
+            if proc.returncode != 0 and not args.continue_on_error:
+                _log(f"Aborting pipeline on step {step_number} failure.")
+                break
+
+        failed = [r for r in results if r["status"] == "failed"]
+        update_receipt(failed=bool(failed))
+
         _log("=== Pipeline Summary ===")
         for r in results:
             icon = {"ok": "✓", "failed": "✗", "skipped": "—"}.get(r["status"], "?")
             _log(f"  {icon} Step {r['step']:02d}: {r['name']} [{r['status']}]")
 
-        failed = [r for r in results if r["status"] == "failed"]
         _log("")
         if failed:
             _log(f"RESULT: {len(failed)} step(s) failed.")

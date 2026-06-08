@@ -151,3 +151,7 @@ def test_train_all_baselines_writes_metadata_rich_outputs(tmp_path):
     assert list(models_dir.rglob("*.joblib"))
     assert (tables_dir / "logistic_regression_coefficients.csv").exists()
     assert (tables_dir / "random_forest_feature_importance.csv").exists()
+
+
+import pytest
+pytestmark = pytest.mark.slow

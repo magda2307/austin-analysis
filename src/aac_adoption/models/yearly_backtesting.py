@@ -36,10 +36,11 @@ def get_test_years(df: pd.DataFrame) -> List[int]:
     return [y for y in years if y > TRAIN_START_YEAR]
 
 
-def get_train_years(test_year: int, max_train_year: Optional[int] = None) -> Tuple[int, int]:
-    """Get training window (2013-X) for given test year."""
+def get_train_years(test_year: int, max_train_year: Optional[int] = None, min_year: Optional[int] = None) -> Tuple[int, int]:
+    """Get training window (min_year-X) for given test year."""
     end_year = min(test_year - 1, max_train_year) if max_train_year else test_year - 1
-    return (TRAIN_START_YEAR, end_year)
+    start_year = min_year if min_year else TRAIN_START_YEAR
+    return (start_year, end_year)
 
 
 def format_train_period(start: int, end: int) -> str:
@@ -73,6 +74,7 @@ def run_yearly_backtesting(
     quick: bool = False,
     strict: bool = False,
     iterations: int = 100,
+    data_path: Optional[str] = None,
 ) -> pd.DataFrame:
     """Run rolling window backtesting across years.
     
@@ -93,12 +95,24 @@ def run_yearly_backtesting(
     Returns:
         DataFrame with one row per train_window/test_year combination
     """
+    if data_path:
+        filename = Path(data_path).name
+        if target_column.startswith("adopted_in_") and filename != "horizon_modeling_dataset.csv":
+            raise ValueError(f"Target '{target_column}' requires 'horizon_modeling_dataset.csv', got '{filename}'.")
+        if target_column in ["classification_target", "regression_target_days"] and filename != "modeling_dataset.csv":
+            raise ValueError(f"Target '{target_column}' requires 'modeling_dataset.csv', got '{filename}'.")
+
     subsets_to_run = ["combined", "dogs", "cats"] if animal_subset == "combined" else [animal_subset]
     results = []
     
+    all_intake_row_count = len(df)
+    
     for sub in subsets_to_run:
-        subset_df, subset_name = _filter_subset(df, sub)
-        subset_df = subset_df.dropna(subset=[target_column]).copy()
+        subset_df_raw, subset_name = _filter_subset(df, sub)
+        subset_df = subset_df_raw.dropna(subset=[target_column]).copy()
+        eligible_target_count = len(subset_df)
+        
+        years = sorted(subset_df["intake_year"].dropna().astype(int).unique())
         
         if quick:
             test_years = [2019, 2023]
@@ -106,7 +120,15 @@ def run_yearly_backtesting(
             test_years = [2019, 2020, 2021, 2022, 2023, 2024]
         
         for test_year in test_years:
-            train_start, train_end = get_train_years(test_year)
+            if test_year not in years:
+                continue
+            min_year = years[0]
+            max_year = years[-1]
+            train_end_year = test_year - 1
+            train_start_year = max(min_year, TRAIN_START_YEAR)
+            if train_start_year > train_end_year:
+                train_start_year = min_year
+            train_start, train_end = get_train_years(test_year, max_train_year=train_end_year, min_year=train_start_year)
             train_period = format_train_period(train_start, train_end)
             
             train_mask = subset_df["intake_year"].between(train_start, train_end)
@@ -116,18 +138,73 @@ def run_yearly_backtesting(
             test_df = subset_df[test_mask].copy()
             
             if test_df.empty:
+                logger.warning(f"Empty test set for {subset_name} in test year {test_year}. Skipping iteration.")
+                skipped_result = {
+                    "status": "SKIPPED",
+                    "skip_reason": "Empty test set",
+                    "error_type": None,
+                    "error_message": None,
+                    "train_start_year": train_start,
+                    "train_end_year": train_end,
+                    "test_year": test_year,
+                    "train_years": train_period,
+                    "subset": subset_name,
+                    "animal_subset": subset_name,
+                    "source_path": data_path,
+                    "all_intake_row_count": all_intake_row_count,
+                    "eligible_target_count": eligible_target_count,
+                    "model": None, "model_name": None, "pr_auc": None, "roc_auc": None, "brier": None, "brier_score": None, "ece": None, "mae": None, "rmse": None, "r2": None, "train_rows": len(train_df), "test_rows": 0
+                }
+                results.append(skipped_result)
                 continue
             if train_df.empty:
                 logger.warning(f"Empty train set for {subset_name} in test year {test_year}. Skipping iteration.")
+                skipped_result = {
+                    "status": "SKIPPED",
+                    "skip_reason": "Empty train set",
+                    "error_type": None,
+                    "error_message": None,
+                    "train_start_year": train_start,
+                    "train_end_year": train_end,
+                    "test_year": test_year,
+                    "train_years": train_period,
+                    "subset": subset_name,
+                    "animal_subset": subset_name,
+                    "source_path": data_path,
+                    "all_intake_row_count": all_intake_row_count,
+                    "eligible_target_count": eligible_target_count,
+                    "model": None, "model_name": None, "pr_auc": None, "roc_auc": None, "brier": None, "brier_score": None, "ece": None, "mae": None, "rmse": None, "r2": None, "train_rows": 0, "test_rows": len(test_df)
+                }
+                results.append(skipped_result)
                 continue
             
             if len(train_df) < 2 or len(test_df) < 2:
+                skipped_result = {
+                    "status": "SKIPPED",
+                    "skip_reason": "Insufficient data (<2 rows)",
+                    "error_type": None,
+                    "error_message": None,
+                    "train_start_year": train_start,
+                    "train_end_year": train_end,
+                    "test_year": test_year,
+                    "train_years": train_period,
+                    "subset": subset_name,
+                    "animal_subset": subset_name,
+                    "source_path": data_path,
+                    "all_intake_row_count": all_intake_row_count,
+                    "eligible_target_count": eligible_target_count,
+                    "model": None, "model_name": None, "pr_auc": None, "roc_auc": None, "brier": None, "brier_score": None, "ece": None, "mae": None, "rmse": None, "r2": None, "train_rows": len(train_df), "test_rows": len(test_df)
+                }
+                results.append(skipped_result)
                 continue
             
             if use_model_features:
                 feature_cols = model_feature_columns(train_df)
             else:
                 feature_cols = [col for col in train_df.columns if col not in [target_column, "animal_id", "intake_year", "outcome_datetime", "outcome_type", "outcome_subtype", "sex_upon_outcome", "age_upon_outcome"]]
+            
+            # Exclude raw age strings if they were not parsed out
+            feature_cols = [c for c in feature_cols if not c.startswith("age_upon_")]
             
             X_train = train_df[feature_cols].copy()
             y_train = train_df[target_column]
@@ -298,10 +375,19 @@ def run_yearly_backtesting(
                             metrics["r2_lower"], metrics["r2_upper"] = ci_r2
                     
                     result = {
-                        "train_years": train_period,
+                        "status": "SUCCESS",
+                        "skip_reason": None,
+                        "error_type": None,
+                        "error_message": None,
+                        "train_start_year": train_start,
+                        "train_end_year": train_end,
                         "test_year": test_year,
+                        "train_years": train_period,
                         "subset": subset_name,
                         "animal_subset": subset_name,
+                        "source_path": data_path,
+                        "all_intake_row_count": all_intake_row_count,
+                        "eligible_target_count": eligible_target_count,
                         "model": model_name,
                         "model_name": model_name,
                         "pr_auc": metrics.get("pr_auc"),
@@ -344,6 +430,35 @@ def run_yearly_backtesting(
                     logger.error(f"Error training {model_name} on {subset_name} for test year {test_year}: {e}", exc_info=True)
                     if strict:
                         raise e
+                    else:
+                        failed_result = {
+                            "status": "ERROR",
+                            "skip_reason": None,
+                            "error_type": type(e).__name__,
+                            "error_message": str(e),
+                            "train_start_year": train_start,
+                            "train_end_year": train_end,
+                            "test_year": test_year,
+                            "train_years": train_period,
+                            "subset": subset_name,
+                            "animal_subset": subset_name,
+                            "source_path": data_path,
+                            "all_intake_row_count": all_intake_row_count,
+                            "eligible_target_count": eligible_target_count,
+                            "model": model_name,
+                            "model_name": model_name,
+                            "pr_auc": None,
+                            "roc_auc": None,
+                            "brier": None,
+                            "brier_score": None,
+                            "ece": None,
+                            "mae": None,
+                            "rmse": None,
+                            "r2": None,
+                            "train_rows": len(X_train) if 'X_train' in locals() else 0,
+                            "test_rows": len(X_test) if 'X_test' in locals() else 0,
+                        }
+                        results.append(failed_result)
     
     results_df = pd.DataFrame(results)
     

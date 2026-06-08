@@ -178,3 +178,7 @@ def test_tune_models_catboost_regression_fit_spy(divergent_row_data):
         for y in actual_y_values:
             original_y_tr = y_reg_original[y.index]
             assert np.allclose(y, np.log1p(original_y_tr)), "y_tr passed to fit must be log-transformed"
+
+
+import pytest
+pytestmark = pytest.mark.slow

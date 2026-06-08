@@ -163,7 +163,7 @@ def write_summary_md(df: pd.DataFrame, violations: list[str], output_path: Path)
         "## Methodology Reference",
         "",
         "See `docs/target_definitions.md` for the full leakage control summary.",
-        "See `docs/methodology_notes.md` for the intake-time feature set justification.",
+        "See `docs/METHODOLOGY.md` for the intake-time feature set justification.",
     ]
 
     if violations:

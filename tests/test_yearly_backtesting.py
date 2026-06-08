@@ -364,3 +364,7 @@ def test_yearly_backtesting_output_csv(six_year_fixture, tmp_path):
     
     saved_df = pd.read_csv(output_path)
     pd.testing.assert_frame_equal(result, saved_df)
+
+
+import pytest
+pytestmark = pytest.mark.slow

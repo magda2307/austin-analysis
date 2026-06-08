@@ -137,7 +137,10 @@ def _save_hypothesis_bar_plot(
 def _best_rows(df: pd.DataFrame, metric: str, ascending: bool) -> pd.DataFrame:
     if df.empty or metric not in df.columns or "animal_subset" not in df.columns:
         return pd.DataFrame()
-    ranked = df.dropna(subset=[metric]).copy()
+    ranked = df.copy()
+    if "metric_split" in ranked.columns:
+        ranked = ranked[ranked["metric_split"] == "selection"]
+    ranked = ranked.dropna(subset=[metric]).copy()
     ranked["subset_order"] = ranked["animal_subset"].map(
         {subset: index for index, subset in enumerate(SUBSET_ORDER)}
     )
@@ -174,25 +177,19 @@ def _summary_lines(
     ]
 
     best_classification = _best_rows(classification, "pr_auc", ascending=False)
-    if best_classification.empty:
-        lines.append("Classification comparison table was not available.")
-    else:
-        lines.append("Best classification models by PR-AUC:")
-        lines.append("")
-        for _, row in best_classification.iterrows():
-            lines.append(
-                f"- {row['animal_subset']}: {row['model_name']} "
-                f"(PR-AUC {_format_number(row.get('pr_auc'))}, ROC-AUC {_format_number(row.get('roc_auc'))}, F1 {_format_number(row.get('f1'))})"
-            )
+    lines.append("Best classification models by 2023 selection PR-AUC:")
+    lines.append("")
+    for _, row in best_classification.iterrows():
+        lines.append(
+            f"- {row['animal_subset']}: {row['model_name']} "
+            f"(PR-AUC {_format_number(row.get('pr_auc'))}, ROC-AUC {_format_number(row.get('roc_auc'))}, F1 {_format_number(row.get('f1'))})"
+        )
 
     lines.append("")
     best_regression = _best_rows(regression, "mae", ascending=True)
-    if best_regression.empty:
-        lines.append("Regression comparison table was not available.")
-    else:
-        lines.append("Best regression models by MAE:")
-        lines.append("")
-        for _, row in best_regression.iterrows():
+    lines.append("Best regression models by 2023 selection MAE:")
+    lines.append("")
+    for _, row in best_regression.iterrows():
             lines.append(
                 f"- {row['animal_subset']}: {row['model_name']} "
                 f"(MAE {_format_days(row.get('mae'))}, RMSE {_format_days(row.get('rmse'))})"
@@ -234,6 +231,9 @@ def _summary_lines(
                     f"{_format_number(row['adoption_rate_pct'], 1)}% adoption rate"
                 )
             lines.append("")
+    else:
+        lines.append("H1 intake-type patterns: unavailable (run scripts/run_analysis.py)")
+        lines.append("")
 
     if not h3.empty and {"value", "adoption_rate_pct", "median_days_to_outcome"}.issubset(h3.columns):
         lines.append("H3 age-group patterns:")
@@ -244,6 +244,9 @@ def _summary_lines(
                 f"median outcome time {_format_days(row['median_days_to_outcome'])}"
             )
         lines.append("")
+    else:
+        lines.append("H3 age-group patterns: unavailable (run scripts/run_analysis.py)")
+        lines.append("")
 
     if not h5.empty and {"value", "adoption_rate_pct", "median_days_to_outcome"}.issubset(h5.columns):
         lines.append("H5 COVID-period patterns:")
@@ -253,6 +256,9 @@ def _summary_lines(
                 f"- {row['value']}: {_format_number(row['adoption_rate_pct'], 1)}% adoption rate, "
                 f"median outcome time {_format_days(row['median_days_to_outcome'])}"
             )
+        lines.append("")
+    else:
+        lines.append("H5 COVID-period patterns: unavailable (run scripts/run_analysis.py)")
         lines.append("")
 
     if not calibration.empty and {"mean_predicted_probability", "observed_adoption_rate"}.issubset(calibration.columns):
@@ -324,20 +330,32 @@ def create_report_outputs(
     tables_dir: str | Path = "reports/tables",
     figures_dir: str | Path = "reports/figures",
     summary_dir: str | Path = "reports/summary",
+    diagnostics_dir: str | Path | None = None,
 ) -> Path:
     """Create Markdown and figure outputs from existing analysis tables."""
     tables = Path(tables_dir)
     figures = Path(figures_dir)
     summary = Path(summary_dir)
+    diagnostics = Path(diagnostics_dir) if diagnostics_dir else tables.parent / "diagnostics"
     summary.mkdir(parents=True, exist_ok=True)
 
     classification = _read_table(tables / "model_comparison_classification.csv")
     regression = _read_table(tables / "model_comparison_regression.csv")
+    
+    if classification.empty:
+        raise ValueError("Explicit failure: Required input missing model_comparison_classification.csv")
+    if not {"metric_split"}.issubset(classification.columns):
+        raise ValueError("Report generation must reject model comparison data without split/source metadata.")
+        
+    if regression.empty:
+        raise ValueError("Explicit failure: Required input missing model_comparison_regression.csv")
+    if not {"metric_split"}.issubset(regression.columns):
+        raise ValueError("Report generation must reject model comparison data without split/source metadata.")
+
     context_comparison = _read_table(tables / "context_model_comparison.csv")
     h1 = _read_table(tables / "h1_intake_vs_appearance.csv")
     h3 = _read_table(tables / "h3_age_adoption_speed.csv")
     h5 = _read_table(tables / "h5_covid_period.csv")
-    diagnostics = tables.parent / "diagnostics"
     calibration = _read_table(diagnostics / "classification_calibration.csv")
     thresholds = _read_table(diagnostics / "classification_thresholds.csv")
     risk = _read_table(diagnostics / "placement_risk_quadrants.csv")

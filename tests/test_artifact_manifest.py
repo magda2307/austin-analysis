@@ -66,10 +66,46 @@ def test_manifest_no_null_artifact_path(manifest_files) -> None:
     assert df["artifact_path"].notna().all(), "Some artifact_path values are null"
     assert (df["artifact_path"] != "").all(), "Some artifact_path values are empty"
 
+@pytest.fixture
+def dummy_manifest_df():
+    return pd.DataFrame({
+        "artifact_path": ["present.csv", "missing.csv"],
+        "required_for_thesis": [True, True],
+        "exists_on_disk": [True, False],
+        "created_at": ["2023-01-01", "2023-01-01"],
+        "artifact_type": ["dataset", "dataset"],
+        "source_script": ["script1", "script2"],
+        "chapter": ["1", "1"],
+        "notes": ["", ""]
+    })
 
-def test_required_thesis_artifacts_exist_on_disk(manifest_files) -> None:
-    # We skip disk check since we are running in an isolated tmp_path
-    pass
+@pytest.mark.acceptance
+def test_required_thesis_artifacts_exist_on_disk(dummy_manifest_df, tmp_path) -> None:
+    import os
+    fixture_root = os.environ.get("AAC_ACCEPTANCE_FIXTURE_ROOT")
+    
+    if fixture_root:
+        # Run against dummy fixture
+        fixture_csv = Path(fixture_root) / "artifact_manifest.csv"
+        fixture_csv.parent.mkdir(parents=True, exist_ok=True)
+        dummy_manifest_df.to_csv(fixture_csv, index=False)
+        manifest_path = fixture_csv
+    else:
+        # Canonical run
+        manifest_path = MANIFEST_CSV
+
+    if not manifest_path.exists():
+        if os.environ.get("AAC_ACCEPTANCE") == "1":
+            pytest.fail("Manifest is required in acceptance mode")
+        else:
+            pytest.skip("No manifest available")
+            
+    df = pd.read_csv(manifest_path)
+    required = df[df["required_for_thesis"] == True]
+    missing = required[required["exists_on_disk"] != True]
+    
+    if os.environ.get("AAC_ACCEPTANCE") == "1" or fixture_root:
+        assert missing.empty, f"Missing required artifacts: {missing['artifact_path'].tolist()}"
 
 
 def test_manifest_md_exists(manifest_files) -> None:

@@ -106,3 +106,7 @@ def test_train_all_boosting_permutation_tables_evaluation_period(tmp_path):
     assert perm_clf["evaluation_period"].equals(perm_clf["importance_split"])
     assert not perm_clf["evaluation_period"].isna().any()
 
+
+
+import pytest
+pytestmark = pytest.mark.slow

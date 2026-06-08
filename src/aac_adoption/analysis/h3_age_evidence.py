@@ -37,6 +37,11 @@ def _adoption_rate_by_age(df: pd.DataFrame, animal_subset: str) -> pd.DataFrame:
         )
         .reset_index()
         .assign(animal_subset=animal_subset)
+        .assign(
+            target_column="classification_target",
+            population_scope="all episodes",
+            estimand_label="classification_target"
+        )
     )
     return grp
 
@@ -47,16 +52,24 @@ def _adoption_rate_by_age(df: pd.DataFrame, animal_subset: str) -> pd.DataFrame:
 
 def _adopted_only_median_days(df: pd.DataFrame, animal_subset: str) -> pd.DataFrame:
     sub = df if animal_subset == "combined" else df[df["animal_type"].str.lower() == animal_subset.rstrip("s")]
-    adopted = sub[sub.get("classification_target", sub.get("adopted", pd.Series(dtype=int))) == 1]
-    days_col = next((c for c in ["days_to_adoption", "days_to_outcome", "regression_target_days"] if c in adopted.columns), None)
-    if days_col is None or "age_group" not in adopted.columns:
+    adopted = sub.loc[sub["classification_target"].eq(1)].copy()
+    adopted["days_to_adoption"] = adopted["regression_target_days"]
+    days_col = "days_to_adoption"
+    
+    if "age_group" not in adopted.columns:
         return pd.DataFrame()
+        
     grp = (
         adopted.groupby("age_group", dropna=False)[days_col]
         .agg(["median", "count"])
         .reset_index()
         .rename(columns={"median": f"median_{days_col}", "count": "adopted_records"})
         .assign(animal_subset=animal_subset)
+        .assign(
+            target_column="days_to_adoption",
+            population_scope="adopted episodes only",
+            estimand_label="days_to_adoption"
+        )
     )
     return grp
 

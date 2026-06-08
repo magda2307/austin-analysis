@@ -1,75 +1,33 @@
-"""Rolling features cache for decoupled context features."""
+"""True time-based rolling window computations for intake history."""
 
-from pathlib import Path
-from typing import Optional
-
+import numpy as np
 import pandas as pd
 
 
-class RollingFeaturesCache:
-    """Cached rolling feature calculations to decouple from main computation."""
+def compute_prior_intake_counts(raw_intakes: pd.DataFrame, windows: list[int] = [7, 30]) -> pd.DataFrame:
+    """Compute exact time-based rolling intake volume windows [t - window, t)."""
+    df = pd.DataFrame({
+        "animal_id": raw_intakes["animal_id"],
+        "intake_datetime": pd.to_datetime(raw_intakes["intake_datetime"], errors="coerce")
+    })
+    df["_original_idx"] = np.arange(len(df))
+    valid_mask = df["intake_datetime"].notna()
+    valid_df = df[valid_mask].sort_values(["intake_datetime", "_original_idx"]).copy()
     
-    def __init__(self, cache_dir: Optional[Path] = None):
-        self.cache_dir = cache_dir or Path(".rolling_cache")
-        self.cache_dir.mkdir(exist_ok=True)
-        self._cache = {}
+    timestamps = valid_df["intake_datetime"].values
     
-    def get_intake_volume(self, dataset_date: pd.Timestamp, window_days: int) -> float:
-        """Get cached intake volume for a date/window combination."""
-        cache_key = f"intake_volume_{window_days}d"
-        if cache_key not in self._cache:
-            self._load_cache(cache_key)
+    result_df = df.copy()
+    for window in windows:
+        start_times = valid_df["intake_datetime"] - pd.Timedelta(days=window)
+        start_indices = np.searchsorted(timestamps, start_times.values, side="left")
+        end_indices = np.arange(len(valid_df))
+        counts = end_indices - start_indices
+        valid_df[f"intake_volume_{window}d"] = np.maximum(counts, 0)
         
-        cache_series = self._cache[cache_key]
-        cutoff_date = dataset_date - pd.Timedelta(days=window_days)
-        
-        mask = (cache_series.index >= cutoff_date) & (cache_series.index < dataset_date)
-        if mask.any():
-            return float(cache_series[mask].sum())
-        return 0.0
-    
-    def store_intake_volume(self, date: pd.Timestamp, volume: float, window_days: int) -> None:
-        """Store calculated intake volume in cache."""
-        cache_key = f"intake_volume_{window_days}d"
-        if cache_key not in self._cache:
-            self._cache[cache_key] = pd.Series(dtype=float)
-        
-        self._cache[cache_key].at[date] = volume
-    
-    def _load_cache(self, key: str) -> None:
-        """Load cache from disk if available."""
-        cache_file = self.cache_dir / f"{key}.parquet"
-        if cache_file.exists():
-            self._cache[key] = pd.read_parquet(cache_file)
-        else:
-            self._cache[key] = pd.Series(dtype=float)
-
-
-def compute_rolling_features_decoupled(
-    intake_daily: pd.DataFrame,
-    windows: list[int] = [7, 30],
-) -> pd.DataFrame:
-    """Compute rolling features independently from main dataset."""
-    if intake_daily.empty:
-        return pd.DataFrame(columns=["context_date", *[f"intake_volume_{w}d" for w in windows]])
-    
-    intake_daily = intake_daily.copy()
-    intake_daily["context_date"] = pd.to_datetime(intake_daily["context_date"], errors="coerce").dt.normalize()
-    intake_daily = intake_daily.dropna(subset=["context_date"])
-    
-    intake_daily = intake_daily.groupby("context_date")["intake_volume"].sum().reset_index()
-    intake_daily = intake_daily.sort_values("context_date")
-    
-    result = pd.DataFrame({"context_date": intake_daily["context_date"]})
+    result_df = result_df.join(valid_df[[f"intake_volume_{w}d" for w in windows]])
     
     for window in windows:
-        result[f"intake_volume_{window}d"] = (
-            intake_daily["intake_volume"]
-            .shift(1)
-            .rolling(window, min_periods=1)
-            .sum()
-            .fillna(0)
-            .values
-        )
-    
-    return result
+        result_df[f"intake_volume_{window}d"] = result_df[f"intake_volume_{window}d"].fillna(0).astype(int)
+        
+    result_df = result_df.drop(columns=["_original_idx"], errors="ignore")
+    return result_df

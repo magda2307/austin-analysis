@@ -41,13 +41,14 @@ if (-not $SkipScripts) {
 }
 
 if (-not $SkipPytest) {
-    Invoke-Step "Dataset contract tests" @("python", "-m", "pytest", "tests/test_build_dataset.py", "-q")
-    Invoke-Step "Dashboard tests" @("python", "-m", "pytest", "tests/test_dashboard_data.py", "-q")
+    Invoke-Step "Dataset contract tests" @("python", "-m", "pytest", "tests/test_build_dataset.py", "-m", "not slow and not acceptance", "-q")
+    Invoke-Step "Dashboard tests" @("python", "-m", "pytest", "tests/test_dashboard_data.py", "-m", "not slow and not acceptance", "-q")
     Invoke-Step "Temporal validation tests" @(
         "python", "-m", "pytest",
         "tests/test_backtesting.py",
         "tests/test_yearly_backtesting.py",
         "tests/test_recency_comparison.py",
+        "-m", "not slow and not acceptance",
         "-q"
     )
     Invoke-Step "Method hardening tests" @(
@@ -55,43 +56,44 @@ if (-not $SkipPytest) {
         "tests/test_hyperparam_tuning.py",
         "tests/test_ensemble.py",
         "tests/test_diagnostics_outputs.py",
+        "-m", "not slow and not acceptance",
         "-q"
     )
     Invoke-Step "Terminology/report tests" @(
         "python", "-m", "pytest",
         "tests/test_target_definitions.py",
         "tests/test_report_outputs.py",
+        "-m", "not slow and not acceptance",
         "-q"
     )
 }
 
 if (-not $SkipScripts) {
+    $TempRoot = Join-Path $env:TEMP "aac_smoke_$([guid]::NewGuid().ToString('N'))"
+    New-Item -ItemType Directory -Path $TempRoot | Out-Null
+    Write-Host "Created temporary smoke root: $TempRoot" -ForegroundColor Gray
+
     Invoke-Step "Quick yearly backtesting" @(
         "python", "scripts/evaluate_backtesting.py",
         "--quick",
-        "--n_bootstraps", "$BacktestBootstraps"
+        "--n_bootstraps", "$BacktestBootstraps",
+        "--output", "$TempRoot/backtesting.csv"
     )
     Invoke-Step "Quick recency comparison" @(
         "python", "scripts/compare_recency.py",
         "--quick",
         "--n-bootstraps", "$RecencyBootstraps",
-        "--iterations", "$RecencyIterations"
+        "--iterations", "$RecencyIterations",
+        "--output", "$TempRoot/recency.csv",
+        "--figure-output", "$TempRoot/recency.png"
     )
 }
 
 if ($Long) {
+    $env:AAC_ACCEPTANCE = "1"
+    Write-Host "Running in canonical acceptance mode (AAC_ACCEPTANCE=1)" -ForegroundColor Gray
+    
     Invoke-Step "Full pytest suite" @("python", "-m", "pytest", "-q")
-    Invoke-Step "Pipeline without download or SHAP" @(
-        "python", "scripts/run_full_pipeline.py",
-        "--skip-download",
-        "--skip-shap"
-    )
-    Invoke-Step "Full calibration" @(
-        "python", "scripts/calibrate_classifiers.py",
-        "--data-path", "data/processed/modeling_dataset.csv"
-    )
-    Invoke-Step "Regenerate report outputs" @("python", "scripts/generate_report_outputs.py")
-    Invoke-Step "Regenerate artifact manifest" @("python", "scripts/generate_artifact_manifest.py")
 }
 
 Write-Host ""

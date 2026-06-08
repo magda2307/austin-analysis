@@ -28,8 +28,8 @@ def render_trust_and_limits(tables: dict[str, pd.DataFrame]) -> None:
         st.markdown(
             "1. **Binary Adoption Outcome:** Predicts whether an animal will be adopted "
             "(vs. transfer, return to owner, euthanasia, etc.) using shelter intake data.\n"
-            "2. **Predicted Length of Stay (LOS):** For animals that are adopted, predicts the "
-            "number of days they will spend in the shelter until the adoption event."
+            "2. **Predicted Time to Any Outcome:** Predicts the number of days until any outcome "
+            "(adoption, transfer, euthanasia, etc.). Adopted-only timing is tracked in a separate analysis."
         )
         
         st.markdown("### ⛔ What the Model Does NOT Predict")

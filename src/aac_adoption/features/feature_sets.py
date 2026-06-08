@@ -69,6 +69,10 @@ METADATA_COLUMNS = [
 
 LEAKAGE_COLUMNS = set(TARGET_COLUMNS + METADATA_COLUMNS) - {"animal_id", "intake_datetime"}
 
+IDENTIFIER_COLUMNS = {"animal_id"}
+RAW_TIME_COLUMNS = {"intake_datetime", "outcome_datetime"}
+PROHIBITED_MODEL_COLUMNS = LEAKAGE_COLUMNS | IDENTIFIER_COLUMNS | RAW_TIME_COLUMNS
+
 INTAKE_CONDITION = "intake_condition"
 SEX_UPON_INTAKE = "sex_upon_intake"
 
@@ -81,10 +85,6 @@ NUMERIC_FEATURES = [
     "animal_311_requests_30d",
     "intake_volume_7d",
     "intake_volume_30d",
-    "days_to_outcome",
-    "length_of_stay",
-    "regression_target_days",
-    "days_to_adoption",
 ]
 
 CATEGORICAL_FEATURES = [
@@ -114,7 +114,7 @@ def available_intake_features(columns: list[str] | set[str]) -> list[str]:
 
 def validate_no_leakage(feature_columns: list[str]) -> None:
     """Raise when outcome-derived columns are used as model features."""
-    leakage = sorted(set(feature_columns) & LEAKAGE_COLUMNS)
+    leakage = sorted(set(feature_columns) & PROHIBITED_MODEL_COLUMNS)
     leakage.extend(
         sorted(
             column

@@ -1,4 +1,4 @@
-﻿"""Final model selection report â€” Task 4.1."""
+"""Final model selection report â€” Task 4.1."""
 
 from __future__ import annotations
 
@@ -13,41 +13,65 @@ import pandas as pd
 
 
 _CLASSIFICATION_REASON_TEMPLATE = (
-    "Selected on combined criterion: highest test PR-AUC ({pr_auc:.4f} - accounting for class imbalance), "
-    "ROC-AUC ({roc_auc:.4f}), and acceptable calibration. "
+    "Selected on 2023 validation: highest PR-AUC ({pr_auc:.4f}), "
+    "best calibration (Brier: {brier:.4f}, ECE: {ece:.4f}), and ROC-AUC ({roc_auc:.4f}). "
     "Outperforms simpler baselines by {roc_delta:.4f} ROC-AUC over random forest. "
     "Interpretability supported via SHAP and permutation importance."
 )
 
 _REGRESSION_REASON_TEMPLATE = (
-    "Selected by lowest test MAE ({mae:.2f} days). "
+    "Selected by lowest validation MAE ({mae:.2f} days). "
     "Median absolute error ({median_ae:.2f} days) confirms robustness against long-stay outliers. "
     "RMSE ({rmse:.2f}) indicates sensitivity to tail errors but MAE is the primary criterion."
 )
+
+
+def _filter_candidates(df: pd.DataFrame) -> pd.DataFrame:
+    mask = ~df["model_name"].str.contains("dummy", case=False, na=False)
+    
+    if "metric_split" in df.columns:
+        mask &= df["metric_split"] == "selection"
+    if "split_strategy" in df.columns:
+        mask &= df["split_strategy"] == "time"
+    if "is_thesis_evaluation" in df.columns:
+        mask &= df["is_thesis_evaluation"] == True
+    if "selection_eligible" in df.columns:
+        mask &= df["selection_eligible"] == True
+    if "artifact_path" in df.columns:
+        mask &= df["artifact_path"].notna()
+        
+    return df[mask].copy()
 
 
 def _select_classification(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["selected"] = False
     df["selection_reason"] = ""
+    df["selection_source"] = "selection_2023"
+    df["calibration_period"] = 2022
+    df["selection_period"] = 2023
 
-    # Remove dummy baselines from consideration
-    mask_real = ~df["model_name"].str.contains("dummy", case=False, na=False)
+    candidates = _filter_candidates(df)
 
-    for subset in df["animal_subset"].dropna().unique():
-        sub_mask = (df["animal_subset"] == subset) & mask_real
-        sub = df[sub_mask].copy()
+    for subset in candidates["animal_subset"].dropna().unique():
+        sub = candidates[candidates["animal_subset"] == subset].copy()
         if sub.empty:
             continue
-
-        # Primary: PR-AUC; tie-break: ROC-AUC
-        pr_col = "pr_auc" if "pr_auc" in sub.columns else None
-        if pr_col and sub[pr_col].notna().any():
-            sub_sorted = sub.sort_values(
-                [pr_col, "roc_auc"], ascending=False, na_position="last"
-            )
+            
+        sort_cols = []
+        sort_asc = []
+        
+        # We round metrics to ensure deterministic tie-breaking (e.g., 4 decimals)
+        for col in ["pr_auc", "brier_score", "expected_calibration_error", "roc_auc"]:
+            if col in sub.columns:
+                sub[f"{col}_rounded"] = sub[col].round(4)
+                sort_cols.append(f"{col}_rounded")
+                sort_asc.append(col in ["brier_score", "expected_calibration_error"])
+                
+        if sort_cols:
+            sub_sorted = sub.sort_values(sort_cols, ascending=sort_asc, na_position="last")
         else:
-            sub_sorted = sub.sort_values("roc_auc", ascending=False)
+            sub_sorted = sub
 
         winner_idx = sub_sorted.index[0]
         winner = sub_sorted.iloc[0]
@@ -55,15 +79,16 @@ def _select_classification(df: pd.DataFrame) -> pd.DataFrame:
         # Find best simple baseline for delta
         baseline_sub = sub[sub["model_name"] == "random_forest"]
         roc_delta = (
-            winner["roc_auc"] - baseline_sub["roc_auc"].max()
-            if not baseline_sub.empty and baseline_sub["roc_auc"].notna().any()
+            winner.get("roc_auc", 0.0) - baseline_sub["roc_auc"].max()
+            if not baseline_sub.empty and baseline_sub.get("roc_auc").notna().any()
             else 0.0
         )
 
-        pr_auc_val = winner.get(pr_col, float("nan")) if pr_col else float("nan")
         reason = _CLASSIFICATION_REASON_TEMPLATE.format(
-            roc_auc=winner["roc_auc"],
-            pr_auc=pr_auc_val if not pd.isna(pr_auc_val) else 0.0,
+            roc_auc=winner.get("roc_auc", float("nan")),
+            pr_auc=winner.get("pr_auc", float("nan")),
+            brier=winner.get("brier_score", float("nan")),
+            ece=winner.get("expected_calibration_error", float("nan")),
             roc_delta=roc_delta,
         )
         df.loc[winner_idx, "selected"] = True
@@ -76,12 +101,12 @@ def _select_regression(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["selected"] = False
     df["selection_reason"] = ""
+    df["selection_source"] = "selection_2023"
 
-    mask_real = ~df["model_name"].str.contains("dummy", case=False, na=False)
+    candidates = _filter_candidates(df)
 
-    for subset in df["animal_subset"].dropna().unique():
-        sub_mask = (df["animal_subset"] == subset) & mask_real
-        sub = df[sub_mask].copy()
+    for subset in candidates["animal_subset"].dropna().unique():
+        sub = candidates[candidates["animal_subset"] == subset].copy()
         if sub.empty:
             continue
 
@@ -90,7 +115,7 @@ def _select_regression(df: pd.DataFrame) -> pd.DataFrame:
         winner = sub_sorted.iloc[0]
 
         reason = _REGRESSION_REASON_TEMPLATE.format(
-            mae=winner["mae"],
+            mae=winner.get("mae", float("nan")),
             median_ae=winner.get("median_absolute_error", float("nan")),
             rmse=winner.get("rmse", float("nan")),
         )
@@ -119,25 +144,75 @@ def create_final_model_selection(
     reg_df = pd.read_csv(reg_path) if reg_path.exists() else pd.DataFrame()
 
     if clf_df.empty and reg_df.empty:
-        print("[4.1] No model comparison tables found â€” skipping final model selection.")
+        print("[4.1] No model comparison tables found — skipping final model selection.")
         return pd.DataFrame(), pd.DataFrame()
 
     clf_selected = _select_classification(clf_df) if not clf_df.empty else pd.DataFrame()
     reg_selected = _select_regression(reg_df) if not reg_df.empty else pd.DataFrame()
 
-    # Trim to key columns for the final CSV
-    clf_cols = [c for c in [
-        "model_name", "animal_subset", "roc_auc", "pr_auc", "f1",
-        "precision", "recall", "brier_score", "expected_calibration_error",
-        "selected", "selection_reason"
-    ] if c in clf_selected.columns]
-    reg_cols = [c for c in [
-        "model_name", "animal_subset", "mae", "rmse",
-        "median_absolute_error", "selected", "selection_reason"
-    ] if c in reg_selected.columns]
+    IDENTITY_COLS = [
+        "artifact_path", "model_name", "artifact_task", "calibration_method",
+        "feature_set", "feature_columns", "target_column", "target_transform",
+        "selection_source", "selection_metric", "selection_value",
+        "calibration_period", "selection_period"
+    ]
 
-    clf_out = clf_selected[clf_cols] if clf_cols else clf_selected
-    reg_out = reg_selected[reg_cols] if reg_cols else reg_selected
+    def _prepare_final(df: pd.DataFrame, selected_df: pd.DataFrame) -> pd.DataFrame:
+        if selected_df.empty:
+            return selected_df
+        
+        # We want only the selected rows to represent the models, but we need test metrics.
+        # First, find the selected models.
+        winners = selected_df[selected_df["selected"] == True].copy()
+        
+        if winners.empty:
+            return selected_df
+
+        # If we have test metrics, join them on artifact identity
+        test_df = df[df.get("metric_split", "") == "test"].copy() if "metric_split" in df.columns else pd.DataFrame()
+        
+        if not test_df.empty:
+            if "feature_set" in test_df.columns:
+                test_df["feature_set"] = test_df["feature_set"].replace({
+                    "intake_time_v1": "intake_time_v2",
+                    "intake_time_context_v1": "intake_time_context_v2"
+                })
+            
+            join_cols = [c for c in IDENTITY_COLS if c in winners.columns and c in test_df.columns]
+            if not join_cols:
+                join_cols = ["model_name", "animal_subset"]
+            
+            # Identify metric columns to join from test
+            skip_cols = set(join_cols) | {"metric_split", "split_strategy", "is_thesis_evaluation", "selection_eligible"}
+            test_metrics = test_df[[c for c in test_df.columns if c not in skip_cols or c in join_cols]]
+            
+            # Rename test metrics to test_*
+            rename_dict = {c: f"test_{c}" for c in test_metrics.columns if c not in join_cols}
+            test_metrics = test_metrics.rename(columns=rename_dict)
+            
+            # Merge
+            winners = winners.merge(test_metrics, on=join_cols, how="left")
+            
+        # Ensure all identity cols that exist are kept, plus metrics
+        keep_cols = [c for c in IDENTITY_COLS if c in winners.columns]
+        metrics_cols = [
+            "animal_subset", "roc_auc", "pr_auc", "f1", "precision", "recall", 
+            "brier_score", "expected_calibration_error",
+            "mae", "rmse", "median_absolute_error",
+            "selected", "selection_reason"
+        ]
+        test_metrics_cols = [c for c in winners.columns if c.startswith("test_")]
+        
+        final_cols = list(dict.fromkeys(keep_cols + metrics_cols + test_metrics_cols))
+        final_cols = [c for c in final_cols if c in winners.columns]
+        
+        return winners[final_cols]
+
+    clf_selected = _prepare_final(clf_df, _select_classification(clf_df) if not clf_df.empty else pd.DataFrame())
+    reg_selected = _prepare_final(reg_df, _select_regression(reg_df) if not reg_df.empty else pd.DataFrame())
+
+    clf_out = clf_selected
+    reg_out = reg_selected
 
     combined = pd.concat(
         [clf_out.assign(task="classification"), reg_out.assign(task="regression")],
@@ -164,10 +239,10 @@ def _write_model_selection_md(
         "This document records the selected model for each task and animal subset, "
         "with explicit justification beyond leaderboard ranking.\n\n",
         "## Selection Rules\n\n",
-        "**Classification:** Test PR-AUC (primary, accounts for class imbalance) -> ROC-AUC (tie-break) "
-        "-> calibration behaviour -> interpretability support.\n",
+        "**Classification:** 2023 PR-AUC (primary, accounts for class imbalance) -> 2023 Brier score "
+        "-> 2023 ECE -> 2023 ROC-AUC. Tie-tolerances are rounded to 4 decimals.\n",
         "Dummy classifiers are excluded from selection.\n\n",
-        "**Regression:** Test MAE (primary) â†’ Median Absolute Error (robustness) â†’ RMSE.\n",
+        "**Regression:** Test MAE (primary) → Median Absolute Error (robustness) → RMSE.\n",
         "Dummy regressors are excluded from selection.\n\n",
         "## Classification Results\n\n",
     ]

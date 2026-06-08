@@ -26,20 +26,17 @@ def _ordered_covid(df: pd.DataFrame, col: str = "covid_period") -> pd.DataFrame:
 # ---------------------------------------------------------------------------
 
 def _build_evidence_matrix(df: pd.DataFrame) -> pd.DataFrame:
-    target_col = next(
-        (c for c in ["classification_target", "adopted", "is_adopted"] if c in df.columns), None
-    )
-    days_col = next(
-        (c for c in ["days_to_outcome", "regression_target_days", "days_to_adoption"] if c in df.columns), None
-    )
     rows = []
     for period in COVID_ORDER:
         sub = df[df["covid_period"] == period]
         row: dict = {"covid_period": period, "n_records": len(sub)}
-        if target_col:
-            row["adoption_rate"] = float(sub[target_col].mean()) if not sub.empty else None
-        if days_col:
-            row["median_los_days"] = float(sub[days_col].median()) if not sub.empty else None
+        if "classification_target" in sub.columns:
+            row["adoption_rate"] = float(sub["classification_target"].mean()) if not sub.empty else None
+            row["target_column"] = "classification_target/regression_target_days"
+            row["population_scope"] = "all matched episodes"
+            row["estimand_label"] = "adoption_rate_and_median_los"
+        if "regression_target_days" in sub.columns:
+            row["median_los_days"] = float(sub["regression_target_days"].median()) if not sub.empty else None
         row["intake_volume"] = len(sub)
         rows.append(row)
     return pd.DataFrame(rows)

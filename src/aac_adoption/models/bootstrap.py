@@ -12,7 +12,7 @@ from sklearn.metrics import (
     r2_score,
     roc_auc_score,
 )
-from aac_adoption.models.evaluate import expected_calibration_error
+
 
 
 def bootstrap_ci(
@@ -49,6 +49,8 @@ def bootstrap_ci(
     
     if animal_ids is not None and len(animal_ids) > 0:
         animal_ids_arr = np.asarray(animal_ids)
+        if not (len(y_true_arr) == len(y_pred_arr) == len(animal_ids_arr)):
+            raise ValueError("Input lengths must match")
         unique_animals = np.unique(animal_ids_arr)
         animal_to_indices = {aid: np.where(animal_ids_arr == aid)[0] for aid in unique_animals}
         scores = []
@@ -56,8 +58,8 @@ def bootstrap_ci(
         for _ in range(n_bootstraps):
             sampled_animals = rng.choice(unique_animals, size=len(unique_animals), replace=True)
             sample_indices = np.concatenate([animal_to_indices[aid] for aid in sampled_animals])
-            sample_indices = np.unique(sample_indices)
             
+
             if len(np.unique(y_true_arr[sample_indices])) < 2:
                 continue
             if y_score_arr is not None:

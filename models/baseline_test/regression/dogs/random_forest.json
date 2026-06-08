@@ -1,0 +1,33 @@
+{
+  "training_target_min": 0.0298611111111111,
+  "training_target_max": 590.0527777777778,
+  "winsorization_lower_quantile": 0.01,
+  "winsorization_upper_quantile": 0.99,
+  "winsorization_lower_value": 0.05102777777777773,
+  "winsorization_upper_value": 340.7261944444452,
+  "model_name": "random_forest",
+  "task": "regression",
+  "animal_subset": "dogs",
+  "split_strategy": "time",
+  "is_thesis_evaluation": 1,
+  "train_period": "2013-2021",
+  "validation_period": "2022-2023",
+  "test_period": "2024-2025",
+  "feature_set": "intake_time_v2",
+  "feature_columns": "animal_type,intake_type,intake_condition,sex_upon_intake,age_days,age_group,primary_breed,is_mixed_breed,simplified_breed_group,found_location_kind,found_location_area,is_austin_found_location,is_outside_jurisdiction,is_intersection_location,is_address_like_location,is_airport_location,primary_color,simplified_color_group,is_black_or_dark,is_named,intake_year,intake_month,covid_period",
+  "random_state": 42,
+  "run_timestamp": "2026-06-08T21:16:51.474121+00:00",
+  "train_rows": 459,
+  "validation_rows": 72,
+  "test_rows": 33,
+  "artifact_path": "models\\baseline_test\\regression\\dogs\\random_forest.joblib",
+  "environment": {
+    "packages": {
+      "pandas": "2.3.3",
+      "scikit-learn": "1.8.0",
+      "catboost": "1.2.10",
+      "numpy": "2.4.6"
+    },
+    "git_sha": "unknown"
+  }
+}

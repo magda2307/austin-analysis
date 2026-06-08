@@ -67,3 +67,7 @@ def test_train_all_advanced_writes_metrics_and_artifacts(tmp_path):
     assert (metrics_dir / "advanced_regression_metrics.csv").exists()
     assert list(models_dir.rglob("*.joblib"))
 
+
+
+import pytest
+pytestmark = pytest.mark.slow

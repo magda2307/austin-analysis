@@ -295,31 +295,88 @@ def _clean_text(value: object) -> object:
 
 def collect_artifacts() -> list[dict]:
     rows = []
-    scan_dirs = [REPORTS_DIR, ROOT / "docs"]
-    for scan_dir in scan_dirs:
-        if not scan_dir.exists():
-            continue
-        for fpath in sorted(scan_dir.rglob("*")):
-            if not fpath.is_file():
+    
+    receipts_dir = REPORTS_DIR / "run_receipts"
+    # Find the most recent successful thesis-full run
+    valid_runs = []
+    if receipts_dir.exists():
+        for run_dir in receipts_dir.iterdir():
+            if not run_dir.is_dir():
                 continue
-            if fpath.name.startswith(".") or fpath.suffix == ".gitkeep":
+            receipts = list(run_dir.glob("*.json"))
+            if not receipts:
                 continue
-            rel = str(fpath.relative_to(ROOT)).replace("\\", "/")
-            meta = ARTIFACT_METADATA.get(rel, {})
-            mtime = datetime.fromtimestamp(fpath.stat().st_mtime, tz=timezone.utc).isoformat()
-            rows.append(
-                {
-                    "artifact_path": rel,
-                    "artifact_type": _clean_text(meta.get("artifact_type", _infer_type(fpath))),
-                    "created_at": mtime,
-                    "source_script": _clean_text(meta.get("source_script", "")),
-                    "required_for_thesis": meta.get("required_for_thesis", False),
-                    "chapter": _clean_text(meta.get("chapter", _infer_chapter(rel))),
-                    "notes": _clean_text(meta.get("notes", "")),
-                    "exists_on_disk": True,
-                }
-            )
-    # Also add known artifacts that don't exist yet
+            
+            # Check profile and run integrity from the first receipt
+            import json
+            try:
+                with open(receipts[0], "r") as f:
+                    data = json.load(f)
+                    if data.get("profile") == "thesis-full":
+                        valid_runs.append((data.get("completed_at", ""), run_dir, receipts))
+            except Exception:
+                pass
+                
+    if not valid_runs:
+        print("WARNING: No successful thesis-full run receipts found.")
+        # Fallback to empty list, meaning all artifacts will be 'missing'
+        # unless overridden
+        pass
+    else:
+        valid_runs.sort(reverse=True) # newest first
+        _, run_dir, receipts = valid_runs[0]
+        
+        import json
+        import hashlib
+        
+        def compute_file_sha256(path_obj: Path) -> str:
+            if not path_obj.exists():
+                return "unavailable_not_found"
+            hasher = hashlib.sha256()
+            with open(path_obj, "rb") as f:
+                for chunk in iter(lambda: f.read(65536), b""):
+                    hasher.update(chunk)
+            return hasher.hexdigest()
+
+        for receipt_path in receipts:
+            with open(receipt_path, "r") as f:
+                data = json.load(f)
+                
+            if data.get("status") != "ok":
+                continue
+                
+            for out_path_str, expected_hash in data.get("output_hashes", {}).items():
+                fpath = Path(out_path_str)
+                if not fpath.exists():
+                    continue
+                    
+                rel = str(fpath.relative_to(ROOT)).replace("\\", "/")
+                meta = ARTIFACT_METADATA.get(rel, {})
+                mtime = datetime.fromtimestamp(fpath.stat().st_mtime, tz=timezone.utc).isoformat()
+                
+                # Check hash match
+                actual_hash = compute_file_sha256(fpath)
+                if actual_hash != expected_hash:
+                    print(f"ERROR: Hash mismatch for {rel}. Expected {expected_hash}, got {actual_hash}")
+                    # In a strict pipeline, we would exit 1 here, but let's record it.
+                    continue
+                    
+                rows.append(
+                    {
+                        "artifact_path": rel,
+                        "artifact_type": _clean_text(meta.get("artifact_type", _infer_type(fpath))),
+                        "created_at": mtime,
+                        "source_script": _clean_text(meta.get("source_script", "")),
+                        "required_for_thesis": meta.get("required_for_thesis", False),
+                        "chapter": _clean_text(meta.get("chapter", _infer_chapter(rel))),
+                        "notes": _clean_text(meta.get("notes", "")),
+                        "exists_on_disk": True,
+                        "run_id": data.get("run_id", run_dir.name),
+                        "file_hash": actual_hash,
+                    }
+                )
+                
+    # Also add known artifacts that don't exist yet or weren't in receipts
     on_disk = {r["artifact_path"] for r in rows}
     for rel, meta in ARTIFACT_METADATA.items():
         if rel not in on_disk:
@@ -333,6 +390,8 @@ def collect_artifacts() -> list[dict]:
                     "chapter": _clean_text(meta.get("chapter", "")),
                     "notes": _clean_text(meta.get("notes", "")),
                     "exists_on_disk": False,
+                    "run_id": "",
+                    "file_hash": "",
                 }
             )
     return rows

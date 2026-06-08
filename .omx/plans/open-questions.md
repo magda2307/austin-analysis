@@ -1,0 +1,2 @@
+- [ ] Keep survival as descriptive/future work for final acceptance, or promote it to thesis-grade survival modeling?
+- [ ] Keep `scripts/validate_final_acceptance.ps1 -Long` as the canonical long acceptance entrypoint, or replace it with a different documented command after the recency CLI help defect is fixed?

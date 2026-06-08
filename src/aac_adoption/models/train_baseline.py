@@ -133,6 +133,7 @@ def _fit_and_save(
     target_column: str,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     winsorize_target: bool = False,
     lower_quantile: float = 0.01,
     upper_quantile: float = 0.99,
@@ -142,7 +143,10 @@ def _fit_and_save(
     
     # Train-only winsorization: compute quantiles on train set and apply only during training
     train_target = split.train[target_column].copy()
-    metadata = {}
+    metadata = {
+        "training_target_min": float(train_target.min()),
+        "training_target_max": float(train_target.max()),
+    }
     if winsorize_target and "regression" in task:
         lower = train_target.quantile(lower_quantile)
         upper = train_target.quantile(upper_quantile)
@@ -167,6 +171,8 @@ def _fit_and_save(
         split=split,
         feature_columns=feature_columns,
         run_timestamp=run_timestamp,
+        target_column=target_column,
+        dataset_path=dataset_path,
     ))
     path = save_model_artifact(
         pipeline=pipeline,
@@ -185,6 +191,7 @@ def train_classification_baselines(
     models_dir: Path,
     tables_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
 ) -> list[dict]:
     """Train adoption classification baselines for combined/dog/cat subsets."""
     rows: list[dict] = []
@@ -214,20 +221,53 @@ def train_classification_baselines(
                 target_column="classification_target",
                 models_dir=models_dir,
                 run_timestamp=run_timestamp,
+                dataset_path=dataset_path,
             )
-            predictions = pipeline.predict(split.test[feature_columns])
-            scores = (
-                pipeline.predict_proba(split.test[feature_columns])[:, 1]
-                if hasattr(pipeline, "predict_proba") and pipeline.predict_proba(split.test[feature_columns]).shape[1] == 2
-                else None
-            )
-            metrics = classification_metrics(
-                split.test["classification_target"], 
-                predictions, 
-                scores,
-                compute_ci=(subset in ["dogs", "cats"]),
-            )
-            rows.append({**metadata, **metrics})
+            if not split.selection.empty:
+                sel_predictions = pipeline.predict(split.selection[feature_columns])
+                sel_scores = (
+                    pipeline.predict_proba(split.selection[feature_columns])[:, 1]
+                    if hasattr(pipeline, "predict_proba") and pipeline.predict_proba(split.selection[feature_columns]).shape[1] == 2
+                    else None
+                )
+                sel_metrics = classification_metrics(
+                    split.selection["classification_target"], 
+                    sel_predictions, 
+                    sel_scores,
+                    compute_ci=(subset in ["dogs", "cats"]),
+                )
+                rows.append({
+                    **metadata,
+                    **sel_metrics,
+                    "target_column": "classification_target",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "selection",
+                    "selection_eligible": 1,
+                })
+
+            if not split.test.empty:
+                predictions = pipeline.predict(split.test[feature_columns])
+                scores = (
+                    pipeline.predict_proba(split.test[feature_columns])[:, 1]
+                    if hasattr(pipeline, "predict_proba") and pipeline.predict_proba(split.test[feature_columns]).shape[1] == 2
+                    else None
+                )
+                metrics = classification_metrics(
+                    split.test["classification_target"], 
+                    predictions, 
+                    scores,
+                    compute_ci=(subset in ["dogs", "cats"]),
+                )
+                rows.append({
+                    **metadata,
+                    **metrics,
+                    "target_column": "classification_target",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "test",
+                    "selection_eligible": 0,
+                })
 
             if model_name == "logistic_regression":
                 append_table(
@@ -246,6 +286,7 @@ def train_regression_baselines(
     df: pd.DataFrame,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
 ) -> list[dict]:
     """Train LOS/time-to-outcome regression baselines for combined/dog/cat subsets."""
     rows: list[dict] = []
@@ -274,15 +315,42 @@ def train_regression_baselines(
                 target_column="regression_target_days",
                 models_dir=models_dir,
                 run_timestamp=run_timestamp,
+                dataset_path=dataset_path,
                 winsorize_target=True,
             )
-            predictions = pipeline.predict(split.test[feature_columns])
-            metrics = regression_metrics(
-                split.test["regression_target_days"], 
-                predictions,
-                compute_ci=(subset in ["dogs", "cats"]),
-            )
-            rows.append({**metadata, **metrics})
+            if not split.selection.empty:
+                sel_predictions = pipeline.predict(split.selection[feature_columns])
+                sel_metrics = regression_metrics(
+                    split.selection["regression_target_days"], 
+                    sel_predictions,
+                    compute_ci=(subset in ["dogs", "cats"]),
+                )
+                rows.append({
+                    **metadata,
+                    **sel_metrics,
+                    "target_column": "regression_target_days",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "selection",
+                    "selection_eligible": 1,
+                })
+
+            if not split.test.empty:
+                predictions = pipeline.predict(split.test[feature_columns])
+                metrics = regression_metrics(
+                    split.test["regression_target_days"], 
+                    predictions,
+                    compute_ci=(subset in ["dogs", "cats"]),
+                )
+                rows.append({
+                    **metadata,
+                    **metrics,
+                    "target_column": "regression_target_days",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "test",
+                    "selection_eligible": 0,
+                })
     return rows
 
 
@@ -319,11 +387,13 @@ def train_all_baselines(
         models_dir=model_output_dir,
         tables_dir=table_output_dir,
         run_timestamp=run_timestamp,
+        dataset_path=str(data_path),
     )
     regression_rows = train_regression_baselines(
         df=df,
         models_dir=model_output_dir,
         run_timestamp=run_timestamp,
+        dataset_path=str(data_path),
     )
 
     classification = pd.DataFrame(classification_rows)

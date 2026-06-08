@@ -76,6 +76,7 @@ def main():
             quick=args.quick,
             strict=True,
             iterations=iterations,
+            data_path=str(data_path),
         )
         if not results.empty:
             all_results.append(results)

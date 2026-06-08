@@ -60,6 +60,7 @@ def _fit_and_save(
     target_column: str,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     params: dict[str, Any],
     winsorize_target: bool = False,
     lower_quantile: float = 0.01,
@@ -73,7 +74,7 @@ def _fit_and_save(
     
     # Train-only winsorization for regression tasks
     train_y = split.train[target_column].copy()
-    metadata = {}
+    metadata = {'training_target_min': float(train_y.min()), 'training_target_max': float(train_y.max())}
     if winsorize_target and "regression" in task:
         train_y = winsorize_outliers(train_y, lower_quantile, upper_quantile)
         metadata["winsorization_lower_quantile"] = lower_quantile
@@ -100,10 +101,11 @@ def _fit_and_save(
         split=split,
         feature_columns=feature_columns,
         run_timestamp=run_timestamp,
+        target_column=target_column,
+        dataset_path=dataset_path,
         categorical_features=categorical_features,
         params=params,
     ))
-    metadata["feature_columns"] = feature_columns
     path = save_model_artifact(model, models_dir, task, split.animal_subset, "catboost", metadata)
     metadata["artifact_path"] = str(path)
     return model, metadata
@@ -124,6 +126,7 @@ def train_advanced_classification(
     df: pd.DataFrame,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     *,
     iterations: int,
     learning_rate: float,
@@ -165,20 +168,51 @@ def train_advanced_classification(
             target_column="classification_target",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
+            dataset_path=dataset_path,
             params=params,
         )
         test_x = prepare_catboost_frame(split.test, feature_columns)
         
-        # Uncalibrated metrics
-        predictions = model.predict(test_x).astype(int)
-        scores = model.predict_proba(test_x)[:, 1]
-        metrics = classification_metrics(
-            split.test["classification_target"], 
-            predictions, 
-            scores,
-            compute_ci=(subset in ["dogs", "cats"])
-        )
-        rows.append({**metadata, **metrics, "calibration_method": None})
+        if not split.selection.empty:
+            sel_x = prepare_catboost_frame(split.selection, feature_columns)
+            sel_predictions = model.predict(sel_x).astype(int)
+            sel_scores = model.predict_proba(sel_x)[:, 1]
+            sel_metrics = classification_metrics(
+                split.selection["classification_target"], 
+                sel_predictions, 
+                sel_scores,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **sel_metrics,
+                "calibration_method": None,
+                "target_column": "classification_target",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "selection",
+                "selection_eligible": 1,
+            })
+            
+        if not split.test.empty:
+            test_predictions = model.predict(test_x).astype(int)
+            test_scores = model.predict_proba(test_x)[:, 1]
+            test_metrics = classification_metrics(
+                split.test["classification_target"], 
+                test_predictions, 
+                test_scores,
+                compute_ci=(subset in ["dogs", "cats"])
+            )
+            rows.append({
+                **metadata,
+                **test_metrics,
+                "calibration_method": None,
+                "target_column": "classification_target",
+                "target_transform": "identity",
+                "prediction_inverse_transform": "identity",
+                "metric_split": "test",
+                "selection_eligible": 0,
+            })
         
         # Apply Post-Hoc Calibration if validation set is available
         if not calibration_validation.empty:
@@ -220,15 +254,44 @@ def train_advanced_classification(
                 calibrated_metadata,
             )
             
-            calib_predictions = calibrated_model.predict(test_x).astype(int)
-            calib_scores = calibrated_model.predict_proba(test_x)[:, 1]
-            calib_metrics = classification_metrics(
-                split.test["classification_target"], 
-                calib_predictions, 
-                calib_scores,
-                compute_ci=False
-            )
-            rows.append({**calibrated_metadata, **calib_metrics})
+            if not split.selection.empty:
+                sel_x = prepare_catboost_frame(split.selection, feature_columns)
+                sel_calib_preds = calibrated_model.predict(sel_x).astype(int)
+                sel_calib_scores = calibrated_model.predict_proba(sel_x)[:, 1]
+                sel_calib_metrics = classification_metrics(
+                    split.selection["classification_target"], 
+                    sel_calib_preds, 
+                    sel_calib_scores,
+                    compute_ci=False
+                )
+                rows.append({
+                    **calibrated_metadata,
+                    **sel_calib_metrics,
+                    "target_column": "classification_target",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "selection",
+                    "selection_eligible": 1,
+                })
+
+            if not split.test.empty:
+                calib_predictions = calibrated_model.predict(test_x).astype(int)
+                calib_scores = calibrated_model.predict_proba(test_x)[:, 1]
+                calib_metrics = classification_metrics(
+                    split.test["classification_target"], 
+                    calib_predictions, 
+                    calib_scores,
+                    compute_ci=False
+                )
+                rows.append({
+                    **calibrated_metadata,
+                    **calib_metrics,
+                    "target_column": "classification_target",
+                    "target_transform": "identity",
+                    "prediction_inverse_transform": "identity",
+                    "metric_split": "test",
+                    "selection_eligible": 0,
+                })
     return rows
 
 
@@ -236,13 +299,14 @@ def train_advanced_regression(
     df: pd.DataFrame,
     models_dir: Path,
     run_timestamp: str,
+    dataset_path: str,
     *,
     iterations: int,
     learning_rate: float,
     depth: int,
     early_stopping_rounds: int,
 ) -> list[dict[str, Any]]:
-    """Train CatBoost days-to-outcome regressors with log-transform and adopted-only filtering."""
+    """Train CatBoost days-to-outcome regressors with log-transform."""
     rows: list[dict[str, Any]] = []
     params = {
         "loss_function": "MAE",
@@ -256,9 +320,6 @@ def train_advanced_regression(
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
-        
-        filter_df = split.train.copy()
-        filter_col = "adopted" if "adopted" in split.train.columns else "classification_target"
         
         split_train = split.train.copy()
         split_train = log_transform_LOS(split_train, "regression_target_days")
@@ -282,18 +343,43 @@ def train_advanced_regression(
                 validation_period=split.validation_period,
                 test_period=split.test_period,
                 animal_subset=split.animal_subset,
+                selection=split.selection,
             ),
             feature_columns=feature_columns,
             target_column="log_regression_target_days",
             models_dir=models_dir,
             run_timestamp=run_timestamp,
+            dataset_path=dataset_path,
             params=params,
             winsorize_target=True,
         )
-        test_x = prepare_catboost_frame(split.test, feature_columns)
-        predictions = model.predict(test_x)
-        predictions_exp = np.exp(predictions) - 1
-        rows.append({**metadata, **regression_metrics(split.test["regression_target_days"], predictions_exp)})
+        if not split.selection.empty:
+            sel_x = prepare_catboost_frame(split.selection, feature_columns)
+            sel_predictions = np.exp(model.predict(sel_x)) - 1
+            sel_metrics = regression_metrics(split.selection["regression_target_days"], sel_predictions)
+            rows.append({
+                **metadata,
+                **sel_metrics,
+                "target_column": "regression_target_days",
+                "target_transform": "log1p",
+                "prediction_inverse_transform": "expm1",
+                "metric_split": "selection",
+                "selection_eligible": 1,
+            })
+            
+        if not split.test.empty:
+            test_x = prepare_catboost_frame(split.test, feature_columns)
+            predictions = np.exp(model.predict(test_x)) - 1
+            metrics = regression_metrics(split.test["regression_target_days"], predictions)
+            rows.append({
+                **metadata,
+                **metrics,
+                "target_column": "regression_target_days",
+                "target_transform": "log1p",
+                "prediction_inverse_transform": "expm1",
+                "metric_split": "test",
+                "selection_eligible": 0,
+            })
     return rows
 
 
@@ -307,6 +393,7 @@ def train_all_advanced(
     depth: int = 6,
     early_stopping_rounds: int = 50,
     tuned_params_path: str | Path | None = None,
+    allow_default_params: bool = False,
 ) -> AdvancedTrainingOutputs:
     """Train all advanced CatBoost models and save metric outputs."""
     header = pd.read_csv(data_path, nrows=0)
@@ -326,10 +413,14 @@ def train_all_advanced(
         p = Path(tuned_params_path)
         if p.exists():
             d = json.loads(p.read_text(encoding="utf-8"))
-            if "catboost_classification" in d:
-                clf_kwargs.update(d["catboost_classification"])
-            if "catboost_regression" in d:
-                reg_kwargs.update(d["catboost_regression"])
+            for key, kwargs_dict in [("catboost_classification", clf_kwargs), ("catboost_regression", reg_kwargs)]:
+                if key in d:
+                    tune_info = d[key]
+                    if tune_info.get("status") == "failed":
+                        if not allow_default_params:
+                            raise ValueError(f"Tuning failed for {key}. Explicit development flag required to use defaults.")
+                    elif tune_info.get("best_params") is not None:
+                        kwargs_dict.update(tune_info["best_params"])
 
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(
@@ -337,6 +428,7 @@ def train_all_advanced(
             df,
             model_output_dir,
             run_timestamp,
+            str(data_path),
             early_stopping_rounds=early_stopping_rounds,
             **clf_kwargs
         )
@@ -346,6 +438,7 @@ def train_all_advanced(
             df,
             model_output_dir,
             run_timestamp,
+            str(data_path),
             early_stopping_rounds=early_stopping_rounds,
             **reg_kwargs
         )

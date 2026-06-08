@@ -1,284 +1,209 @@
-﻿# Validator Findings: P2 Risk in Permutation Importance Validation Fallback
+# P3 Risk Analysis: Weak Spy Test in test_hyperparam_tuning.py
 
-## Overview
-Analyzed src/aac_adoption/models/train_boosting.py for validation-only rule violations in permutation importance calculation.
+## Issue Summary
+
+**Location**: `tests/test_hyperparam_tuning.py:164-180`
+
+**Problem**: Test uses a spy pattern to verify `CatBoostRegressor.fit()` calls, but validation is insufficient to ensure all cross-validation folds execute. Test can pass even if the objective function fails after completing only 1 fold instead of the expected 10 (2 trials × 5 folds).
 
 ---
 
-## 1. EXACT CODE CAUSING ISSUE
+## Code Analysis
 
-### Permutation Importance Fallback (Lines 138-139)
+### Current Test Assertions (lines 164-180)
+
 ```python
-sample = split.validation if not split.validation.empty else split.test
-importance_split = "validation" if not split.validation.empty else "test"
-```
-
-### Full Context (_permutation_table function, Lines 128-160)
-Lines 138-157:
-```python
-    sample = split.validation if not split.validation.empty else split.test
-    importance_split = "validation" if not split.validation.empty else "test"
-    if len(sample) > max_rows:
-        sample = sample.sample(n=max_rows, random_state=RANDOM_STATE)
-    result = permutation_importance(
-        pipeline,
-        sample[feature_columns],
-        sample[target_column],
-        n_repeats=repeats,
-        random_state=RANDOM_STATE,
-        scoring=scoring,
-        n_jobs=1,
-    )
-    return pd.DataFrame(
-        {
-            "feature": feature_columns,
-            "importance_mean": result.importances_mean,
-            "importance_std": result.importances_std,
-            "importance_split": importance_split,
-            "evaluation_period": importance_split,
-            **metadata,
-        }
-    ).sort_values("importance_mean", ascending=False)
-```
-
----
-
-## 2. VALIDATION-ONLY RULE VIOLATION ANALYSIS
-
-### 2.1 Violation Status: YES
-
-**The validation-only rule IS violated when split.validation is empty.**
-
-When split.validation.empty is True, the code:
-1. Falls back to using split.test for permutation importance calculation
-2. Sets importance_split = "test" (correctly documenting what was used)
-3. The evaluation_period column copies from importance_split (line 157)
-
-### 2.2 Critical Issue: evaluation_period Misrepresentation
-
-**Line 157 sets evaluation_period = importance_split, which means:**
-- When validation exists: evaluation_period = "validation" 
-- When validation is empty: evaluation_period = "test"  (P2 risk)
-
-**This creates a thesis safety problem:** If validation data is ever empty (due to time-based splitting issues, small datasets, or edge cases), permutation importance will be calculated on TEST data but may be documented incorrectly in analysis pipelines that assume validation was used.
-
----
-
-## 3. VALIDATION-ONLY RULE VIOLATION SCENARIOS
-
-### Scenario 1: Empty Validation Split (Time-Based Split Edge Case)
-**Risk:** validation-only rule violated, test data used
-
-**Code Path:**
-1. make_time_split() creates time-based splits (split.py lines 47-116)
-2. Validation period contains 0 samples (empty DataFrame) at line 66
-3. Code falls back to test data for permutation importance (train_boosting.py lines 138-139)
-4. importance_split = "test" is correctly set
-5. BUT if downstream analysis assumes validation was used, conclusions are invalid
-
-### Scenario 2: Test Data Used When Validation Expected
-**Risk:** Methodology confusion, invalid thesis conclusions
-
-**Current Behavior:**
-| Condition | Permutation Data Used | importance_split | evaluation_period |
-|-----------|----------------------|------------------|-------------------|
-| split.validation.empty = False | validation | "validation" | "validation" |
-| split.validation.empty = True | test | "test" | "test" |
-
-**The problem:** The evaluation_period column should indicate what was *intended* to be used for validation-only metrics, not what was actually used as a fallback. If validation was never available, the metric cannot be classified as "validation-only" by definition.
-
----
-
-## 4. THESIS SAFETY CONCERNS
-
-### 4.1 Primary Concern: Validation Metrics on Test Data
-
-**Permutation importance measures feature stability, which is:**
-1. A property of the model learned patterns
-2. Independent of data split usage (theoretically any set works)
-3. BUT thesis methodology requires validation-only metrics for fair comparison
-
-**Why this matters for thesis validity:**
-1. Permutation importance on test data leaks test information into feature importance analysis
-2. If combined with test metrics, creates circular analysis (test - importance - test)
-3. Undermines clean separation between validation (model selection) and test (final evaluation)
-
-### 4.2 Secondary Concern: evaluation_period Column Semantics
-
-**Line 157: "evaluation_period": importance_split**
-- Should represent the *intended* evaluation stage (validation vs test)
-- Currently represents what was *actually* used
-- This creates ambiguity in downstream analysis
-
-**Correct interpretation for thesis:**
-- evaluation_period = "validation" - this is a validation-only metric
-- evaluation_period = "test" - this is a test-set metric (final evaluation only)
-
-When validation is empty, the metric cannot be classified as "validation-only" by definition.
-
----
-
-## 5. EDGE CASES
-
-| Edge Case | Current Handling | Thesis-Safety Risk |
-|-----------|------------------|-------------------|
-| **Validation empty (0 samples)** | Falls back to test | HIGH - validation-only rule violated |
-| **Test empty (0 samples)** | Falls back to validation | MEDIUM - test metrics undefined |
-| **Both validation and test empty** | Uses empty sample, permutation_importance may fail | HIGH - undefined behavior |
-| **Validation smaller than max_rows** | Uses all validation | LOW - correct behavior |
-| **Test smaller than max_rows** | Uses all test | LOW - correct behavior (as fallback) |
-
-**Most Critical Edge Case:** Validation empty with non-empty test. This triggers the P2 violation where validation-only metrics are calculated on test data.
-
-### split.py Analysis: When Can Validation Be Empty?
-
-Looking at make_time_split (split.py lines 64-86):
-- Time-based split uses years 2022-2023 for validation (line 66)
-- If no data exists for these years, validation will be empty (0 rows)
-- Fallback logic (lines 65-86) only returns if `not train.empty and not test.empty`
-- **Note:** There is NO check for validation.empty before returning!
-
-Looking at random split fallback (split.py lines 88-116):
-- Uses train_test_split to create random splits
-- Does not explicitly check if validation is empty
-- Could produce empty validation with very small datasets
-
----
-
-## 6. THESIS-SAFE FIX OPTIONS
-
-### Option A: ✅ RAISE EXCEPTION (RECOMMENDED)
-```python
-def _permutation_table(
-    pipeline,
-    split: DatasetSplit,
-    feature_columns: list[str],
-    target_column: str,
-    metadata: dict,
-    scoring: str,
-    repeats: int,
-    max_rows: int,
-) -> pd.DataFrame:
-    # Thesis-safety: must use validation for validation-only metrics
-    if split.validation.empty:
-        raise ValueError(
-            f"Permutation importance requires validation data for {metadata.get(animal_subset, unknown)}. "
-            f"Validation split is empty. Check time-based split configuration or dataset size."
-        )
+with patch("catboost.CatBoostRegressor.fit") as mock_fit:
+    best_params, studies = tune_models(df, n_trials=2)
     
-    sample = split.validation
-    importance_split = "validation"
-    if len(sample) > max_rows:
-        sample = sample.sample(n=max_rows, random_state=RANDOM_STATE)
-    result = permutation_importance(
-        pipeline,
-        sample[feature_columns],
-        sample[target_column],
-        n_repeats=repeats,
-        random_state=RANDOM_STATE,
-        scoring=scoring,
-        n_jobs=1,
-    )
-    return pd.DataFrame(
-        {
-            "feature": feature_columns,
-            "importance_mean": result.importances_mean,
-            "importance_std": result.importances_std,
-            "importance_split": importance_split,
-            "evaluation_period": importance_split,
-            **metadata,
-        }
-    ).sort_values("importance_mean", ascending=False)
+    assert mock_fit.call_count >= 1  # LINE 167 - WEAK ASSERTION
+    
+    for call in mock_fit.call_args_list:
+        X_tr = call[0][0]
+        y_tr = call[0][1]
+        assert isinstance(X_tr, pd.DataFrame)
+        assert isinstance(y_tr, pd.Series)
+        assert X_tr.index.equals(y_tr.index)
+    
+    actual_y_values = [call[0][1] for call in mock_fit.call_args_list]
+    
+    for y in actual_y_values:
+        original_y_tr = y_reg_original[y.index]
+        assert np.allclose(y, np.log1p(original_y_tr))
 ```
 
-**Rationale:**
-1. Permutation importance for feature analysis should use validation data (not test)
-2. Validation-only rule is fundamental to thesis methodology
-3. Empty validation indicates data preparation issue that should not be silently ignored
-4. Clear error forces proper data engineering before analysis
+### How `tune_models` Executes
 
-### Option B: Skip permutation importance when validation empty (with warning)
-**Pros:** Graceful degradation  
-**Cons:** May mislead user about feature importance availability; inconsistent behavior
+**File**: `src/aac_adoption/models/tune.py:112-148`
 
-### Option C: Document "N/A" when validation unavailable
-**Pros:** Transparent about missing metrics  
-**Cons:** Still allows test data infiltration; harder to filter out invalid results
-
-**Final Recommendation:** Option A (raise exception)
-
----
-
-## 7. CODE PATH ANALYSIS
-
-### Training Flow (Lines 206-217 in train_boosting.py)
 ```python
-append_table(
-    _permutation_table(
-        pipeline,
-        split,
-        feature_columns,
-        "classification_target",
-        metadata,
-        scoring="roc_auc",
-        repeats=permutation_repeats,
-        max_rows=permutation_max_rows,
-    ),
-    tables_dir / "permutation_importance_classification.csv",
-)
+def catboost_reg_objective(trial: optuna.Trial) -> float:
+    # ...
+    try:
+        scores = []
+        for train_idx, val_idx in cv.split(cat_X_reg):  # cv = TimeSeriesSplit(n_splits=5)
+            X_tr, y_tr_reg = cat_X_reg.iloc[train_idx], y_reg.iloc[train_idx]
+            # ...
+            model = CatBoostRegressor(**params)
+            model.fit(X_tr, np.log1p(y_tr_reg), ...)  # fit() called per fold
+            # ...
+        return np.mean(scores)
+    except Exception:
+        return 1e9  # Objective dies, returns high value
+
+study_cat_reg.optimize(catboost_reg_objective, n_trials=n_trials)
 ```
 
-**The issue:** This callpath is executed for every animal subset (dogs, cats, combined). If any subset has empty validation, the current code silently switches to test data.
+**Execution Flow**:
+- `n_trials=2` → 2 Optuna trials
+- `n_splits=5` (TimeSeriesSplit) → 5 CV folds per trial
+- **Expected total**: 2 × 5 = 10 `fit()` calls
+- **Actual minimum**: 1 `fit()` call (if objective dies early)
 
-### Split Generation (Line 184)
+---
+
+## Risk Assessment
+
+### 1. Is current test sufficient to validate all folds execute?
+
+**NO**
+
+The test only verifies `mock_fit.call_count >= 1`, which:
+- Passes with 1 call (incomplete execution)
+- Passes with 10 calls (complete execution)
+- Does not distinguish between partial and complete fold execution
+
+### 2. Should test assert exactly 10 calls (2 trials × 5 folds)?
+
+**YES** - for comprehensive validation.
+
+**Rationale**:
+- Test name: `test_tune_models_catboost_regression_fit_spy` implies spy pattern validation
+- The test validates y_tr log-transform, which requires checking ALL folds
+- If objective dies after 1 fold, y_tr validation still passes (1 log-transform call looks valid)
+
+**Exception**: Asserting exact count adds coupling to implementation details (n_trials, n_splits). Consider adding a comment explaining expected count derivation.
+
+### 3. Should test validate fold order or time-series split integrity?
+
+**YES** for index ordering, **NO** for explicit fold order validation.
+
+**Recommended validation**:
 ```python
-split = make_time_split(df, "classification_target", animal_subset=subset)
+# Verify all indices are unique (no duplicate folds)
+all_train_indices = []
+for call in mock_fit.call_args_list:
+    train_idx = call[0][0].index
+    all_train_indices.extend(train_idx.tolist())
+
+assert len(all_train_indices) == len(set(all_train_indices)), "Training indices must be unique across folds"
 ```
 
-**Potential issue source:** make_time_split() may create empty validation splits under certain conditions:
-- Time-based cutoff results in no samples in validation period (years 2022-2023)
-- Dataset too small for requested split configuration
-- Date filtering removes all validation samples
+**Why not explicit order validation**:
+- TimeSeriesSplit guarantees chronological order, but test doesn't need to verify Optuna's trial execution order
+- Individual fold integrity (index matching, log-transform) is sufficient
 
----
+### 4. What's the minimal valid assertion for this spy pattern?
 
-## 8. RECOMMENDATIONS
-
-### Immediate Fix: Raise Exception on Empty Validation
+**Minimal** (detects zero calls but not partial execution):
 ```python
-# Add at start of _permutation_table (after line 137)
-if split.validation.empty:
-    raise ValueError(
-        f"Permutation importance requires validation data for {split.animal_subset}. "
-        f"Validation split is empty. This violates validation-only methodology."
-    )
+assert mock_fit.call_count >= 1
 ```
 
-### Additional Safeguards:
-1. Validate split structure before training: Check validation isnt empty before calling _permutation_table
-2. Add test coverage for edge cases: Ensure make_time_split handles edge cases properly
-3. Document evaluation_period semantics: Clarify that "validation" means validation was used, not intended
+**Recommended minimal** (detects partial execution):
+```python
+# Expected: n_trials × n_splits = 2 × 5 = 10
+assert mock_fit.call_count == 10
+```
 
-### Risk Mitigation Timeline:
-| Phase | Action |
-|-------|--------|
-| Short-term | Add exception raise for empty validation |
-| Medium-term | Add validation split integrity checks |
-| Long-term | Document and enforce validation-only rule across all metrics |
+**Optimal** (detects partial execution + validates fold quality):
+```python
+# Count validation
+assert mock_fit.call_count == 10, f"Expected 10 fit() calls, got {mock_fit.call_count}"
+
+# Individual call validation (already present, keep)
+for call in mock_fit.call_args_list:
+    X_tr = call[0][0]
+    y_tr = call[0][1]
+    assert isinstance(X_tr, pd.DataFrame)
+    assert isinstance(y_tr, pd.Series)
+    assert X_tr.index.equals(y_tr.index)
+
+# Log-transform validation (already present, keep)
+for y in actual_y_values:
+    original_y_tr = y_reg_original[y.index]
+    assert np.allclose(y, np.log1p(original_y_tr))
+```
 
 ---
 
-## SUMMARY
+## Severity: P3 (Moderate)
 
-| Item | Status |
-|------|--------|
-| **P2 Severity** | MEDIUM |
-| **Thesis Safety** | VIOLATION at line 138-139 |
-| **Risk** | Validation-only rule violated when validation is empty - test data used for feature importance |
-| **Fix Required** | YES - raise exception when validation.empty |
-| **evaluation_period Issue** | YES - reflects actual usage, not intended stage |
-| **Edge Cases** | VALIDATION EMPTY - test fallback (P2 violation) |
+**Impact**:
+- **False positive risk**: Test passes even when objective function crashes after 1 fold
+- **Production risk**: If `catboost_reg_objective` fails mid-execution, production code would return incomplete results, but test wouldn't catch it
+
+**Why not P2**:
+- Test still validates correctness of each fold that DOES execute
+- Test name suggests "fit spy" → validation is about verifying fit() calls happen, not about objective completion
+- Optuna catches exceptions and returns fallback values (0.0 or 1e9), so production behavior is graceful degradation
 
 ---
 
-**Recommendation:** Replace validation→test fallback logic with exception raising to maintain thesis methodological integrity. Validation-only metrics must use validation data; if validation is unavailable, the analysis should fail fast rather than silently use test data.
+## Recommended Fixes
+
+### Fix Option A: Assert exact call count (simplest)
+
+```python
+# Expected: n_trials × n_splits = 2 × 5 = 10
+expected_calls = 2 * 5  # n_trials × TimeSeriesSplit(n_splits=5)
+assert mock_fit.call_count == expected_calls, f"Expected {expected_calls} fit() calls, got {mock_fit.call_count}"
+```
+
+**Pros**: Simple, detects partial execution immediately  
+**Cons**: Hardcodes implementation details (coupling to n_trials=2, n_splits=5)
+
+### Fix Option B: Assert expected range with clear documentation
+
+```python
+# CV configuration from tune.py:57: cv = TimeSeriesSplit(n_splits=5)
+# Expected calls = n_trials (2) × n_splits (5) = 10
+expected_calls = 10
+assert mock_fit.call_count == expected_calls, \
+    f"Expected {expected_calls} fit() calls (2 trials × 5 folds), got {mock_fit.call_count}"
+```
+
+**Pros**: Clear documentation, explicit expectation  
+**Cons**: Still couples to specific values
+
+### Fix Option C: Validate all training indices are unique
+
+```python
+# Collect all training indices to verify completeness
+all_train_indices = []
+for call in mock_fit.call_args_list:
+    train_idx = call[0][0].index
+    all_train_indices.extend(train_idx.tolist())
+
+# Verify: 10 folds = 10 * (len(X_reg) / 5) unique indices
+# With 200 samples and 5 splits: each fold uses ~160 samples, total = 1600 indices
+# 1600 indices with 5 unique splits means 1600 / 5 * 5 = 1600, but must check uniqueness
+assert len(all_train_indices) == 10 * len(train_df_reg) / 5, \
+    f"Incomplete CV execution: expected {10 * len(train_df_reg) / 5} total samples across folds, got {len(all_train_indices)}"
+```
+
+**Pros**: Validates actual data usage, not just function calls  
+**Cons**: More complex, still couples to data size
+
+---
+
+## Conclusion
+
+**Critical Issue**: Test at line 167 (`assert mock_fit.call_count >= 1`) is insufficient to detect partial CV execution.
+
+**Fix Required**: Change to exact count assertion:
+```python
+assert mock_fit.call_count == 10  # 2 trials × 5 folds
+```
+
+**Rationale**: The test already validates log-transform on ALL collected y_tr values (lines 176-180). If only 1 fold executes, those assertions still pass because a single log-transformed y_tr is valid. The test must enforce that ALL 10 expected fit() calls occur.

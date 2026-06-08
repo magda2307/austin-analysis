@@ -1,0 +1,24 @@
+{
+  "sessions": {
+    "019ea8a8-84ed-79d0-941e-b1944ce5de72": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|enhanced agent knowledge using three cavecrew audits. key upgrades: - task-first context routing replaces linear reading. - added truth precedence and low-context `rg` workflow. - separated required contracts from current code violations. - added pipeline failure/stale-artifact caveats. - added artifact ownership and exact repo-relative paths. - documented broken recency cli and acceptance blockage. - added verified contract violations and freshness labels. - removed duplicated context. verified: 311 tests collect, smoke commands pass, docs ascii-clean, `git diff --check` clean.",
+        "first_seen_at": "2026-06-08T19:30:26.117Z",
+        "last_seen_at": "2026-06-08T19:30:26.117Z",
+        "repeat_count": 1,
+        "last_turn_id": "019ea8af-c627-7cb2-84b7-93516faea0e0",
+        "last_thread_id": null
+      }
+    },
+    "019ea8b5-cd5a-7871-bb41-3c5ce38d3f2e": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|not finished. cleanup complete, but 3 pytest runs still active. no stale references found except intentional agents guidance.",
+        "first_seen_at": "2026-06-08T19:38:48.218Z",
+        "last_seen_at": "2026-06-08T19:38:48.218Z",
+        "repeat_count": 1,
+        "last_turn_id": "019ea8bd-fb55-7911-9047-8d5e0e9501b5",
+        "last_thread_id": null
+      }
+    }
+  }
+}

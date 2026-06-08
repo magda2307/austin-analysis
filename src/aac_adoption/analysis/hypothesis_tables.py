@@ -17,14 +17,19 @@ def _summarize(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return (
         df.groupby(column, dropna=False)
         .agg(
-            records=("adopted", "count"),
-            adoptions=("adopted", "sum"),
-            adoption_rate_pct=("adopted", lambda values: float(values.mean() * 100)),
-            median_days_to_outcome=("days_to_outcome", "median"),
+            records=("classification_target", "count"),
+            adoptions=("classification_target", "sum"),
+            adoption_rate_pct=("classification_target", lambda values: float(values.mean() * 100)),
+            median_days_to_outcome=("regression_target_days", "median"),
         )
         .reset_index()
         .rename(columns={column: "value"})
         .assign(variable=column)
+        .assign(
+            target_column="classification_target/regression_target_days",
+            population_scope="all matched episodes",
+            estimand_label="adoption_rate_and_median_los"
+        )
         .sort_values(["variable", "records"], ascending=[True, False])
     )
 
@@ -365,13 +370,12 @@ def create_adopted_only_timing_tables(
     df = pd.read_csv(data_path)
 
     # Filter to adopted animals only
-    adopted = df[df["adopted"].astype(bool)].copy()
+    adopted = df.loc[df["classification_target"].eq(1)].copy()
     if adopted.empty:
         return
 
-    # Ensure days_to_adoption column exists (= days_to_outcome for adopted animals)
-    if "days_to_adoption" not in adopted.columns:
-        adopted["days_to_adoption"] = adopted["days_to_outcome"]
+    # Ensure days_to_adoption column exists
+    adopted["days_to_adoption"] = adopted["regression_target_days"]
 
     groups = ["age_group", "animal_type"]
     records = []
@@ -521,12 +525,11 @@ def create_survival_descriptive(
     df = pd.read_csv(data_path)
 
     # Use adopted animals only for KM curves (time-to-adoption analysis)
-    adopted = df[df["adopted"].astype(bool)].copy()
+    adopted = df.loc[df["classification_target"].eq(1)].copy()
     if adopted.empty:
         return
 
-    if "days_to_adoption" not in adopted.columns:
-        adopted["days_to_adoption"] = adopted["days_to_outcome"]
+    adopted["days_to_adoption"] = adopted["regression_target_days"]
 
     group_columns = ["animal_type", "age_group", "covid_period", "intake_type"]
     group_columns = [c for c in group_columns if c in adopted.columns]

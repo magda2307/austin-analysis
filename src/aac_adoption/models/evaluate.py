@@ -37,67 +37,7 @@ def expected_calibration_error(y_true, y_score, bins: int = 10) -> float:
     return float(ece)
 
 
-from aac_adoption.config import RANDOM_STATE
-
-def bootstrap_ci(
-    y_true: np.ndarray,
-    y_pred: np.ndarray,
-    metric_func: callable,
-    y_score: np.ndarray | None = None,
-    n_bootstraps: int = 1000,
-    random_state: int = RANDOM_STATE,
-    animal_ids: np.ndarray | None = None,
-) -> tuple[float, float]:
-    """Calculate 95% confidence interval for a metric using bootstrapping.
-    
-    When animal_ids is provided, performs cluster-aware bootstrap by resampling
-    animals with replacement and including all observations from selected animals.
-    Falls back to row-level bootstrap when animal_ids is None or empty.
-    """
-    rng = np.random.default_rng(random_state)
-    y_true_arr = np.asarray(y_true)
-    y_pred_arr = np.asarray(y_pred)
-    y_score_arr = np.asarray(y_score) if y_score is not None else None
-    
-    if animal_ids is not None and len(animal_ids) > 0:
-        animal_ids_arr = np.asarray(animal_ids)
-        unique_animals = np.unique(animal_ids_arr)
-        animal_to_indices = {aid: np.where(animal_ids_arr == aid)[0] for aid in unique_animals}
-        scores = []
-        
-        for _ in range(n_bootstraps):
-            sampled_animals = rng.choice(unique_animals, size=len(unique_animals), replace=True)
-            sample_indices = np.concatenate([animal_to_indices[aid] for aid in sampled_animals])
-            sample_indices = np.unique(sample_indices)
-            
-            if len(np.unique(y_true_arr[sample_indices])) < 2:
-                continue
-            if y_score_arr is not None:
-                score = metric_func(y_true_arr[sample_indices], y_score_arr[sample_indices])
-            else:
-                score = metric_func(y_true_arr[sample_indices], y_pred_arr[sample_indices])
-            scores.append(score)
-    else:
-        indices = np.arange(len(y_true))
-        scores = []
-        
-        for _ in range(n_bootstraps):
-            idx = rng.choice(indices, size=len(indices), replace=True)
-            if len(np.unique(y_true_arr[idx])) < 2:
-                continue
-            if y_score_arr is not None:
-                score = metric_func(y_true_arr[idx], y_score_arr[idx])
-            else:
-                score = metric_func(y_true_arr[idx], y_pred_arr[idx])
-            scores.append(score)
-        
-        if not scores:
-            return (np.nan, np.nan)
-        return float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))
-    
-    if not scores:
-        return (np.nan, np.nan)
-    return float(np.percentile(scores, 2.5)), float(np.percentile(scores, 97.5))
+from aac_adoption.models.bootstrap import bootstrap_ci
 
 
 def classification_metrics(y_true, y_pred, y_score=None, compute_ci=False) -> dict[str, float | int | None]:
@@ -153,7 +93,7 @@ def regression_metrics(y_true, y_pred, compute_ci=False) -> dict[str, float]:
 HORIZON_DAYS = [7, 30, 60, 90]
 
 
-def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=None):
+def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=None, animal_ids=None):
     """Compute metrics separately for each subgroup (e.g., dogs/cats).
     
     Args:
@@ -162,6 +102,7 @@ def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=N
         y_score: Probability scores
         subgroup_column: Array or Series of subgroup labels
         subgroup_names: Optional list of subgroup names for ordered output
+        animal_ids: Optional array of cluster identifiers for bootstrap CI
     
     Returns:
         DataFrame with metrics by subgroup
@@ -181,7 +122,18 @@ def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=N
         if len(y_true_sub) < 2 or len(np.unique(y_true_sub)) < 2:
             continue
         
-        metrics = classification_metrics_with_ci(y_true_sub, y_pred[mask], y_score_sub, n_bootstraps=1000)
+        if animal_ids is not None:
+            animal_ids_sub = np.asarray(animal_ids)[mask]
+        else:
+            animal_ids_sub = None
+            
+        metrics = classification_metrics_with_ci(
+            y_true_sub, 
+            y_pred[mask], 
+            y_score_sub, 
+            n_bootstraps=1000,
+            animal_ids=animal_ids_sub
+        )
         metrics["subgroup"] = subgroup
         metrics["n_samples"] = int(mask.sum())
         results.append(metrics)
@@ -189,14 +141,14 @@ def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=N
     return pd.DataFrame(results)
 
 
-def classification_metrics_with_ci(y_true, y_pred, y_score, n_bootstraps: int = 1000) -> dict[str, float]:
+def classification_metrics_with_ci(y_true, y_pred, y_score, n_bootstraps: int = 1000, animal_ids=None) -> dict[str, float]:
     """Compute classification metrics with bootstrap 95% CI.
     
     Returns PR-AUC, ROC-AUC, Brier score, ECE, and their 95% bootstrap CIs.
     """
-    rng = np.random.default_rng(RANDOM_STATE)
     y_true_arr = np.asarray(y_true)
     y_score_arr = np.asarray(y_score)
+    y_pred_arr = np.asarray(y_pred)
     
     base_metrics = {
         "pr_auc": float(average_precision_score(y_true_arr, y_score_arr)),
@@ -205,37 +157,22 @@ def classification_metrics_with_ci(y_true, y_pred, y_score, n_bootstraps: int = 
         "expected_calibration_error": float(expected_calibration_error(y_true_arr, y_score_arr)),
     }
     
-    n_samples = len(y_true_arr)
-    pr_auc_scores = []
-    roc_auc_scores = []
-    brier_scores = []
-    ece_scores = []
-    
-    for _ in range(n_bootstraps):
-        idx = rng.choice(n_samples, size=n_samples, replace=True)
-        if len(np.unique(y_true_arr[idx])) < 2:
-            continue
-        pr_auc_scores.append(float(average_precision_score(y_true_arr[idx], y_score_arr[idx])))
-        roc_auc_scores.append(float(roc_auc_score(y_true_arr[idx], y_score_arr[idx])))
-        brier_scores.append(float(brier_score_loss(y_true_arr[idx], y_score_arr[idx])))
-        ece_scores.append(float(expected_calibration_error(y_true_arr[idx], y_score_arr[idx])))
-    
-    if not pr_auc_scores:
-        return {**base_metrics, "pr_auc_lower": np.nan, "pr_auc_upper": np.nan, "roc_auc_lower": np.nan,
-                "roc_auc_upper": np.nan, "brier_lower": np.nan, "brier_upper": np.nan,
-                "ece_lower": np.nan, "ece_upper": np.nan}
+    ci_pr = bootstrap_ci(y_true_arr, y_pred_arr, average_precision_score, y_score=y_score_arr, n_bootstraps=n_bootstraps, animal_ids=animal_ids)
+    ci_roc = bootstrap_ci(y_true_arr, y_pred_arr, roc_auc_score, y_score=y_score_arr, n_bootstraps=n_bootstraps, animal_ids=animal_ids)
+    ci_brier = bootstrap_ci(y_true_arr, y_pred_arr, brier_score_loss, y_score=y_score_arr, n_bootstraps=n_bootstraps, animal_ids=animal_ids)
+    ci_ece = bootstrap_ci(y_true_arr, y_pred_arr, expected_calibration_error, y_score=y_score_arr, n_bootstraps=n_bootstraps, animal_ids=animal_ids)
     
     return {
         "pr_auc": base_metrics["pr_auc"],
-        "pr_auc_lower": float(np.percentile(pr_auc_scores, 2.5)),
-        "pr_auc_upper": float(np.percentile(pr_auc_scores, 97.5)),
+        "pr_auc_lower": ci_pr[0],
+        "pr_auc_upper": ci_pr[1],
         "roc_auc": base_metrics["roc_auc"],
-        "roc_auc_lower": float(np.percentile(roc_auc_scores, 2.5)),
-        "roc_auc_upper": float(np.percentile(roc_auc_scores, 97.5)),
+        "roc_auc_lower": ci_roc[0],
+        "roc_auc_upper": ci_roc[1],
         "brier_score": base_metrics["brier_score"],
-        "brier_lower": float(np.percentile(brier_scores, 2.5)),
-        "brier_upper": float(np.percentile(brier_scores, 97.5)),
+        "brier_lower": ci_brier[0],
+        "brier_upper": ci_brier[1],
         "expected_calibration_error": base_metrics["expected_calibration_error"],
-        "ece_lower": float(np.percentile(ece_scores, 2.5)),
-        "ece_upper": float(np.percentile(ece_scores, 97.5)),
+        "ece_lower": ci_ece[0],
+        "ece_upper": ci_ece[1],
     }

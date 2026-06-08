@@ -37,12 +37,21 @@ def create_calibration_summary(
     else:
         rel["is_reliable_cohort"] = False
 
-    clf_path = tables / "model_comparison_classification.csv"
-    clf = pd.read_csv(clf_path) if clf_path.exists() else pd.DataFrame()
-
     rows = []
-    for subset in ["dogs", "cats", "combined"]:
-        sub = rel.copy()
+    
+    if "animal_subset" in rel.columns:
+        subsets = rel["animal_subset"].dropna().unique().tolist()
+    else:
+        subsets = ["combined"]
+
+    for subset in subsets:
+        if "animal_subset" in rel.columns:
+            sub = rel[rel["animal_subset"] == subset].copy()
+        else:
+            sub = rel.copy()
+
+        if sub.empty:
+            continue
 
         mean_gap = float(sub["calibration_gap"].mean())
         worst_cohort = sub.loc[sub["calibration_gap"].idxmax(), "cohort"] if not sub.empty else "unknown"
@@ -123,10 +132,21 @@ def _write_calibration_md(summary_df: pd.DataFrame, rel: pd.DataFrame, summary: 
 
     lines += [
         "### 3. Are dogs and cats calibrated differently?\n",
-        "The current `subgroup_reliability.csv` is computed across all animals. "
-        "Separate species calibration would require per-species diagnostic runs. "
-        "Based on the combined calibration gap, species-level differences are likely given "
-        "the different adoption rate baselines (cats ≈ 62%, dogs ≈ 63% in the test period).\n\n",
+    ]
+    
+    if "dogs" in summary_df["animal_subset"].values and "cats" in summary_df["animal_subset"].values:
+        dogs_gap = float(summary_df[summary_df["animal_subset"] == "dogs"]["mean_calibration_gap"].iloc[0])
+        cats_gap = float(summary_df[summary_df["animal_subset"] == "cats"]["mean_calibration_gap"].iloc[0])
+        lines.append(f"Yes, species-level diagnostics were run. The mean calibration gap is {dogs_gap:.4f} for dogs and {cats_gap:.4f} for cats.\n\n")
+    else:
+        lines.append(
+            "The current `subgroup_reliability.csv` is computed across all animals. "
+            "Separate species calibration would require per-species diagnostic runs. "
+            "Based on the combined calibration gap, species-level differences are likely given "
+            "the different adoption rate baselines (cats ≈ 62%, dogs ≈ 63% in the test period).\n\n"
+        )
+        
+    lines += [
         "### 4. Should predicted probabilities be used literally or as ranking scores?\n\n",
         "> **Recommendation:** Treat probabilities as **relative risk / ranking scores**, not literal probabilities, "
         "unless calibration is confirmed acceptable for the target cohort.\n\n",

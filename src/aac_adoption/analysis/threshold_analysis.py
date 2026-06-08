@@ -39,26 +39,10 @@ def _find_best_model(tables_dir: Path, models_root: Path) -> tuple[Path, str, st
                         explicit = Path(str(row.iloc[0]["artifact_path"]))
                         if explicit.exists():
                             return explicit, subset, model_name
-                    candidate = models_root / model_name / "classification" / subset / f"{model_name}.joblib"
-                    if candidate.exists():
-                        return candidate, subset, model_name
-                    # Try alternative paths
-                    for subdir in ["boosting", "advanced", "baseline"]:
-                        candidate2 = models_root / subdir / "classification" / subset / f"{model_name}.joblib"
-                        if candidate2.exists():
-                            return candidate2, subset, model_name
-
-    # Fallback: search for any classifier
-    for pattern in [
-        "*/classification/combined/*.joblib",
-        "*/classification/cats/*.joblib",
-        "*/classification/dogs/*.joblib",
-    ]:
-        found = list(models_root.glob(pattern))
-        if found:
-            path = found[0]
-            return path, path.parent.name, path.stem
-    return None
+                        else:
+                            raise FileNotFoundError(f"Selected artifact missing: {explicit}")
+                    raise ValueError(f"Missing exact artifact_path in final_model_selection.csv for {model_name} in {subset}")
+    raise FileNotFoundError("No selected classification model found in final_model_selection.csv.")
 
 
 def _find_best_model_path(tables_dir: Path, models_root: Path) -> Path | None:

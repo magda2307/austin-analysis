@@ -40,8 +40,10 @@ def main() -> None:
         context_data_dir=args.context_data_dir or None,
     )
     print(f"Wrote {args.output}")
+    print(f"Wrote {Path(args.output).parent / 'horizon_modeling_dataset.csv'}")
+    print(f"Wrote {Path(args.output).parent / 'unresolved_intakes.csv'}")
     print(f"Matched rows: {result.matched_rows}")
-    print(f"Unmatched intakes skipped: {result.unmatched_intakes}")
+    print(f"Unmatched intakes sent to unresolved: {result.unmatched_intakes}")
 
 
 if __name__ == "__main__":

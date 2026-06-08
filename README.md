@@ -25,7 +25,7 @@ This thesis builds a **reproducible, leakage-safe, interpretable supervised mach
 - Avoid: `causes adoption`, `proves`, `adoption speed` (unless subset is adopted animals only), `days to adoption` (unless explicitly filtered to adopted episodes).
 
 See `docs/target_definitions.md` for formal target variable definitions.
-See `docs/methodology_notes.md` for regression and causal-framing justifications.
+See `docs/METHODOLOGY.md` for regression and causal-framing justifications.
 
 This repository focuses first on a clean, reproducible data and ML pipeline for Austin Animal Center dog/cat adoption analysis.
 
@@ -425,18 +425,12 @@ Key docs:
 | Document | Purpose |
 |----------|---------|
 | `docs/target_definitions.md` | Formal target definitions and leakage-safe target framing. |
-| `docs/methodology_notes.md` | Regression, causal language, and methodology caveats. |
-| `docs/results_summary.md` | Current result interpretation and reporting notes. |
-| `docs/model_diagnostics.md` | Diagnostics and model reliability guide. |
-| `docs/model_evidence_pack.md` | Evidence-pack design and interpretation. |
-| `docs/progress_and_future_work.md` | Roadmap, implemented layers, and remaining work. |
-| `docs/technical_architecture_plan.md` | Architecture decisions and system plan. |
-| `docs/thesis_technical_guide.md` | Living technical guide for thesis implementation. |
-| `docs/found_location_plan.md` | Found Location taxonomy and implementation notes. |
-| `docs/implementation_plan_p3_p4.md` | Later-priority implementation plan for hypothesis/evidence work. |
-| `docs/interactive_story_plan.md` | Dashboard/storytelling plan. |
-| `docs/animal_exploratory_research_plan.md` | Animal-centered research planning. |
-| `docs/thesis.md` | Thesis draft text. |
+| `docs/METHODOLOGY.md` | Methodology, matching, evaluation, and causal-language limits. |
+| `docs/RESULTS.md` | Current result interpretation and reporting notes. |
+| `docs/ARCHITECTURE.md` | Pipeline and system architecture. |
+| `docs/ROADMAP.md` | Implemented work and remaining project risks. |
+| `docs/PROJECT_CLOSEOUT_TASKS.md` | Detailed acceptance and closeout checklist. |
+| `reports/summary/model_evidence_pack.md` | Generated evidence-pack interpretation. |
 
 ## Project Scope
 
@@ -999,7 +993,7 @@ pytest
 For current interpretation notes, see:
 
 ```text
-docs/results_summary.md
+docs/RESULTS.md
 ```
 
 ## Create Initial EDA Outputs
@@ -1087,100 +1081,6 @@ The processed modeling dataset includes, where available:
 - `is_adopted`
 - `target_adopted`
 - `classification_target`
-
-For current interpretation notes, see:
-
-```text
-docs/results_summary.md
-```
-
-## Create Initial EDA Outputs
-
-After the modeling dataset exists, run:
-
-```bash
-python scripts/run_eda.py --data data/processed/modeling_dataset.csv
-```
-
-Tables are saved to:
-
-```text
-reports/tables/
-```
-
-Figures are saved to:
-
-```text
-reports/figures/
-```
-
-## Run Validation Tests
-
-```bash
-pytest
-```
-
-## Dataset Assumptions
-
-AAC animals can appear multiple times. The first version of the pipeline treats each intake as a possible separate stay episode.
-
-For each `animal_id`, each intake is matched to the nearest unused outcome whose `outcome_datetime` is greater than or equal to `intake_datetime`. This avoids matching one outcome to many intakes and prevents negative length-of-stay values.
-
-Outcome fields are used only to create labels and target variables. Intake-time fields are used as predictors to reduce data leakage.
-
-Feature columns are saved to `data/processed/feature_columns.json`; target columns are saved to `data/processed/target_columns.json`.
-
-## Important Output Columns
-
-The processed modeling dataset includes, where available:
-
-- `animal_id`
-- `animal_type`
-- `intake_datetime`
-- `outcome_datetime`
-- `intake_type`
-- `intake_condition`
-- `outcome_type`
-- `sex_upon_intake`
-- `age_upon_intake`
-- `breed`
-- `color`
-- `found_location_kind`
-- `found_location_area`
-- `is_austin_found_location`
-- `is_outside_jurisdiction`
-- `is_intersection_location`
-- `is_address_like_location`
-- `is_airport_location`
-- `has_name`
-- `is_named`
-- `age_in_days`
-- `age_in_months`
-- `age_in_years`
-- `age_days`
-- `age_months`
-- `age_years`
-- `age_group`
-- `intake_year`
-- `intake_month`
-- `intake_quarter`
-- `intake_season`
-- `covid_period`
-- `color_group`
-- `primary_color`
-- `simplified_color_group`
-- `is_black_or_dark`
-- `primary_breed`
-- `is_mixed_breed`
-- `simplified_breed_group`
-- `days_to_outcome`
-- `length_of_stay`
-- `adopted`
-- `is_adopted`
-- `target_adopted`
-- `classification_target`
-- `regression_target_days`
-- `days_to_adoption`
 
 ## Validation Checks
 

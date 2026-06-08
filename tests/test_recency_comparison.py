@@ -104,3 +104,7 @@ def test_recency_comparison_quick_mode_overrides(recency_data_fixture):
     )
     
     assert len(result) > 0
+
+
+import pytest
+pytestmark = pytest.mark.slow

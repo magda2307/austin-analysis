@@ -158,7 +158,9 @@ def build_attrition_table(
 
     intake_subset = std_intakes_clean[[c for c in INTAKE_COLS if c in std_intakes_clean.columns]]
     outcome_subset = std_outcomes_clean[[c for c in OUTCOME_COLS if c in std_outcomes_clean.columns]]
-    matched, unmatched = match_intakes_to_future_outcomes(intake_subset, outcome_subset)
+    match_result = match_intakes_to_future_outcomes(intake_subset, outcome_subset, extract_end_date=pd.Timestamp.now())
+    matched = match_result.matched_episodes
+    unmatched = match_result.unmatched_intakes
     s6 = _count_stats(matched)
     records.append({
         "stage": "matched_future_outcomes",
@@ -167,6 +169,10 @@ def build_attrition_table(
         "reason": f"Removed {unmatched:,} intakes without a valid future outcome (cannot form supervised episode)",
         **{k: s6[k] for k in ["dog_rows", "cat_rows", "unique_animals", "duplicate_animal_ids", "min_intake_date", "max_intake_date"]},
     })
+    
+    global _matched_episodes_for_ambiguity, _unresolved_intakes_for_ambiguity
+    _matched_episodes_for_ambiguity = s6["rows"]
+    _unresolved_intakes_for_ambiguity = unmatched
 
     # Stage 7: final modeling dataset
     if Path(final_data_path).exists():
@@ -324,7 +330,7 @@ def write_summary_md(df: pd.DataFrame, output_path: Path) -> None:
         "each outcome is used at most once. This prevents negative length-of-stay values and",
         "prevents one outcome from being assigned to multiple intake episodes.",
         "",
-        "See `docs/methodology_notes.md` for full matching logic documentation.",
+        "See `docs/METHODOLOGY.md` for full matching logic documentation.",
         "See `reports/tables/matching_examples.csv` for human-readable examples.",
     ]
     output_path.write_text("\n".join(lines), encoding="utf-8")
@@ -355,6 +361,42 @@ def append_horizon_summary(output_path: Path, horizon_df: pd.DataFrame) -> None:
     output_path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def write_matching_ambiguity_md(df: pd.DataFrame, final_data_path: str, output_path: Path) -> None:
+    try:
+        final = pd.read_csv(final_data_path)
+        ambiguous_count = final["is_ambiguous_match"].sum() if "is_ambiguous_match" in final.columns else 0
+    except Exception:
+        ambiguous_count = 0
+
+    total_count = _matched_episodes_for_ambiguity
+    unresolved_count = _unresolved_intakes_for_ambiguity
+    clean_count = total_count - ambiguous_count
+
+    report = f"""## Re-Intake Matching Ambiguity Audit
+
+This audit checks if the greedy outcome-matching process improperly assigns outcomes by searching for episodes where an animal has *another intake* recorded before its assigned outcome.
+
+### Findings
+
+| Metric | Count |
+|--------|-------|
+| Total Matched Episodes | {total_count:,} |
+| Unresolved Intakes | {unresolved_count:,} |
+| Clean Episodes | {clean_count:,} |
+| Ambiguous/Overlapping Episodes | {ambiguous_count:,} |
+
+**Conclusion:** 
+"""
+    if ambiguous_count == 0:
+        report += "The greedy matching correctly avoids overlap. All matched episodes are clean.\n"
+    elif ambiguous_count < (total_count * 0.05):
+        report += f"A small fraction ({(ambiguous_count/total_count)*100:.2f}%) of episodes overlap. This is acceptable for modeling, but these rows represent data entry anomalies at the shelter (e.g., animal returned before previous outcome was recorded).\n"
+    else:
+        report += "A significant number of episodes overlap. The matching logic (`data/match_records.py`) should be reviewed to reject these overlapping spans.\n"
+
+    output_path.write_text(report, encoding="utf-8")
+
+
 def main() -> None:
     args = parse_args()
 
@@ -378,6 +420,10 @@ def main() -> None:
     append_horizon_summary(out_md, horizon_df)
     print(f"Wrote {horizon_csv}")
     print(f"Wrote {out_md}")
+    
+    ambiguity_md = summary_dir / "matching_ambiguity.md"
+    write_matching_ambiguity_md(df, args.data, ambiguity_md)
+    print(f"Wrote {ambiguity_md}")
 
     # Print summary to console
     print("\n=== Data Attrition Summary ===")

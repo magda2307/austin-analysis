@@ -6,9 +6,10 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+import numpy as np
 import pandas as pd
 
-from aac_adoption.features.rolling_features_cache import RollingFeaturesCache, compute_rolling_features_decoupled
+from aac_adoption.features.rolling_features_cache import compute_prior_intake_counts
 
 
 NCEI_DAILY_SUMMARIES_URL = "https://www.ncei.noaa.gov/access/services/data/v1"
@@ -22,6 +23,7 @@ CONTEXT_FEATURES = [
     "daily_precipitation",
     "is_extreme_heat",
     "is_rainy_day",
+    "weather_available",
     "animal_311_requests_7d",
     "animal_311_requests_30d",
     "intake_volume_7d",
@@ -41,6 +43,7 @@ NUMERIC_CONTEXT_FEATURES = [
 CATEGORICAL_CONTEXT_FEATURES = [
     "is_extreme_heat",
     "is_rainy_day",
+    "weather_available",
 ]
 
 
@@ -189,56 +192,75 @@ def _rolling_prior_counts(
 
 
 def add_context_features(
-    dataset: pd.DataFrame,
+    modeling_df: pd.DataFrame,
     *,
-    weather: pd.DataFrame | None = None,
-    animal_requests: pd.DataFrame | None = None,
-    use_cache: bool = True,
-    cache: RollingFeaturesCache | None = None,
+    raw_intakes: pd.DataFrame,
+    weather_daily: pd.DataFrame | None,
+    requests_311: pd.DataFrame | None,
 ) -> pd.DataFrame:
     """Add external and internal prior-window context features."""
-    result = dataset.copy()
+    result = modeling_df.copy()
     intake_dates = pd.to_datetime(result["intake_datetime"], errors="coerce").dt.normalize()
     result["context_date"] = intake_dates
 
-    weather_daily = normalize_weather_daily(weather if weather is not None else pd.DataFrame())
-    result = result.merge(weather_daily, on="context_date", how="left")
+    weather = normalize_weather_daily(weather_daily if weather_daily is not None else pd.DataFrame())
+    weather = weather.rename(columns={"context_date": "weather_context_date"})
+    result["weather_context_date"] = intake_dates - pd.Timedelta(days=1)
+    result = result.merge(weather, on="weather_context_date", how="left")
 
-    requests_daily = normalize_311_animal_requests(animal_requests if animal_requests is not None else pd.DataFrame())
-    request_rollups = _rolling_prior_counts(requests_daily, "animal_311_requests", [7, 30], target_dates=intake_dates)
+    requests = normalize_311_animal_requests(requests_311 if requests_311 is not None else pd.DataFrame())
+    request_rollups = _rolling_prior_counts(requests, "animal_311_requests", [7, 30], target_dates=intake_dates)
     result = result.merge(request_rollups, on="context_date", how="left")
 
-    intake_daily = (
-        pd.DataFrame({"context_date": intake_dates})
-        .dropna(subset=["context_date"])
-        .groupby("context_date")
-        .size()
-        .reset_index(name="intake_volume")
+    # Time-based intake volume
+    intake_volumes = compute_prior_intake_counts(raw_intakes, [7, 30])
+    
+    # We join by 'animal_id' and 'intake_datetime'
+    # To avoid duplicates if there are identical rows, we drop exact duplicates of keys + features
+    join_cols = ["animal_id", "intake_datetime"]
+    feat_cols = ["intake_volume_7d", "intake_volume_30d"]
+    intake_volumes_clean = intake_volumes[join_cols + feat_cols].dropna(subset=["intake_datetime"]).drop_duplicates(subset=join_cols)
+    
+    # ensure modeling_df types match for join
+    result["_join_datetime"] = pd.to_datetime(result["intake_datetime"], errors="coerce")
+    intake_volumes_clean["_join_datetime"] = pd.to_datetime(intake_volumes_clean["intake_datetime"], errors="coerce")
+    
+    result = result.merge(
+        intake_volumes_clean[["animal_id", "_join_datetime", "intake_volume_7d", "intake_volume_30d"]],
+        on=["animal_id", "_join_datetime"],
+        how="left"
     )
-    
-    if use_cache and cache is not None:
-        intake_rollups = compute_rolling_features_decoupled(intake_daily, [7, 30])
-    else:
-        intake_rollups = _rolling_prior_counts(intake_daily, "intake_volume", [7, 30], target_dates=intake_dates)
-    
-    result = result.merge(intake_rollups, on="context_date", how="left")
 
-    result["is_extreme_heat"] = result["daily_temp_max"].fillna(-999).ge(95)
-    result["is_rainy_day"] = result["daily_precipitation"].fillna(0).gt(0)
+    result["weather_available"] = result["daily_temp_max"].notna()
+    
+    result["is_extreme_heat"] = pd.Series(pd.NA, index=result.index, dtype="boolean")
+    result.loc[result["weather_available"], "is_extreme_heat"] = result.loc[result["weather_available"], "daily_temp_max"] >= 95
+
+    result["is_rainy_day"] = pd.Series(pd.NA, index=result.index, dtype="boolean")
+    precip_avail = result["daily_precipitation"].notna()
+    result.loc[precip_avail, "is_rainy_day"] = result.loc[precip_avail, "daily_precipitation"] > 0
 
     for column in ["animal_311_requests_7d", "animal_311_requests_30d", "intake_volume_7d", "intake_volume_30d"]:
         result[column] = result[column].fillna(0).astype(float)
 
-    result = result.drop(columns=["context_date"], errors="ignore")
+    result = result.drop(columns=["context_date", "_join_datetime", "weather_context_date"], errors="ignore")
     return result
 
 
-def add_context_features_from_dir(dataset: pd.DataFrame, context_data_dir: str | Path, use_cache: bool = True) -> pd.DataFrame:
+def add_context_features_from_dir(
+    modeling_df: pd.DataFrame, 
+    raw_intakes: pd.DataFrame,
+    context_data_dir: str | Path,
+) -> pd.DataFrame:
     """Load cached context CSVs from a directory and enrich dataset."""
     context_dir = Path(context_data_dir)
     weather_path = context_dir / "austin_weather_daily.csv"
     requests_path = context_dir / "austin_311_animal_requests.csv"
     weather = pd.read_csv(weather_path) if weather_path.exists() else pd.DataFrame()
     requests = pd.read_csv(requests_path) if requests_path.exists() else pd.DataFrame()
-    cache = RollingFeaturesCache() if use_cache else None
-    return add_context_features(dataset, weather=weather, animal_requests=requests, use_cache=use_cache, cache=cache)
+    return add_context_features(
+        modeling_df, 
+        raw_intakes=raw_intakes, 
+        weather_daily=weather, 
+        requests_311=requests
+    )

@@ -6,13 +6,54 @@ from pathlib import Path
 import json
 import math
 from typing import Any
+from dataclasses import dataclass
 
 import joblib
 import pandas as pd
+import numpy as np
+import streamlit as st
 
-_MODEL_CACHE: dict[tuple[str, str, str, str] | str, Any] = {}
-_METADATA_CACHE: dict[tuple[str, str, str, str], dict[str, Any]] = {}
-_DATASET_CACHE: dict[tuple[str, int], pd.DataFrame] = {}
+from aac_adoption.config import PROJECT_ROOT
+
+DASHBOARD_TABLE_SCHEMAS = {
+    "final_model_selection": {"selected": "bool", "task": "str", "animal_subset": "str", "model_name": "str"},
+    "classification": {"model_name": "str", "roc_auc": "float", "pr_auc": "float"},
+    "regression": {"model_name": "str", "mae": "float"},
+    "animal_archetypes": {"profile_label": "str", "is_named": "bool"},
+    "model_limitations_by_cohort": {"cohort": "str", "small_cohort_flag": "bool"},
+    "subgroup_reliability": {"cohort": "str", "small_cohort_flag": "bool"},
+    "context_model_comparison": {"task": "str", "higher_is_better": "bool"},
+}
+
+def parse_strict_boolean(value: Any) -> bool | None:
+    """Safely extract boolean state, avoiding truthiness of strings. Returns None if null/nan."""
+    if value is None:
+        return None
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    if pd.isna(value):
+        return None
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        if value == 1:
+            return True
+        if value == 0:
+            return False
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ("true", "1", "yes", "t", "y"):
+            return True
+        if v in ("false", "0", "no", "f", "n"):
+            return False
+    raise ValueError(f"Cannot parse strict boolean from {value!r}")
+
+def _file_fingerprint(path: Path) -> tuple[str, int, int]:
+    try:
+        stat = path.stat()
+        return (str(path.resolve()), stat.st_size, stat.st_mtime_ns)
+    except OSError:
+        return (str(path.resolve()), 0, 0)
 
 from aac_adoption.features.feature_engineering import (
     age_group_from_days,
@@ -92,20 +133,47 @@ DIAGNOSTIC_FILES = {
 }
 
 
-def _safe_load_csv(path: Path) -> pd.DataFrame:
-    df = pd.read_csv(path)
+@st.cache_data(show_spinner=False)
+def _cached_safe_load_csv(path: Path, fingerprint: tuple[str, int, int]) -> pd.DataFrame:
+    try:
+        df = pd.read_csv(path)
+    except Exception:
+        return pd.DataFrame()
     for col in df.columns:
         if df[col].dtype == "object":
             df[col] = df[col].astype(str)
     return df
 
+def _safe_load_csv(path: Path) -> pd.DataFrame:
+    return _cached_safe_load_csv(path, _file_fingerprint(path))
+
 def load_table(tables_dir: str | Path, key: str) -> pd.DataFrame:
     """Load one known dashboard table or return an empty frame."""
-    filename = TABLE_FILES[key]
+    filename = TABLE_FILES.get(key)
+    if not filename:
+        return pd.DataFrame()
     path = Path(tables_dir) / filename
     if not path.exists():
         return pd.DataFrame()
-    return _safe_load_csv(path)
+    df = _safe_load_csv(path)
+    if df.empty:
+        return df
+
+    schema = DASHBOARD_TABLE_SCHEMAS.get(key)
+    if schema:
+        missing = [c for c in schema if c not in df.columns]
+        if missing:
+            return pd.DataFrame()
+            
+        # Parse strict booleans
+        for c, t in schema.items():
+            if t == "bool":
+                try:
+                    df[c] = df[c].apply(parse_strict_boolean)
+                except ValueError:
+                    return pd.DataFrame()
+                    
+    return df
 
 def load_optional_csv(base_dir: str | Path, filename: str) -> pd.DataFrame:
     """Load an optional CSV artifact."""
@@ -120,12 +188,16 @@ def load_diagnostic(diagnostics_dir: str | Path, key: str) -> pd.DataFrame:
     return load_optional_csv(diagnostics_dir, DIAGNOSTIC_FILES[key])
 
 
+@st.cache_data(show_spinner=False)
+def _cached_load_summary(path: Path, fingerprint: tuple[str, int, int]) -> str:
+    return path.read_text(encoding="utf-8")
+
 def load_summary(summary_dir: str | Path = "reports/summary") -> str:
     """Load generated Markdown summary for display."""
     path = Path(summary_dir) / "current_results.md"
     if not path.exists():
         return "Generate report outputs first with `python scripts/generate_report_outputs.py`."
-    return path.read_text(encoding="utf-8")
+    return _cached_load_summary(path, _file_fingerprint(path))
 
 
 def best_model_rows(classification: pd.DataFrame, regression: pd.DataFrame) -> pd.DataFrame:
@@ -256,33 +328,44 @@ def build_profile_prediction_record(profile: pd.Series | dict[str, Any]) -> pd.D
     )
 
 
+@st.cache_resource(show_spinner=False)
+def _cached_load_model(path: Path, fingerprint: tuple[str, int, int]) -> Any:
+    return joblib.load(path)
+
 def load_model(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost"):
     """Load a trained model artifact by canonical path."""
-    cache_key = (str(models_dir), task, subset, model_name)
-    if cache_key in _MODEL_CACHE:
-        return _MODEL_CACHE[cache_key]
-    path = artifact_path(models_dir, task, subset, model_name)
+    # Resolve from PROJECT_ROOT
+    base_dir = Path(models_dir)
+    if not base_dir.is_absolute():
+        base_dir = PROJECT_ROOT / base_dir
+        
+    path = artifact_path(base_dir, task, subset, model_name)
     if not path.exists():
         raise FileNotFoundError(f"Missing model artifact: {path}")
-    model = joblib.load(path)
-    _MODEL_CACHE[cache_key] = model
-    return model
+    return _cached_load_model(path, _file_fingerprint(path))
 
+
+@st.cache_data(show_spinner=False)
+def _cached_load_metadata(path: Path, fingerprint: tuple[str, int, int]) -> dict[str, Any]:
+    try:
+        meta = json.loads(path.read_text(encoding="utf-8"))
+        from aac_adoption.models.metadata import validate_model_metadata
+        validate_model_metadata(meta)
+        return meta
+    except Exception:
+        return {}
 
 def load_model_metadata(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost") -> dict[str, Any]:
     """Load sidecar model metadata when available."""
-    cache_key = (str(models_dir), task, subset, model_name)
-    if cache_key in _METADATA_CACHE:
-        return _METADATA_CACHE[cache_key]
-    path = artifact_path(models_dir, task, subset, model_name).with_suffix(".json")
+    # Resolve from PROJECT_ROOT
+    base_dir = Path(models_dir)
+    if not base_dir.is_absolute():
+        base_dir = PROJECT_ROOT / base_dir
+        
+    path = artifact_path(base_dir, task, subset, model_name).with_suffix(".json")
     if not path.exists():
         return {}
-    try:
-        meta = json.loads(path.read_text(encoding="utf-8"))
-    except Exception:
-        meta = {}
-    _METADATA_CACHE[cache_key] = meta
-    return meta
+    return _cached_load_metadata(path, _file_fingerprint(path))
 
 
 def model_feature_columns(
@@ -296,8 +379,13 @@ def model_feature_columns(
     metadata = load_model_metadata(models_dir, task, subset, model_name)
     expected = metadata.get("feature_columns")
     if expected is not None:
-        return [column for column in expected if column in record.columns]
-    return [col for col in INTAKE_TIME_FEATURES if col in record.columns]
+        missing = [c for c in expected if c not in record.columns]
+        if missing:
+            raise ValueError(f"Missing required features: {missing}")
+        return expected
+    
+    fallback = [col for col in INTAKE_TIME_FEATURES if col in record.columns]
+    return fallback
 
 
 def _infer_models_dir(model_name: str) -> str:
@@ -325,13 +413,24 @@ def los_days_to_bucket(days: float) -> str:
         return "90+d"
 
 
+@dataclass(frozen=True)
+class PredictionResult:
+    ok: bool
+    adoption_probability: float | None
+    predicted_days_to_outcome: float | None
+    los_bucket: str | None
+    is_calibrated: bool
+    model_artifacts: dict[str, str]
+    error_code: str | None
+    error_message: str | None
+
 def predict_from_record(
     record: pd.DataFrame,
     models_dir: str | Path | None = None,
     subset: str = "combined",
-) -> dict[str, Any]:
+) -> PredictionResult:
     """Predict adoption probability and expected days to outcome for one row."""
-    selection = load_table("reports/tables", "final_model_selection")
+    selection = load_table(PROJECT_ROOT / "reports/tables", "final_model_selection")
     
     clf_name = "catboost"
     clf_dir = "models/advanced"
@@ -349,11 +448,11 @@ def predict_from_record(
             reg_name = reg_rows.iloc[0]["model_name"]
             reg_dir = _infer_models_dir(reg_name)
 
-    if models_dir is not None:
-        base_dir = Path(models_dir) if models_dir else Path("models")
-        calibrated_base_dir = base_dir.parent / "calibrated"
-    else:
-        calibrated_base_dir = Path("models/calibrated")
+    base_dir = Path(models_dir) if models_dir else PROJECT_ROOT / "models"
+    
+    clf_dir_path = base_dir.parent / clf_dir if models_dir else PROJECT_ROOT / clf_dir
+    reg_dir_path = base_dir.parent / reg_dir if models_dir else PROJECT_ROOT / reg_dir
+    calibrated_base_dir = base_dir.parent / "calibrated" if models_dir else PROJECT_ROOT / "models/calibrated"
 
     calibrated_path = artifact_path(
         base_dir=calibrated_base_dir,
@@ -362,14 +461,13 @@ def predict_from_record(
         model_name=f"{clf_name}_calibrated"
     )
 
+    is_calibrated = False
+    artifacts = {}
+
+    # Classification
     try:
         if calibrated_path.exists():
-            cache_key = str(calibrated_path)
-            if cache_key in _MODEL_CACHE:
-                classifier = _MODEL_CACHE[cache_key]
-            else:
-                classifier = joblib.load(calibrated_path)
-                _MODEL_CACHE[cache_key] = classifier
+            classifier = _cached_load_model(calibrated_path, _file_fingerprint(calibrated_path))
             clf_features = model_feature_columns(
                 record=record,
                 models_dir=calibrated_base_dir,
@@ -377,40 +475,62 @@ def predict_from_record(
                 subset=subset,
                 model_name=f"{clf_name}_calibrated"
             )
+            artifacts["classifier"] = str(calibrated_path)
             clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
             probability = float(classifier.predict_proba(clf_record)[:, 1][0])
             is_calibrated = True
         else:
-            classifier = load_model(clf_dir, "classification", subset, clf_name)
-            clf_features = model_feature_columns(record, clf_dir, "classification", subset, clf_name)
+            classifier = load_model(clf_dir_path, "classification", subset, clf_name)
+            clf_features = model_feature_columns(record, clf_dir_path, "classification", subset, clf_name)
+            artifacts["classifier"] = str(artifact_path(clf_dir_path, "classification", subset, clf_name))
             clf_record = prepare_catboost_frame(record, clf_features) if "catboost" in clf_name else record[clf_features]
             probability = float(classifier.predict_proba(clf_record)[:, 1][0])
-            is_calibrated = False
+            
+        if not math.isfinite(probability) or probability < 0.0 or probability > 1.0:
+            return PredictionResult(False, None, None, None, False, artifacts, "INVALID_PROB", f"Probability {probability} out of bounds")
+            
     except Exception as e:
-        print(f"Error predicting classifier: {e}")
-        probability = 0.5
-        is_calibrated = False
+        return PredictionResult(False, None, None, None, False, artifacts, "CLF_ERROR", str(e))
 
+    # Regression
     try:
-        regressor = load_model(reg_dir, "regression", subset, reg_name)
-        reg_features = model_feature_columns(record, reg_dir, "regression", subset, reg_name)
+        regressor = load_model(reg_dir_path, "regression", subset, reg_name)
+        reg_features = model_feature_columns(record, reg_dir_path, "regression", subset, reg_name)
+        artifacts["regressor"] = str(artifact_path(reg_dir_path, "regression", subset, reg_name))
+        
+        reg_meta = load_model_metadata(reg_dir_path, "regression", subset, reg_name)
+        transform = reg_meta.get("prediction_inverse_transform", "none")
+        
         reg_record = prepare_catboost_frame(record, reg_features) if "catboost" in reg_name else record[reg_features]
         raw_days = float(regressor.predict(reg_record)[0])
-        if reg_name == "catboost":
-            days = math.exp(raw_days) - 1.0
-        else:
+        
+        if transform == "expm1":
+            days = math.expm1(raw_days)
+        elif transform == "none":
             days = raw_days
-        days = max(0.0, days)
+        else:
+            days = raw_days # fallback
+            
+        if not math.isfinite(days) or days < 0.0:
+            return PredictionResult(False, None, None, None, False, artifacts, "INVALID_DAYS", f"Days {days} out of bounds")
+            
+        # Apply operational bound if present in metadata (or assume 4000 as absolute upper bound)
+        if days > 4000:
+            return PredictionResult(False, None, None, None, False, artifacts, "OUT_OF_BOUNDS", f"Days {days} exceeds operational bound")
+            
     except Exception as e:
-        print(f"Error predicting regressor: {e}")
-        days = 15.0
+        return PredictionResult(False, None, None, None, False, artifacts, "REG_ERROR", str(e))
     
-    return {
-        "adoption_probability": probability,
-        "predicted_days_to_outcome": days,
-        "los_bucket": los_days_to_bucket(days),
-        "is_calibrated": is_calibrated,
-    }
+    return PredictionResult(
+        ok=True,
+        adoption_probability=probability,
+        predicted_days_to_outcome=days,
+        los_bucket=los_days_to_bucket(days),
+        is_calibrated=is_calibrated,
+        model_artifacts=artifacts,
+        error_code=None,
+        error_message=None,
+    )
 
 
 def visibility_need_from_prediction(adoption_probability: float, predicted_days: float) -> str:
@@ -510,11 +630,8 @@ def profile_global_shap_reasons(profile: pd.Series | dict[str, Any], shap_global
     return view.sort_values(sort_column, ascending=False).head(top_n).reset_index(drop=True)
 
 
-def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_rows: int = 50000) -> pd.DataFrame:
-    """Find exact/coarse historical matches for a model-sensitivity record."""
-    path = Path(data_path)
-    if not path.exists():
-        return pd.DataFrame()
+@st.cache_data(show_spinner=False)
+def _cached_dataset(path: Path, max_rows: int, fingerprint: tuple[str, int, int]) -> pd.DataFrame:
     columns = [
         "animal_type",
         "age_group",
@@ -528,14 +645,16 @@ def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_ro
         "days_to_outcome",
         "outcome_type",
     ]
-    cache_key = (str(data_path), max_rows)
-    if cache_key in _DATASET_CACHE:
-        df = _DATASET_CACHE[cache_key]
-    else:
-        header_cols = list(pd.read_csv(path, nrows=0).columns)
-        use_cols = [col for col in columns if col in header_cols]
-        df = pd.read_csv(path, usecols=use_cols, nrows=max_rows)
-        _DATASET_CACHE[cache_key] = df
+    header_cols = list(pd.read_csv(path, nrows=0).columns)
+    use_cols = [col for col in columns if col in header_cols]
+    return pd.read_csv(path, usecols=use_cols, nrows=max_rows)
+
+def similar_historical_cases(data_path: str | Path, record: pd.DataFrame, max_rows: int = 50000) -> pd.DataFrame:
+    """Find exact/coarse historical matches for a model-sensitivity record."""
+    path = Path(data_path)
+    if not path.exists():
+        return pd.DataFrame()
+    df = _cached_dataset(path, max_rows, _file_fingerprint(path))
 
     if df.empty:
         return pd.DataFrame()

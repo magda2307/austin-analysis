@@ -457,3 +457,7 @@ def test_stacked_ensemble_classifier_string_labels():
     assert probabilities.shape == (50, 2)
     assert set(predictions).issubset({"adopt", "no_adopt"})
     assert set(ensemble.classes_) == {"adopt", "no_adopt"}
+
+
+import pytest
+pytestmark = pytest.mark.slow

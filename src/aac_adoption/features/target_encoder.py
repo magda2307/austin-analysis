@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.model_selection import StratifiedKFold
-from aac_adoption.features.feature_sets import LEAKAGE_COLUMNS
+from aac_adoption.features.feature_sets import validate_no_leakage
 
 
 class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
@@ -27,7 +27,8 @@ class OOFBayesianTargetEncoder(BaseEstimator, TransformerMixin):
         random_state: int | None = 42,
         handle_unknown: str = "return_nan",
     ):
-        self.columns = [c for c in columns if c not in LEAKAGE_COLUMNS]
+        validate_no_leakage(columns)
+        self.columns = columns
         self.smoothing = smoothing
         self.n_splits = n_splits
         self.random_state = random_state

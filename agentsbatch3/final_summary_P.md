@@ -36,12 +36,13 @@ Fixed two weak tests in test_hyperparam_tuning.py and test_train_boosting_output
 ## Test Results
 
 ```
-tests/test_hyperparam_tuning.py::test_tune_models_catboost_regression_fit_spy PASSED
-tests/test_train_boosting_outputs.py::test_train_all_boosting_permutation_tables_evaluation_period PASSED
+tests/test_hyperparam_tuning.py::test_tune_models_catboost_regression_fit_spy PASSED (78.45s)
+tests/test_train_boosting_outputs.py::test_train_all_boosting_permutation_tables_evaluation_period PASSED (78.45s)
 
 test_hyperparam_tuning.py: 6/6 tests pass
 test_train_boosting_outputs.py: 2/2 tests pass
 Total: 8/8 tests pass (0 regressions)
+Pytest Run: 2026-06-07T15:55:00+02:00
 ```
 
 ---
