@@ -1025,6 +1025,8 @@ with tabs[9]:
     record_hash = hashlib.md5(str(record.to_dict()).encode()).hexdigest()
 
     if st.button(t("Run prediction"), type="primary", key="run_prediction_btn"):
+        st.session_state.pop("prediction_result", None)
+        st.session_state.pop("prediction_hash", None)
         try:
             prediction = predict_from_record(record, MODELS_DIR)
             st.session_state["prediction_result"] = prediction
@@ -1035,20 +1037,24 @@ with tabs[9]:
 
     if st.session_state.get("prediction_hash") == record_hash and "prediction_result" in st.session_state:
         prediction = st.session_state["prediction_result"]
-        probability_pct = prediction.adoption_probability * 100
-        days = prediction.predicted_days_to_outcome
-        wait_bucket = prediction.los_bucket
-        
-        col1, col2, col3 = st.columns(3)
-        prob_label = t("Predicted adoption probability (calibrated)") if prediction.is_calibrated else t("Predicted adoption probability")
-        col1.metric(prob_label, f"{probability_pct:.1f}%")
-        col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
-        col3.metric(t("Length-of-stay bucket"), wait_bucket)
-        st.dataframe(record, width='stretch', hide_index=True)
-        similar = similar_historical_cases(DATA_PATH, record)
-        if not similar.empty:
-            st.subheader(t("Similar Historical Cases"))
-            st.dataframe(similar, width='stretch', hide_index=True)
+        if not prediction.ok:
+            st.error(prediction.error_message or t("Prediction failed."))
+            st.info(t("Model output is unavailable. Check model artifacts and metadata."))
+        else:
+            probability_pct = prediction.adoption_probability * 100
+            days = prediction.predicted_days_to_outcome
+            wait_bucket = prediction.los_bucket
+
+            col1, col2, col3 = st.columns(3)
+            prob_label = t("Predicted adoption probability (calibrated)") if prediction.is_calibrated else t("Predicted adoption probability")
+            col1.metric(prob_label, f"{probability_pct:.1f}%")
+            col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
+            col3.metric(t("Length-of-stay bucket"), wait_bucket)
+            st.dataframe(record, width='stretch', hide_index=True)
+            similar = similar_historical_cases(DATA_PATH, record)
+            if not similar.empty:
+                st.subheader(t("Similar Historical Cases"))
+                st.dataframe(similar, width='stretch', hide_index=True)
     elif "prediction_hash" in st.session_state and st.session_state["prediction_hash"] != record_hash:
         st.session_state.pop("prediction_result", None)
         st.session_state.pop("prediction_hash", None)

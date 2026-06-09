@@ -12,8 +12,10 @@ from sklearn.linear_model import LogisticRegression
 
 from aac_adoption.models.artifacts import artifact_path, save_model_artifact
 from aac_adoption.models.evaluate import classification_metrics
-from aac_adoption.models.split import make_time_split
+from aac_adoption.models.metadata import base_training_metadata, validate_model_metadata
+from aac_adoption.models.split import DatasetSplit, make_time_split
 from aac_adoption.models.train_baseline import ANIMAL_SUBSETS, limit_rows
+from aac_adoption.provenance import get_current_run_context
 
 
 @dataclass(frozen=True)
@@ -65,13 +67,11 @@ def _prefit_calibrator(base_model: Any, method: str) -> PrefitProbabilityCalibra
     return PrefitProbabilityCalibrator(base_model, method)
 
 
-def _split_frame_for_calibration(validation: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Split validation chronologically into early-stop and calibration frames."""
-    if validation.empty or len(validation) < 4:
-        return validation, validation.iloc[0:0].copy()
-    sorted_validation = validation.sort_values("intake_datetime") if "intake_datetime" in validation.columns else validation
-    midpoint = len(sorted_validation) // 2
-    return sorted_validation.iloc[:midpoint].copy(), sorted_validation.iloc[midpoint:].copy()
+def _calibration_frame(split: DatasetSplit) -> pd.DataFrame:
+    """Return only the frozen calibration period, never the selection period."""
+    if split.calibration is None:
+        raise ValueError("dataset split is missing a dedicated calibration frame")
+    return split.calibration.copy()
 
 
 def _prepare_frame_for_artifact(model: Any, frame: pd.DataFrame, feature_columns: list[str], metadata: dict[str, Any]) -> pd.DataFrame:
@@ -175,6 +175,7 @@ def calibrate_classifiers(
     metrics_output_dir = Path(metrics_dir)
     model_output_dir = Path(models_dir)
     metrics_output_dir.mkdir(parents=True, exist_ok=True)
+    run_context = get_current_run_context(inputs=[data_path])
 
     rows: list[dict[str, Any]] = []
     for source_dir, model_name in source_artifacts:
@@ -185,21 +186,28 @@ def calibrate_classifiers(
                 continue
 
             model = joblib.load(source_path)
-            metadata: dict[str, Any] = {}
-            if metadata_path.exists():
-                import json
+            if not metadata_path.exists():
+                raise FileNotFoundError(
+                    f"Missing source model metadata: {metadata_path}"
+                )
+            import json
 
-                metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+            metadata: dict[str, Any] = json.loads(
+                metadata_path.read_text(encoding="utf-8")
+            )
+            validate_model_metadata(metadata)
 
             split = make_time_split(df, "classification_target", animal_subset=subset)
-            _, calibration_validation = _split_frame_for_calibration(split.validation)
+            calibration_validation = _calibration_frame(split)
             if calibration_validation.empty or split.test.empty:
                 continue
 
-            feature_columns = metadata.get("feature_columns")
-            if not feature_columns:
-                feature_columns = [column for column in split.train.columns if column not in {"classification_target"}]
+            feature_columns = metadata["feature_columns"]
             feature_columns = [column for column in feature_columns if column in calibration_validation.columns]
+            if not feature_columns:
+                raise ValueError(
+                    f"Source metadata has no usable feature columns: {metadata_path}"
+                )
 
             val_x = _prepare_frame_for_artifact(model, calibration_validation, feature_columns, metadata)
             test_x = _prepare_frame_for_artifact(model, split.test, feature_columns, metadata)
@@ -215,10 +223,25 @@ def calibrate_classifiers(
             calibrated_model_name = f"{model_name}_calibrated"
             calibrated_metadata = {
                 **metadata,
+                **base_training_metadata(
+                    model_name=calibrated_model_name,
+                    task="classification_calibrated",
+                    split=split,
+                    feature_columns=feature_columns,
+                    run_timestamp=run_context.started_at,
+                    target_column="classification_target",
+                    dataset_path=str(data_path),
+                    run_id=run_context.run_id,
+                    producer_source_sha=run_context.producer_source_sha,
+                ),
                 "model_name": calibrated_model_name,
                 "task": "classification_calibrated",
                 "base_model_name": model_name,
                 "base_artifact_path": str(source_path),
+                "base_artifact_sha256": metadata["artifact_sha256"],
+                "base_run_id": metadata["run_id"],
+                "base_run_timestamp": metadata["run_timestamp"],
+                "base_producer_source_sha": metadata["producer_source_sha"],
                 "calibration_method": _calibration_method(calib_method),
                 "calibration_rows": len(calibration_validation),
                 "feature_columns": feature_columns,
@@ -255,7 +278,7 @@ def calibrate_classifiers(
                     "task": "classification_calibrated",
                     "split_strategy": split.strategy,
                     "train_rows": len(split.train),
-                    "validation_rows": len(split.validation),
+                    "validation_rows": len(calibration_validation),
                     "test_rows": len(split.test),
                     **metrics,
                 }

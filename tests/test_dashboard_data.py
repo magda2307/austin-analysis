@@ -1,4 +1,5 @@
 import math
+import json
 import pandas as pd
 import pytest
 
@@ -11,8 +12,10 @@ from aac_adoption.dashboard.data import (
     similar_historical_cases,
     visibility_need_from_prediction,
     los_days_to_bucket,
+    load_model_metadata,
     predict_from_record,
 )
+from aac_adoption.models.metadata import REQUIRED_MODEL_METADATA
 
 
 def test_best_model_rows_selects_expected_metrics():
@@ -110,10 +113,15 @@ def test_model_feature_columns_uses_artifact_metadata(tmp_path):
     models_dir = tmp_path / "models"
     metadata_path = models_dir / "classification" / "combined" / "catboost.json"
     metadata_path.parent.mkdir(parents=True)
-    metadata_path.write_text(
-        '{"feature_columns": ["animal_type", "intake_type", "age_days"]}',
-        encoding="utf-8",
+    metadata = {key: None for key in REQUIRED_MODEL_METADATA}
+    metadata.update(
+        {
+            "feature_columns": ["animal_type", "intake_type", "age_days"],
+            "model_name": "catboost",
+            "task": "classification",
+        }
     )
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
     record = pd.DataFrame(
         [
             {
@@ -130,6 +138,35 @@ def test_model_feature_columns_uses_artifact_metadata(tmp_path):
         "intake_type",
         "age_days",
     ]
+
+
+def test_load_model_metadata_rejects_invalid_sidecar(tmp_path):
+    metadata_path = (
+        tmp_path
+        / "models"
+        / "classification"
+        / "combined"
+        / "catboost.json"
+    )
+    metadata_path.parent.mkdir(parents=True)
+    metadata_path.write_text(
+        '{"feature_columns": ["animal_type"]}',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="Missing required model metadata fields"):
+        load_model_metadata(tmp_path / "models", "classification")
+
+
+def test_model_feature_columns_requires_metadata(tmp_path):
+    record = pd.DataFrame([{"animal_type": "Dog"}])
+
+    with pytest.raises(FileNotFoundError, match="Missing model metadata"):
+        model_feature_columns(
+            record,
+            tmp_path / "models",
+            "classification",
+        )
 
 
 def test_similar_historical_cases_returns_outcome_mix(tmp_path):
@@ -245,9 +282,15 @@ def test_predict_from_record_handles_calibration():
         ])
         mock_load_table.return_value = selection_df
 
-        mock_load_model_metadata.return_value = {
-            "feature_columns": ["animal_type", "intake_type", "age_days"]
-        }
+        def metadata_for_task(models_dir, task, subset="combined", model_name="catboost"):
+            metadata = {
+                "feature_columns": ["animal_type", "intake_type", "age_days"],
+            }
+            if task == "regression":
+                metadata["prediction_inverse_transform"] = "expm1"
+            return metadata
+
+        mock_load_model_metadata.side_effect = metadata_for_task
 
         # 2. Setup mock models
         mock_calibrated_clf = MagicMock()
@@ -291,9 +334,9 @@ def test_predict_from_record_handles_calibration():
         res_calibrated = predict_from_record(record, models_dir="models/advanced", subset="combined")
 
         # Assertions for calibrated
-        assert res_calibrated["adoption_probability"] == 0.9
-        assert res_calibrated["predicted_days_to_outcome"] == pytest.approx(15.0)
-        assert res_calibrated["los_bucket"] == "8-30d"
+        assert res_calibrated.adoption_probability == 0.9
+        assert res_calibrated.predicted_days_to_outcome == pytest.approx(15.0)
+        assert res_calibrated.los_bucket == "8-30d"
         mock_joblib_load.assert_called_once_with(mock_path)
 
         # CASE B: Calibrated model does NOT exist (fallback to base classifier)
@@ -303,7 +346,7 @@ def test_predict_from_record_handles_calibration():
         res_fallback = predict_from_record(record, models_dir="models/advanced", subset="combined")
 
         # Assertions for fallback
-        assert res_fallback["adoption_probability"] == 0.7
-        assert res_fallback["predicted_days_to_outcome"] == pytest.approx(15.0)
-        assert res_fallback["los_bucket"] == "8-30d"
+        assert res_fallback.adoption_probability == 0.7
+        assert res_fallback.predicted_days_to_outcome == pytest.approx(15.0)
+        assert res_fallback.los_bucket == "8-30d"
         mock_joblib_load.assert_not_called()
