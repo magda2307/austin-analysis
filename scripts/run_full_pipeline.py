@@ -380,10 +380,10 @@ def main() -> None:
 
             if proc.returncode == 0:
                 status = "ok"
-                _log(f"[STEP {step_number:02d}] ✓ OK      {name}")
+                _log(f"[STEP {step_number:02d}] OK      {name}")
             else:
                 status = "failed"
-                _log(f"[STEP {step_number:02d}] ✗ FAILED  {name} (exit code {proc.returncode})")
+                _log(f"[STEP {step_number:02d}] FAILED  {name} (exit code {proc.returncode})")
 
             results.append({"step": step_number, "name": name, "status": status})
             _log("")
