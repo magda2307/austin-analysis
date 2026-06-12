@@ -278,3 +278,31 @@ def test_duplicate_prior_outcomes_do_not_inflate_episode_number():
     episodes = verify_reintake_patterns(intakes, outcomes)
 
     assert episodes["episode_number"].tolist() == [1, 2]
+
+
+def test_duplicate_intake_timestamp_is_one_episode():
+    intakes = pd.DataFrame(
+        {
+            "animal_id": ["A1", "A1"],
+            "intake_datetime": pd.to_datetime(["2024-01-01 10:00", "2024-01-01 10:00"]),
+            "intake_type": ["Stray", "Owner Surrender"],
+            "animal_type": ["Dog", "Dog"],
+        }
+    )
+    outcomes = pd.DataFrame(
+        {
+            "animal_id": ["A1"],
+            "outcome_datetime": pd.to_datetime(["2024-01-05 10:00"]),
+            "outcome_type": ["Adoption"],
+        }
+    )
+
+    result = match_intakes_to_future_outcomes(
+        intakes,
+        outcomes,
+        extract_end_date=pd.Timestamp("2024-02-01"),
+    )
+
+    assert len(result.matched_episodes) == 1
+    assert result.unmatched_intakes == 0
+    assert result.unresolved_intakes.empty

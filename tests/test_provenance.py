@@ -27,3 +27,29 @@ def test_write_producer_receipt(tmp_path, monkeypatch):
     assert str(out_file) in data["output_hashes"]
     assert data["command"] == ["test", "cmd"]
     assert data["status"] == "ok"
+
+
+def test_explicit_run_context_does_not_depend_on_parent_environment(tmp_path):
+    receipts_dir = tmp_path / "receipts"
+    environment = {
+        "AAC_RUN_ID": "explicit-run",
+        "AAC_PRODUCER_SOURCE_SHA": "explicit-sha",
+        "AAC_RUN_PROFILE": "thesis-full",
+    }
+    out_file = tmp_path / "output.csv"
+    out_file.write_text("test", encoding="utf-8")
+
+    context = get_current_run_context(
+        command=["test", "cmd"],
+        inputs=[],
+        environment=environment,
+    )
+    receipt_path = write_producer_receipt(
+        "test_step",
+        context,
+        [out_file],
+        receipts_dir=receipts_dir,
+    )
+
+    assert receipt_path == receipts_dir / "explicit-run" / "test_step.json"
+    assert receipt_path.exists()

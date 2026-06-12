@@ -6,7 +6,7 @@ import hashlib
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 @dataclass(frozen=True)
 class RunContext:
@@ -27,10 +27,15 @@ def compute_file_sha256(path: str | Path) -> str:
             hasher.update(chunk)
     return hasher.hexdigest()
 
-def get_current_run_context(command: list[str] | None = None, inputs: list[str | Path] | None = None) -> RunContext:
-    run_id = os.environ.get("AAC_RUN_ID", f"dev-{uuid.uuid4().hex[:8]}")
-    profile = os.environ.get("AAC_RUN_PROFILE", "development-no-shap")
-    source_sha = os.environ.get("AAC_PRODUCER_SOURCE_SHA", "unavailable")
+def get_current_run_context(
+    command: list[str] | None = None,
+    inputs: list[str | Path] | None = None,
+    environment: Mapping[str, str] | None = None,
+) -> RunContext:
+    env = environment if environment is not None else os.environ
+    run_id = env.get("AAC_RUN_ID", f"dev-{uuid.uuid4().hex[:8]}")
+    profile = env.get("AAC_RUN_PROFILE", "development-no-shap")
+    source_sha = env.get("AAC_PRODUCER_SOURCE_SHA", "unavailable")
     
     input_hashes = {}
     if inputs:
@@ -52,9 +57,11 @@ def write_producer_receipt(
     context: RunContext,
     outputs: list[str | Path] | None = None,
     status: str = "ok",
-    error_message: str | None = None
+    error_message: str | None = None,
+    receipts_dir: str | Path | None = None,
 ) -> Path | None:
-    receipts_dir = os.environ.get("AAC_RECEIPTS_DIR")
+    if receipts_dir is None:
+        receipts_dir = os.environ.get("AAC_RECEIPTS_DIR")
     if not receipts_dir:
         # Development mode without explicit receipt dir
         return None

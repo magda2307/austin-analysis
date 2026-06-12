@@ -372,11 +372,23 @@ def main() -> None:
             sys.path.insert(0, str(ROOT / "src"))
             from aac_adoption.provenance import get_current_run_context, write_producer_receipt
             
-            ctx = get_current_run_context(command=cmd, inputs=inputs)
+            receipts_dir = ROOT / "reports" / "run_receipts"
+            ctx = get_current_run_context(
+                command=cmd,
+                inputs=inputs,
+                environment=run_env,
+            )
             safe_name = Path(cmd[1]).stem if len(cmd) > 1 else f"step_{step_number}"
             status_str = "ok" if proc.returncode == 0 else "error"
             err_msg = f"Exit code {proc.returncode}" if proc.returncode != 0 else None
-            write_producer_receipt(f"{step_number:02d}-{safe_name}", ctx, outputs, status=status_str, error_message=err_msg)
+            write_producer_receipt(
+                f"{step_number:02d}-{safe_name}",
+                ctx,
+                outputs,
+                status=status_str,
+                error_message=err_msg,
+                receipts_dir=receipts_dir,
+            )
 
             if proc.returncode == 0:
                 status = "ok"

@@ -125,3 +125,9 @@ def test_pipeline_propagates_complete_run_context(mock_subprocess, mock_write_re
     assert env["AAC_PRODUCER_SOURCE_SHA"] == "deadbeef"
     assert env["AAC_RUN_PROFILE"] == "thesis-full"
     assert env["AAC_RECEIPTS_DIR"] == str(mock_file_io / "reports" / "run_receipts")
+
+    context_kwargs = mock_write_receipt.get_current_run_context.call_args.kwargs
+    assert context_kwargs["environment"]["AAC_RUN_ID"] == env["AAC_RUN_ID"]
+
+    receipt_kwargs = mock_write_receipt.write_producer_receipt.call_args.kwargs
+    assert receipt_kwargs["receipts_dir"] == mock_file_io / "reports" / "run_receipts"

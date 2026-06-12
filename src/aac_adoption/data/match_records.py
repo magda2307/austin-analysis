@@ -17,7 +17,11 @@ def verify_reintake_patterns(
 ) -> pd.DataFrame:
     """Verify re-intake patterns and track episodes."""
     episodes = []
-    
+
+    intakes = intakes.drop_duplicates(
+        subset=["animal_id", "intake_datetime"],
+        keep="first",
+    )
     intakes_sorted = intakes.sort_values("intake_datetime", kind="stable").to_dict("records")
     intakes_grouped = {}
     for row in intakes_sorted:
@@ -91,6 +95,10 @@ def match_intakes_to_future_outcomes(
     if "outcome_datetime" not in outcomes.columns:
         raise ValueError("Outcome data must contain outcome_datetime column")
 
+    intakes = intakes.drop_duplicates(
+        subset=["animal_id", "intake_datetime"],
+        keep="first",
+    )
     episodes = verify_reintake_patterns(intakes, outcomes)
     episodes_sorted = episodes.to_dict("records")
     episodes_by_animal = {}

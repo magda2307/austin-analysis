@@ -117,7 +117,13 @@ def build_modeling_dataset(intakes: pd.DataFrame, outcomes: pd.DataFrame, extrac
     unresolved_intakes = match_result.unresolved_intakes
     unmatched_intakes = match_result.unmatched_intakes
     
-    assert len(matched) + unmatched_intakes == len(clean_intake_df), "Intake count conservation failed"
+    unique_intake_count = len(
+        clean_intake_df.drop_duplicates(
+            subset=["animal_id", "intake_datetime"],
+            keep="first",
+        )
+    )
+    assert len(matched) + unmatched_intakes == unique_intake_count, "Intake count conservation failed"
     
     if matched.empty:
         raise ValueError("No valid intake/outcome matches found")
