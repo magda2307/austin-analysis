@@ -133,6 +133,8 @@ def train_advanced_classification(
     learning_rate: float,
     depth: int,
     early_stopping_rounds: int,
+    l2_leaf_reg: float | None = None,
+    subsample: float | None = None,
 ) -> list[dict[str, Any]]:
     """Train CatBoost adoption classifiers with post-hoc calibration."""
     rows: list[dict[str, Any]] = []
@@ -146,6 +148,11 @@ def train_advanced_classification(
         "random_seed": RANDOM_STATE,
         "auto_class_weights": "Balanced",
     }
+    if l2_leaf_reg is not None:
+        params["l2_leaf_reg"] = l2_leaf_reg
+    if subsample is not None:
+        params["bootstrap_type"] = "Bernoulli"
+        params["subsample"] = subsample
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
@@ -294,6 +301,8 @@ def train_advanced_regression(
     learning_rate: float,
     depth: int,
     early_stopping_rounds: int,
+    l2_leaf_reg: float | None = None,
+    subsample: float | None = None,
 ) -> list[dict[str, Any]]:
     """Train CatBoost days-to-outcome regressors with log-transform."""
     rows: list[dict[str, Any]] = []
@@ -306,6 +315,11 @@ def train_advanced_regression(
         "early_stopping_rounds": early_stopping_rounds,
         "random_seed": RANDOM_STATE,
     }
+    if l2_leaf_reg is not None:
+        params["l2_leaf_reg"] = l2_leaf_reg
+    if subsample is not None:
+        params["bootstrap_type"] = "Bernoulli"
+        params["subsample"] = subsample
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "regression_target_days", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)

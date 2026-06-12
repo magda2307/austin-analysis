@@ -1,6 +1,19 @@
+import inspect
+
 import pandas as pd
 
-from aac_adoption.models.train_advanced import train_all_advanced
+from aac_adoption.models.train_advanced import (
+    train_advanced_classification,
+    train_advanced_regression,
+    train_all_advanced,
+)
+
+
+def test_advanced_trainers_accept_tuned_catboost_regularization():
+    for trainer in [train_advanced_classification, train_advanced_regression]:
+        parameters = inspect.signature(trainer).parameters
+        assert "l2_leaf_reg" in parameters
+        assert "subsample" in parameters
 
 
 def _small_modeling_dataset() -> pd.DataFrame:
