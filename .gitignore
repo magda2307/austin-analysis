@@ -49,3 +49,16 @@ catboost_info/
 logs/
 reports/run_receipts/
 reports/run_receipt.json
+
+# Scratch / temp directories (never track these)
+scratch/
+tmp_models/
+tmp_tables/
+dummy/
+dummy_metrics/
+metrics/
+tables/
+tmp.csv
+dummy_data.csv
+test_run.ps1
+update_train_*.py
