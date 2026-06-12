@@ -1,5 +1,7 @@
 """Tests for hyperparameter tuning."""
 
+import inspect
+
 import pandas as pd
 import numpy as np
 import pytest
@@ -12,6 +14,13 @@ from aac_adoption.optimization.hyperparam_tuning import (
 from aac_adoption.models.tune import tune_models
 from aac_adoption.models.split import make_time_split
 from aac_adoption.features.feature_sets import model_feature_columns
+
+
+def test_tune_models_exposes_bounded_search_controls():
+    parameters = inspect.signature(tune_models).parameters
+
+    assert "max_iterations" in parameters
+    assert "cv_splits" in parameters
 
 
 @pytest.fixture

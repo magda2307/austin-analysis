@@ -73,7 +73,15 @@ STEPS = [
     (
         6,
         "Tune hyperparameters",
-        [sys.executable, "scripts/tune_models.py", "--data-path", DATA_ARG],
+        [
+            sys.executable,
+            "scripts/tune_models.py",
+            "--data-path", DATA_ARG,
+            "--max-rows", "30000",
+            "--n-trials", "5",
+            "--max-iterations", "500",
+            "--cv-splits", "3",
+        ],
         "expensive",
     ),
     (
@@ -108,6 +116,7 @@ STEPS = [
             "scripts/generate_diagnostics.py",
             "--data", DATA_ARG,
             "--include-shap",
+            "--shap-max-rows", "2000",
         ],
         "shap",
     ),
@@ -138,7 +147,12 @@ STEPS = [
     (
         16,
         "Evaluate backtesting",
-        [sys.executable, "scripts/evaluate_backtesting.py"],
+        [
+            sys.executable,
+            "scripts/evaluate_backtesting.py",
+            "--n_bootstraps", "20",
+            "--iterations", "100",
+        ],
         "expensive",
     ),
     (

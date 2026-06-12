@@ -34,6 +34,18 @@ def main():
         default=20,
         help="Number of optuna trials per model",
     )
+    parser.add_argument(
+        "--max-iterations",
+        type=int,
+        default=5000,
+        help="Maximum boosting iterations per trial",
+    )
+    parser.add_argument(
+        "--cv-splits",
+        type=int,
+        default=5,
+        help="Number of chronological cross-validation folds",
+    )
 
     args = parser.parse_args()
 
@@ -48,7 +60,12 @@ def main():
     df = pd.read_csv(args.data_path, parse_dates=parse_dates)
     df = limit_rows(df, args.max_rows)
     
-    best_params, studies = tune_models(df, n_trials=args.n_trials)
+    best_params, studies = tune_models(
+        df,
+        n_trials=args.n_trials,
+        max_iterations=args.max_iterations,
+        cv_splits=args.cv_splits,
+    )
     
     save_tuned_params(best_params, args.output_path)
     print(f"Saved tuned hyperparameters to {args.output_path}")

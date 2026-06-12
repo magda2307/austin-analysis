@@ -94,6 +94,24 @@ def test_pipeline_download_step_is_repeatable():
     assert "--overwrite" in download_step[2]
 
 
+def test_pipeline_bounds_expensive_research_steps():
+    tuning_step = next(step for step in runner.STEPS if step[0] == 6)
+    diagnostics_step = next(step for step in runner.STEPS if step[0] == 11)
+    backtesting_step = next(step for step in runner.STEPS if step[0] == 16)
+
+    assert tuning_step[2][-8:] == [
+        "--max-rows", "30000",
+        "--n-trials", "5",
+        "--max-iterations", "500",
+        "--cv-splits", "3",
+    ]
+    assert diagnostics_step[2][-2:] == ["--shap-max-rows", "2000"]
+    assert backtesting_step[2][-4:] == [
+        "--n_bootstraps", "20",
+        "--iterations", "100",
+    ]
+
+
 def test_pipeline_receipt_validation_allows_in_progress_overall_receipt():
     validation_step = next(step for step in runner.STEPS if step[0] == 17)
 

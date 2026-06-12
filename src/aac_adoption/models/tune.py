@@ -21,7 +21,13 @@ from aac_adoption.models.train_advanced import prepare_catboost_frame, categoric
 from aac_adoption.models.train_boosting import make_boosting_preprocessor
 
 
-def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe") -> tuple[dict[str, Any], dict[str, optuna.Study]]:
+def tune_models(
+    df: pd.DataFrame,
+    n_trials: int = 20,
+    sampler_type: str = "tpe",
+    max_iterations: int = 5000,
+    cv_splits: int = 5,
+) -> tuple[dict[str, Any], dict[str, optuna.Study]]:
     """Run Optuna studies to find best hyperparameters.
     
     Args:
@@ -54,7 +60,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
     # validation folds chronologically, matching the temporal splitting strategy.
     # Since the input DataFrames are sorted chronologically by intake_datetime,
     # the splits created by TimeSeriesSplit represent successive chronological steps.
-    cv = TimeSeriesSplit(n_splits=5)
+    cv = TimeSeriesSplit(n_splits=cv_splits)
     
     best_params: dict[str, Any] = {}
     optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -79,7 +85,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
         - Unexpected errors: Bubble up with clear context
         """
         params = {
-            "iterations": 5000,
+            "iterations": max_iterations,
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
             "depth": trial.suggest_int("depth", 3, 10),
             "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
@@ -127,7 +133,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
         - Unexpected errors: Bubble up with clear context
         """
         params = {
-            "iterations": 5000,
+            "iterations": max_iterations,
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
             "depth": trial.suggest_int("depth", 3, 10),
             "l2_leaf_reg": trial.suggest_float("l2_leaf_reg", 1e-3, 10.0, log=True),
@@ -178,7 +184,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
         """
         params = {
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
-            "max_iter": 5000,
+            "max_iter": max_iterations,
             "early_stopping": True,
             "validation_fraction": 0.1,
             "n_iter_no_change": 50,
@@ -228,7 +234,7 @@ def tune_models(df: pd.DataFrame, n_trials: int = 20, sampler_type: str = "tpe")
         params = {
             "loss": "absolute_error",
             "learning_rate": trial.suggest_float("learning_rate", 1e-3, 0.3, log=True),
-            "max_iter": 5000,
+            "max_iter": max_iterations,
             "early_stopping": True,
             "validation_fraction": 0.1,
             "n_iter_no_change": 50,
