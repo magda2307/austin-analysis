@@ -37,6 +37,14 @@ def _build_evidence_matrix(df: pd.DataFrame) -> pd.DataFrame:
             row["estimand_label"] = "adoption_rate_and_median_los"
         if "regression_target_days" in sub.columns:
             row["median_los_days"] = float(sub["regression_target_days"].median()) if not sub.empty else None
+            
+        if "classification_target" in sub.columns and not sub.empty:
+            adopted = sub[sub["classification_target"] == 1]
+            if not adopted.empty:
+                if "days_to_adoption" not in adopted.columns:
+                    raise ValueError("adopted-only timing analysis strictly requires 'days_to_adoption' column")
+                row["median_days_to_adoption"] = float(adopted["days_to_adoption"].median())
+                
         row["intake_volume"] = len(sub)
         rows.append(row)
     return pd.DataFrame(rows)

@@ -26,19 +26,29 @@ _REGRESSION_REASON_TEMPLATE = (
 )
 
 
-def _filter_candidates(df: pd.DataFrame) -> pd.DataFrame:
+def _filter_candidates(df: pd.DataFrame, is_classification: bool = False) -> pd.DataFrame:
     mask = ~df["model_name"].str.contains("dummy", case=False, na=False)
     
-    if "metric_split" in df.columns:
-        mask &= df["metric_split"] == "selection"
-    if "split_strategy" in df.columns:
-        mask &= df["split_strategy"] == "time"
+    required_cols = ["artifact_path", "split_strategy", "metric_split"]
+    if any(c not in df.columns for c in required_cols):
+        return df.iloc[0:0].copy()
+        
+    mask &= df["metric_split"] == "selection"
+    mask &= df["split_strategy"] == "time"
+    mask &= df["artifact_path"].notna()
+    
+    if is_classification:
+        if "expected_calibration_error" not in df.columns and "brier_score" not in df.columns:
+            return df.iloc[0:0].copy()
+        if "expected_calibration_error" in df.columns:
+            mask &= df["expected_calibration_error"].notna()
+        elif "brier_score" in df.columns:
+            mask &= df["brier_score"].notna()
+
     if "is_thesis_evaluation" in df.columns:
         mask &= df["is_thesis_evaluation"] == True
     if "selection_eligible" in df.columns:
         mask &= df["selection_eligible"] == True
-    if "artifact_path" in df.columns:
-        mask &= df["artifact_path"].notna()
         
     return df[mask].copy()
 
@@ -47,11 +57,8 @@ def _select_classification(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["selected"] = False
     df["selection_reason"] = ""
-    df["selection_source"] = "selection_2023"
-    df["calibration_period"] = 2022
-    df["selection_period"] = 2023
 
-    candidates = _filter_candidates(df)
+    candidates = _filter_candidates(df, is_classification=True)
 
     for subset in candidates["animal_subset"].dropna().unique():
         sub = candidates[candidates["animal_subset"] == subset].copy()
@@ -101,9 +108,8 @@ def _select_regression(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["selected"] = False
     df["selection_reason"] = ""
-    df["selection_source"] = "selection_2023"
 
-    candidates = _filter_candidates(df)
+    candidates = _filter_candidates(df, is_classification=False)
 
     for subset in candidates["animal_subset"].dropna().unique():
         sub = candidates[candidates["animal_subset"] == subset].copy()
@@ -166,7 +172,7 @@ def create_final_model_selection(
         winners = selected_df[selected_df["selected"] == True].copy()
         
         if winners.empty:
-            return selected_df
+            return winners
 
         # If we have test metrics, join them on artifact identity
         test_df = df[df.get("metric_split", "") == "test"].copy() if "metric_split" in df.columns else pd.DataFrame()
@@ -242,7 +248,8 @@ def _write_model_selection_md(
         "**Classification:** 2023 PR-AUC (primary, accounts for class imbalance) -> 2023 Brier score "
         "-> 2023 ECE -> 2023 ROC-AUC. Tie-tolerances are rounded to 4 decimals.\n",
         "Dummy classifiers are excluded from selection.\n\n",
-        "**Regression:** Test MAE (primary) → Median Absolute Error (robustness) → RMSE.\n",
+        "**Regression:** 2023 selection MAE (primary) -> 2023 median absolute error "
+        "(robustness) -> 2023 RMSE.\n",
         "Dummy regressors are excluded from selection.\n\n",
         "## Classification Results\n\n",
     ]
@@ -286,10 +293,10 @@ def _write_model_selection_md(
         "native missing-value handling and with higher memory usage for large datasets.\n",
         "- **Dummy classifiers** serve only as sanity-check lower bounds.\n\n",
         "## Limitations\n\n",
-        "- Model selection is based on a single time-split test period (2024â€“2025). "
-        "Performance may vary across different time windows.\n",
-        "- Calibration was assessed via existing diagnostic outputs. "
-        "Formal isotonic or Platt calibration was not applied.\n",
+        "- Model selection is frozen using the 2023 selection period. "
+        "The 2024-2025 test period is used only for final performance reporting.\n",
+        "- Calibrated classifier candidates, when present, are fitted on the 2022 "
+        "calibration period before competing on 2023 selection metrics.\n",
     ]
 
     (summary / "final_model_selection.md").write_text("".join(lines), encoding="utf-8")

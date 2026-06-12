@@ -13,6 +13,27 @@ import pandas as pd
 # Internal helpers
 # ---------------------------------------------------------------------------
 
+def _normalize_targets(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    if "classification_target" not in df.columns:
+        for alias in ["adopted", "is_adopted", "target_adopted"]:
+            if alias in df.columns:
+                df["classification_target"] = df[alias]
+                break
+    if "regression_target_days" not in df.columns:
+        for alias in ["days_to_outcome", "length_of_stay"]:
+            if alias in df.columns:
+                df["regression_target_days"] = df[alias]
+                break
+    missing = {
+        "classification_target",
+        "regression_target_days",
+    } - set(df.columns)
+    if missing:
+        raise ValueError(f"modeling dataset missing target columns: {sorted(missing)}")
+    return df
+
+
 def _summarize(df: pd.DataFrame, column: str) -> pd.DataFrame:
     return (
         df.groupby(column, dropna=False)
@@ -97,7 +118,7 @@ def create_hypothesis_support_tables(
     """
     tables = Path(tables_dir)
     tables.mkdir(parents=True, exist_ok=True)
-    df = pd.read_csv(data_path)
+    df = _normalize_targets(pd.read_csv(data_path))
 
     h1 = pd.concat(
         [
@@ -184,7 +205,7 @@ def create_h2_seasonality_outputs(
     for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(data_path)
+    df = _normalize_targets(pd.read_csv(data_path))
     if "intake_season" not in df.columns:
         print("[3.5] intake_season column not found - skipping H2.")
         return
@@ -273,7 +294,7 @@ def create_h4_dark_color_outputs(
     for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(data_path)
+    df = _normalize_targets(pd.read_csv(data_path))
     if "is_black_or_dark" not in df.columns:
         print("[3.5] is_black_or_dark column not found - skipping H4.")
         return
@@ -367,7 +388,7 @@ def create_adopted_only_timing_tables(
     tables.mkdir(parents=True, exist_ok=True)
     figures.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(data_path)
+    df = _normalize_targets(pd.read_csv(data_path))
 
     # Filter to adopted animals only
     adopted = df.loc[df["classification_target"].eq(1)].copy()
@@ -522,7 +543,7 @@ def create_survival_descriptive(
     for d in [tables, figures, summary]:
         d.mkdir(parents=True, exist_ok=True)
 
-    df = pd.read_csv(data_path)
+    df = _normalize_targets(pd.read_csv(data_path))
 
     # Use adopted animals only for KM curves (time-to-adoption analysis)
     adopted = df.loc[df["classification_target"].eq(1)].copy()

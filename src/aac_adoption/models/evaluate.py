@@ -1,6 +1,7 @@
 """Model evaluation helpers."""
 
 import numpy as np
+import pandas as pd
 from sklearn.metrics import (
     accuracy_score,
     confusion_matrix,
@@ -51,6 +52,10 @@ def classification_metrics(y_true, y_pred, y_score=None, compute_ci=False) -> di
         "pr_auc": None,
         "brier_score": None,
         "expected_calibration_error": None,
+        "roc_auc_lower": None,
+        "roc_auc_upper": None,
+        "pr_auc_lower": None,
+        "pr_auc_upper": None,
     }
 
     if y_score is not None and len(np.unique(y_true)) == 2:
@@ -129,7 +134,7 @@ def subgroup_analysis(y_true, y_pred, y_score, subgroup_column, subgroup_names=N
             
         metrics = classification_metrics_with_ci(
             y_true_sub, 
-            y_pred[mask], 
+            np.asarray(y_pred)[mask], 
             y_score_sub, 
             n_bootstraps=1000,
             animal_ids=animal_ids_sub

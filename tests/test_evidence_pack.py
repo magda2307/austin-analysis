@@ -223,3 +223,19 @@ def test_subgroup_intervals_enforces_cohort_threshold():
         assert {"small_cohort", "insufficient_class_variety", "ok"}.issubset(set(intervals["status"]))
         assert intervals["interpretation_status"].notna().all()
 
+
+def test_subgroup_adoption_milestones_missing_targets_fails(tmp_path):
+    import pytest
+    data = pd.DataFrame(
+        {
+            "animal_type": ["Dog", "Cat"],
+            "adopted": [True, False],
+            "days_to_outcome": [5.0, 10.0],
+        }
+    )
+    data_path = tmp_path / "modeling.csv"
+    data.to_csv(data_path, index=False)
+
+    with pytest.raises(ValueError, match="modeling dataset missing target columns"):
+        subgroup_adoption_milestones(data_path, min_records=1)
+

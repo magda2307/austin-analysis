@@ -13,11 +13,22 @@ class DataLeakageError(ValueError):
     """Exception raised when an unsafe column is found in the audit."""
     pass
 
+from aac_adoption.features.feature_sets import INTAKE_TIME_FEATURES
+
 def audit_leakage_columns(df: pd.DataFrame) -> dict[str, str]:
     """Audit dataset for columns that could cause target leakage.
     Returns mapping of column names to risk levels: safe, probably_safe, needs_audit, unsafe.
     """
-    risk_levels = {col: "safe" for col in df.columns}
+    from aac_adoption.features.feature_sets import PROHIBITED_MODEL_COLUMNS
+    
+    risk_levels = {}
+    for col in df.columns:
+        if col in PROHIBITED_MODEL_COLUMNS:
+            risk_levels[col] = "unsafe"
+        elif "future" in col.lower() or "_next_" in col.lower() or col.lower().startswith("next_"):
+            risk_levels[col] = "unsafe"
+        else:
+            risk_levels[col] = "safe" if col in INTAKE_TIME_FEATURES else "unsafe"
     
     for col in LEAKAGE_COLUMNS_TO_AUDIT:
         if col in df.columns:

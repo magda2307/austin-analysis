@@ -23,3 +23,18 @@ def test_streamlit_report_allowlist_is_thesis_only():
     assert "data/processed/" not in block
     assert "models/" not in block
     assert "What-if" not in block
+
+
+def test_model_sensitivity_checks_prediction_result_before_rendering():
+    source = (Path(__file__).resolve().parents[1] / "streamlit_app.py").read_text(encoding="utf-8")
+    block = source.split('with tabs[9]:', 1)[1].split('with tabs[10]:', 1)[0]
+
+    assert "if not prediction.ok:" in block
+    assert "prediction.error_message" in block
+    button_block = block.split('if st.button(t("Run prediction")', 1)[1].split(
+        'if st.session_state.get("prediction_hash")',
+        1,
+    )[0]
+    assert button_block.index('pop("prediction_result", None)') < button_block.index(
+        "predict_from_record("
+    )

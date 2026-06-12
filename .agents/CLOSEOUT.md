@@ -5,14 +5,17 @@ working index; update the detailed checklist when acceptance state changes.
 
 ## Dated Snapshot
 
-Verified 2026-06-08:
+Verified 2026-06-09:
 
-- 311 tests collect.
-- Closeout audit recorded 288 passed, 23 failed; not re-run during this docs pass.
-- `scripts/compare_recency.py --help` fails from duplicate `--quick`.
-- Pipeline quick-help says tests are step 17; implementation skips step 18.
-
-Re-run before quoting current state.
+- 209 tests collect after the closeout commit removed four test modules.
+- Phase 1 focused gate passes: 28 tests covering matching, horizon cohorts,
+  context data, rolling intake volume, and dataset construction.
+- Calibration chronology gate passes: calibration uses 2022 only; 2023 remains
+  the selection period.
+- Full pytest and long acceptance were not run in this audit.
+- Final generated model-selection prose is stale until regeneration.
+- Acceptance remains blocked by deleted-coverage review, concurrent worktree
+  changes, and unresolved phase-level audit findings.
 
 ## Execution Order
 
@@ -48,16 +51,13 @@ Re-run before quoting current state.
 
 ## Verified Contract Violations
 
-- `build_dataset.py` overwrites matcher censoring fields.
-- Final model selection currently ranks test metrics, violating test-only final
-  evaluation intent.
-- Dashboard prediction errors currently return fake `0.5` probability and `15.0`
-  LOS defaults.
-- Advanced regression constructs an adopted-only filter but does not apply it.
-- Intake-volume threshold runs before context features exist, making it inert.
-- Baseline/boosting metadata may omit exact feature columns; dashboard can fall
-  back to current registry.
-- Pipeline may continue after failure and create mixed-freshness outputs.
+- Generated `reports/summary/final_model_selection.md` still describes test-set
+  selection; producer wording is fixed but artifacts need regeneration.
+- Four test modules were deleted during closeout, including all former survival
+  suites and one rolling-feature suite; replacement coverage is not yet mapped.
+- Phase trackers contain stale `FULL PASS` and `Remaining risk: None` claims that
+  conflict with later deep-audit reports.
+- Phase 2, Phase 5, and Phase 6 lack equivalent deep-audit reports.
 
 ## Dashboard Routing
 

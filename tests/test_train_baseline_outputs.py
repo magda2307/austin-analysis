@@ -72,7 +72,7 @@ def test_train_all_baselines_winsorization_train_only(tmp_path):
                 "simplified_color_group": "black_or_dark",
                 "is_black_or_dark": True,
                 "is_named": i % 2 == 1,
-                "intake_year": 2022 + (i % 2),
+                "intake_year": 2018 + (i % 8),
                 "intake_month": i + 1,
                 "intake_quarter": (i // 3) + 1,
                 "intake_season": "winter",

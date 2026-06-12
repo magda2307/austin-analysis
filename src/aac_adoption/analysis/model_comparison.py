@@ -118,6 +118,7 @@ def create_model_comparison_tables(
             metrics / "classification_metrics.csv",
             metrics / "boosting_classification_metrics.csv",
             metrics / "advanced_classification_metrics.csv",
+            metrics / "calibrated_classification_metrics.csv",
         ]
     )
     regression = _read_existing(
@@ -145,7 +146,7 @@ def create_model_comparison_tables(
         sort_cols = ["animal_subset", "roc_auc", "f1"]
         sort_asc = [True, False, False]
         if "pr_auc" in classification.columns:
-            sort_cols = ["animal_subset", "roc_auc", "pr_auc", "f1"]
+            sort_cols = ["animal_subset", "pr_auc", "roc_auc", "f1"]
             sort_asc = [True, False, False, False]
         classification = classification.sort_values(
             sort_cols,
@@ -195,9 +196,11 @@ def create_context_model_comparison_table(
             base_metrics / "classification_metrics.csv",
             base_metrics / "boosting_classification_metrics.csv",
             base_metrics / "advanced_classification_metrics.csv",
+            base_metrics / "calibrated_classification_metrics.csv",
             context_metrics / "classification_metrics.csv",
             context_metrics / "boosting_classification_metrics.csv",
             context_metrics / "advanced_classification_metrics.csv",
+            context_metrics / "calibrated_classification_metrics.csv",
         ]
     )
     regression = _read_existing(

@@ -3,7 +3,7 @@
 import pandas as pd
 import numpy as np
 
-from aac_adoption.data.build_dataset import build_modeling_dataset
+from aac_adoption.data.build_dataset import build_horizon_dataset, build_modeling_dataset
 from scripts.generate_data_audit import build_horizon_followup_audit
 
 def test_horizon_targets():
@@ -36,7 +36,16 @@ def test_horizon_targets():
     # A2: Adopted in 14 days -> False for 7d, True for 30, 60, 90
     # A3: Transferred in 121 days -> False for all
 
-    result = build_modeling_dataset(intakes, outcomes).dataset
+    matched = build_modeling_dataset(
+        intakes,
+        outcomes,
+        extract_end_date=pd.Timestamp("2020-06-01"),
+    )
+    result = build_horizon_dataset(
+        matched.dataset,
+        matched.unresolved_intakes,
+        pd.Timestamp("2020-06-01"),
+    ).dataset
 
     assert "adopted_in_7d" in result.columns
     assert "adopted_in_30d" in result.columns
@@ -74,19 +83,24 @@ def test_horizon_targets_preserve_followup_and_censor_late_tail():
         "found_location": ["Austin (TX)", "Austin (TX)"],
     })
     outcomes = pd.DataFrame({
-        "animal_id": ["A1", "A2"],
-        "animal_type": ["Dog", "Dog"],
-        "outcome_datetime": pd.to_datetime(["2020-01-05", "2020-03-28"]),
-        "outcome_type": ["Adoption", "Transfer"],
-        "outcome_subtype": ["Foster", "Partner"],
-        "sex_upon_outcome": ["Neutered Male", "Neutered Male"],
-        "age_upon_outcome": ["2 years", "2 years"],
+        "animal_id": ["A1"],
+        "animal_type": ["Dog"],
+        "outcome_datetime": pd.to_datetime(["2020-01-05"]),
+        "outcome_type": ["Adoption"],
+        "outcome_subtype": ["Foster"],
+        "sex_upon_outcome": ["Neutered Male"],
+        "age_upon_outcome": ["2 years"],
     })
 
-    result = build_modeling_dataset(
+    matched = build_modeling_dataset(
         intakes,
         outcomes,
         extract_end_date=pd.Timestamp("2020-03-31"),
+    )
+    result = build_horizon_dataset(
+        matched.dataset,
+        matched.unresolved_intakes,
+        pd.Timestamp("2020-03-31"),
     ).dataset
 
     assert "followup_days_available" in result.columns
@@ -97,6 +111,44 @@ def test_horizon_targets_preserve_followup_and_censor_late_tail():
 
     fast = result[result["animal_id"] == "A1"].iloc[0]
     assert fast["adopted_in_90d"] == True
+
+
+def test_unresolved_intake_with_exact_horizon_followup_is_negative():
+    matched = pd.DataFrame(columns=["animal_id", "intake_datetime", "outcome_datetime", "adopted", "days_to_outcome"])
+    unresolved = pd.DataFrame(
+        {
+            "animal_id": ["A1"],
+            "intake_datetime": pd.to_datetime(["2024-01-01"]),
+        }
+    )
+
+    result = build_horizon_dataset(
+        matched,
+        unresolved,
+        pd.Timestamp("2024-01-08"),
+        horizons=(7,),
+    ).dataset
+
+    assert result["followup_days_available"].item() == 7
+    assert result["adopted_in_7d"].item() == 0
+
+
+def test_horizon_rejects_intakes_after_extract_end():
+    matched = pd.DataFrame(columns=["animal_id", "intake_datetime", "outcome_datetime", "adopted", "days_to_outcome"])
+    unresolved = pd.DataFrame(
+        {
+            "animal_id": ["A1", "A1"],
+            "intake_datetime": pd.to_datetime(["2024-01-01", "2024-01-20"]),
+        }
+    )
+
+    with np.testing.assert_raises_regex(ValueError, "after extract_end_date"):
+        build_horizon_dataset(
+            matched,
+            unresolved,
+            pd.Timestamp("2024-01-10"),
+            horizons=(14,),
+        )
 
 
 def test_horizon_followup_audit_counts_included_and_censored(tmp_path):

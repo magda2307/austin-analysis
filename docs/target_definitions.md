@@ -101,6 +101,23 @@ dataset["days_to_adoption"] = np.where(
 
 ---
 
+### 4. Horizon-Based Targets
+
+| Property | Value |
+|---|---|
+| Column names | `adopted_in_7d`, `adopted_in_30d`, `adopted_in_60d`, `adopted_in_90d` |
+| Data type | float (`1.0`, `0.0`, or `NaN`) |
+| Defined as | `1.0` if matched adoption occurs within the horizon and before the next intake; `0.0` if matched non-adoption occurs within the horizon, matched outcome occurs after the horizon, or unresolved intake has at least that many observable follow-up days; `NaN` if unresolved intake has less than the required observable follow-up |
+| Scope | `horizon_modeling_dataset.csv` only |
+| Used for | Classification: predicting adoption within a specific timeframe (e.g., 7, 30, 60, or 90 days) |
+| Allowed thesis labels | "adoption within 7 days", "horizon-based adoption target" |
+| Forbidden labels | "early adoption speed" |
+
+**Interpretation note:**
+Unlike the binary adoption outcome, horizon targets require the adoption to occur within a specific threshold (e.g., 7 days). If an animal is adopted on day 8, `adopted_in_7d` is `0.0`, even though `classification_target` is `1`. For unresolved intakes at the end of the data window, if they have not yet been observed for the duration of the horizon, they are marked `NaN` and excluded from model training/evaluation for that specific horizon.
+
+---
+
 ## Intake-Time Features and Leakage Control
 
 ### Intake-Time Feature Set

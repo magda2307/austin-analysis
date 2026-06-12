@@ -350,3 +350,27 @@ def test_predict_from_record_handles_calibration():
         assert res_fallback.predicted_days_to_outcome == pytest.approx(15.0)
         assert res_fallback.los_bucket == "8-30d"
         mock_joblib_load.assert_not_called()
+
+
+def test_predict_from_record_fails_when_selection_missing():
+    from unittest.mock import patch
+    import pandas as pd
+    with patch("aac_adoption.dashboard.data.load_table") as mock_load_table:
+        mock_load_table.return_value = pd.DataFrame()
+        
+        record = build_prediction_record(
+            animal_type="Dog",
+            intake_type="Stray",
+            intake_condition="Normal",
+            sex_upon_intake="Intact Male",
+            age_days=365.25 * 2,
+            breed="Labrador Retriever Mix",
+            color="Black/White",
+            has_name=True,
+            intake_date=pd.Timestamp("2024-06-01"),
+        )
+        
+        res = predict_from_record(record, models_dir="models/advanced", subset="combined")
+        assert res.ok is False
+        assert res.error_code == "MISSING_SELECTION"
+        assert "final_model_selection.csv is missing or empty" in res.error_message

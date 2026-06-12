@@ -70,7 +70,8 @@ def _fit_and_save(
     
     categorical_features = categorical_features_for(feature_columns)
     train_x = prepare_catboost_frame(split.train, feature_columns)
-    validation_x = prepare_catboost_frame(split.validation, feature_columns) if not split.validation.empty else None
+    eval_df = split.calibration if (split.calibration is not None and not split.calibration.empty) else split.validation
+    validation_x = prepare_catboost_frame(eval_df, feature_columns) if (eval_df is not None and not eval_df.empty) else None
     
     # Train-only winsorization for regression tasks
     train_y = split.train[target_column].copy()
@@ -91,7 +92,7 @@ def _fit_and_save(
     if "sample_weight" in split.train.columns:
         fit_kwargs["sample_weight"] = split.train["sample_weight"]
     if validation_x is not None:
-        fit_kwargs["eval_set"] = (validation_x, split.validation[target_column])
+        fit_kwargs["eval_set"] = (validation_x, eval_df[target_column])
         fit_kwargs["use_best_model"] = True
     model.fit(**fit_kwargs)
 
@@ -148,22 +149,10 @@ def train_advanced_classification(
     for subset in ANIMAL_SUBSETS:
         split = make_time_split(df, "classification_target", animal_subset=subset)
         feature_columns = model_feature_columns(split.train)
-        early_stop_validation, calibration_validation = _split_validation_for_calibration(split.validation)
-        fit_split = DatasetSplit(
-            full_data=split.full_data,
-            train=split.train,
-            validation=early_stop_validation,
-            test=split.test,
-            strategy=split.strategy,
-            train_period=split.train_period,
-            validation_period=split.validation_period,
-            test_period=split.test_period,
-            animal_subset=split.animal_subset,
-        )
         model, metadata = _fit_and_save(
             model=CatBoostClassifier(**params),
             task="classification",
-            split=fit_split,
+            split=split,
             feature_columns=feature_columns,
             target_column="classification_target",
             models_dir=models_dir,
@@ -214,15 +203,15 @@ def train_advanced_classification(
                 "selection_eligible": 0,
             })
         
-        # Apply Post-Hoc Calibration if validation set is available
-        if not calibration_validation.empty:
-            val_x = prepare_catboost_frame(calibration_validation, feature_columns)
+        # Apply Post-Hoc Calibration if calibration set is available
+        if split.calibration is not None and not split.calibration.empty:
+            val_x = prepare_catboost_frame(split.calibration, feature_columns)
             calibrated_model = apply_calibration_to_predictions(
                 base_model=model,
                 X_train=prepare_catboost_frame(split.train, feature_columns),
                 y_train=split.train["classification_target"],
                 X_calib=val_x,
-                y_calib=calibration_validation["classification_target"],
+                y_calib=split.calibration["classification_target"],
                 calib_method="isotonic"
             )
             
@@ -234,8 +223,8 @@ def train_advanced_classification(
                 "base_model_name": "catboost",
                 "base_artifact_path": metadata["artifact_path"],
                 "calibration_method": "isotonic",
-                "calibration_rows": len(calibration_validation),
-                "early_stopping_rows": len(early_stop_validation),
+                "calibration_rows": len(split.calibration),
+                "early_stopping_rows": len(split.calibration) if (split.calibration is not None and not split.calibration.empty) else len(split.validation),
             }
             calibrated_metadata["artifact_path"] = str(
                 artifact_path(
@@ -324,6 +313,10 @@ def train_advanced_regression(
         split_train = split.train.copy()
         split_train = log_transform_LOS(split_train, "regression_target_days")
         
+        split_calib = split.calibration.copy() if split.calibration is not None else None
+        if split_calib is not None:
+            split_calib = log_transform_LOS(split_calib, "regression_target_days")
+            
         split_val = split.validation.copy()
         split_val = log_transform_LOS(split_val, "regression_target_days")
         
@@ -336,6 +329,7 @@ def train_advanced_regression(
             split=DatasetSplit(
                 full_data=split.full_data,
                 train=split_train,
+                calibration=split_calib,
                 validation=split_val,
                 test=split_test,
                 strategy=split.strategy,
@@ -416,11 +410,12 @@ def train_all_advanced(
             for key, kwargs_dict in [("catboost_classification", clf_kwargs), ("catboost_regression", reg_kwargs)]:
                 if key in d:
                     tune_info = d[key]
-                    if tune_info.get("status") == "failed":
+                    best_params = tune_info.get("best_params")
+                    if tune_info.get("status") == "failed" or not isinstance(best_params, dict):
                         if not allow_default_params:
-                            raise ValueError(f"Tuning failed for {key}. Explicit development flag required to use defaults.")
-                    elif tune_info.get("best_params") is not None:
-                        kwargs_dict.update(tune_info["best_params"])
+                            raise ValueError(f"Tuning failed or missing/malformed parameters for {key}. Explicit development flag required to use defaults.")
+                    else:
+                        kwargs_dict.update(best_params)
 
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(

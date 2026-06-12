@@ -97,7 +97,7 @@ def test_tune_empty_data():
     
     result = tune_histgradient_boosting_classification(empty_df)
     
-    assert result["best_score"] > -float("inf") or result["best_params"] is None
+    assert result.get("status") == "failed" or result.get("best_score", -float("inf")) > -float("inf")
 
 
 def test_tune_models_runs_successfully():
@@ -111,7 +111,7 @@ def test_tune_models_runs_successfully():
         "sex_upon_intake": np.random.choice(["Neutered Male", "Spayed Female"], n_samples),
         "age_days": np.random.randint(1, 3000, n_samples).astype(float),
         "age_group": np.random.choice(["Adult", "Kitten/Puppy"], n_samples),
-        "intake_year": np.random.choice([2020, 2021, 2022], n_samples),
+        "intake_year": np.random.choice([2020, 2021, 2022, 2023, 2024], n_samples),
         "intake_datetime": pd.date_range("2020-01-01", periods=n_samples, freq="D"),
         "classification_target": np.random.choice([0, 1], n_samples, p=[0.85, 0.15]),
         "regression_target_days": np.random.randint(1, 30, n_samples).astype(float),
@@ -179,6 +179,63 @@ def test_tune_models_catboost_regression_fit_spy(divergent_row_data):
             original_y_tr = y_reg_original[y.index]
             assert np.allclose(y, np.log1p(original_y_tr)), "y_tr passed to fit must be log-transformed"
 
+
+def test_tune_failure_payloads_rejected_by_trainer(tmp_path):
+    import json
+    from aac_adoption.models.train_advanced import train_all_advanced
+    from aac_adoption.models.train_boosting import train_all_boosting
+    from aac_adoption.models.train_adopted_regression import train_all_adopted
+    
+    dataset_path = tmp_path / "data.csv"
+    df = pd.DataFrame({
+        "classification_target": [0, 1, 0, 1],
+        "regression_target_days": [1, 2, 3, 4],
+        "days_to_adoption": [1, 2, 3, 4],
+        "adopted": [1, 1, 1, 1],
+        "intake_datetime": pd.date_range("2020-01-01", periods=4, freq="D")
+    })
+    df.to_csv(dataset_path, index=False)
+    
+    failed_payload = {
+        "catboost_classification": {"status": "failed", "error": "mock failure", "best_params": None},
+        "hist_gradient_boosting_classification": {"status": "failed"},
+        "catboost_adopted_regression": {"status": "failed"}
+    }
+    tuned_params_path = tmp_path / "tuned_params.json"
+    tuned_params_path.write_text(json.dumps(failed_payload))
+    
+    with pytest.raises(ValueError, match="Tuning failed or missing/malformed parameters"):
+        train_all_advanced(
+            data_path=dataset_path,
+            metrics_dir=tmp_path / "metrics",
+            models_dir=tmp_path / "models",
+            tuned_params_path=tuned_params_path
+        )
+        
+    with pytest.raises(ValueError, match="Tuning failed or missing/malformed parameters"):
+        train_all_boosting(
+            data_path=dataset_path,
+            metrics_dir=tmp_path / "metrics",
+            models_dir=tmp_path / "models",
+            tuned_params_path=tuned_params_path
+        )
+
+
+def test_subgroup_analysis_standalone_helper_runs():
+    from aac_adoption.models.evaluate import subgroup_analysis
+    
+    y_true = [0, 1, 0, 1, 0, 1]
+    y_pred = [0, 1, 0, 0, 1, 1]
+    y_score = [0.1, 0.9, 0.2, 0.4, 0.6, 0.8]
+    subgroup = ["dog", "dog", "cat", "cat", "bird", "bird"]
+    
+    df_metrics = subgroup_analysis(y_true, y_pred, y_score, subgroup)
+    
+    # Should return a valid pandas DataFrame
+    assert isinstance(df_metrics, pd.DataFrame)
+    assert len(df_metrics) == 3
+    assert "subgroup" in df_metrics.columns
+    assert set(df_metrics["subgroup"]) == {"bird", "cat", "dog"}
 
 import pytest
 pytestmark = pytest.mark.slow

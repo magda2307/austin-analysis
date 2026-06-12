@@ -115,6 +115,7 @@ def base_training_metadata(
         "dataset_path": str(dataset_path),
         "dataset_sha256": compute_file_sha256(dataset_path),
         "feature_columns": feature_columns,
+        "feature_set": feature_set_label(feature_columns),
         "target_column": target_column,
         "target_transform": target_transform,
         "prediction_inverse_transform": prediction_inverse_transform,

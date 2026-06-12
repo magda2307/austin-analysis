@@ -23,7 +23,7 @@ if str(SRC_DIR) not in sys.path:
 import pandas as pd
 
 from aac_adoption.features.feature_sets import (
-    LEAKAGE_COLUMNS,
+    PROHIBITED_MODEL_COLUMNS,
     METADATA_COLUMNS,
     TARGET_COLUMNS,
     available_intake_features,
@@ -76,7 +76,7 @@ def build_leakage_audit(
             category = "predictor"
             allowed = True
             note = "Intake-time predictor used by the model"
-            if col in LEAKAGE_COLUMNS:
+            if col in PROHIBITED_MODEL_COLUMNS:
                 category = "LEAKAGE — predictor AND leakage set"
                 allowed = False
                 violations.append(col)
@@ -100,12 +100,12 @@ def build_leakage_audit(
             "in_feature_columns_json": col in set(feature_columns),
             "in_target_columns": col in set(TARGET_COLUMNS),
             "in_metadata_columns": col in set(METADATA_COLUMNS),
-            "in_leakage_set": col in LEAKAGE_COLUMNS,
+            "in_leakage_set": col in PROHIBITED_MODEL_COLUMNS,
             "leakage_violation": col in violations,
-            "allowed_as_predictor": col in set(feature_columns) and col not in LEAKAGE_COLUMNS,
+            "allowed_as_predictor": col in set(feature_columns) and col not in PROHIBITED_MODEL_COLUMNS,
             "role": category,
-            "allowed_as_feature": col in set(feature_columns) and col not in LEAKAGE_COLUMNS,
-            "leakage_risk": col in LEAKAGE_COLUMNS or col in violations,
+            "allowed_as_feature": col in set(feature_columns) and col not in PROHIBITED_MODEL_COLUMNS,
+            "leakage_risk": col in PROHIBITED_MODEL_COLUMNS or col in violations,
             "notes": note,
         })
 
@@ -155,8 +155,8 @@ def write_summary_md(df: pd.DataFrame, violations: list[str], output_path: Path)
         "",
         "## Leakage Set Definition",
         "",
-        "The `LEAKAGE_COLUMNS` set in `src/aac_adoption/features/feature_sets.py` is the",
-        "union of `TARGET_COLUMNS` and `METADATA_COLUMNS`, minus `animal_id` and `intake_datetime`.",
+        "The `PROHIBITED_MODEL_COLUMNS` set in `src/aac_adoption/features/feature_sets.py` is the",
+        "union of `LEAKAGE_COLUMNS`, `IDENTIFIER_COLUMNS`, and `RAW_TIME_COLUMNS`.",
         "The `validate_no_leakage()` function also checks for column names containing 'future',",
         "'_next_', or starting with 'next_'.",
         "",

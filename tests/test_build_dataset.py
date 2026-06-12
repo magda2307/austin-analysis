@@ -114,16 +114,10 @@ def test_build_modeling_dataset_filters_and_creates_targets():
     assert "sex_upon_outcome" in dataset.columns
     assert "age_upon_outcome" in dataset.columns
     assert "has_name" in dataset.columns
-    assert "is_censored" in dataset.columns
-    assert "censoring_reason" in dataset.columns
-    assert "event_type" in dataset.columns
-    assert "followup_days_censored" in dataset.columns
-
-    assert bool(dataset.loc[dataset["animal_id"] == "A1", "is_censored"].item()) is False
-    assert dataset.loc[dataset["animal_id"] == "A1", "censoring_reason"].item() == ""
-    assert dataset.loc[dataset["animal_id"] == "A1", "event_type"].item() == "adoption"
-    assert abs(dataset.loc[dataset["animal_id"] == "A1", "followup_days_censored"].item() - dataset.loc[dataset["animal_id"] == "A1", "days_to_outcome"].item()) < 0.001
-    assert dataset.loc[dataset["animal_id"] == "A2", "event_type"].item() == "transfer"
+    assert "is_censored" not in dataset.columns
+    assert "censoring_reason" not in dataset.columns
+    assert "event_type" not in dataset.columns
+    assert "followup_days_censored" not in dataset.columns
 
     assert dataset.loc[dataset["animal_id"] == "A1", "adopted"].item() is True
     assert dataset.loc[dataset["animal_id"] == "A1", "is_adopted"].item() is True
@@ -208,7 +202,7 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
 
     _sample_intakes().to_csv(intakes_path, index=False)
     _sample_outcomes().to_csv(outcomes_path, index=False)
-    pd.DataFrame({"DATE": ["2021-01-01", "2021-02-01"], "TMAX": [96, 70], "TMIN": [55, 40], "PRCP": [0.2, 0]}).to_csv(
+    pd.DataFrame({"DATE": ["2020-12-31", "2021-01-31"], "TMAX": [96, 70], "TMIN": [55, 40], "PRCP": [0.2, 0]}).to_csv(
         context_dir / "austin_weather_daily.csv",
         index=False,
     )
@@ -225,6 +219,8 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
     assert dataset.loc[dataset["animal_id"] == "A1", "animal_311_requests_7d"].item() == 3
     assert "found_location_kind" in dataset.columns
     assert (tmp_path / "processed" / "context_feature_columns.json").exists()
+    metadata = pd.read_json(tmp_path / "processed" / "context_metadata.json", typ="series")
+    assert metadata["context_weather_lag_days"] == 1
 
 
 def test_build_modeling_dataset_keeps_raw_los_outliers():

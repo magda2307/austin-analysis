@@ -387,11 +387,12 @@ def train_all_boosting(
             for key, kwargs_dict in [("hist_gradient_boosting_classification", clf_kwargs), ("hist_gradient_boosting_regression", reg_kwargs)]:
                 if key in d:
                     tune_info = d[key]
-                    if tune_info.get("status") == "failed":
+                    best_params = tune_info.get("best_params")
+                    if tune_info.get("status") == "failed" or not isinstance(best_params, dict):
                         if not allow_default_params:
-                            raise ValueError(f"Tuning failed for {key}. Explicit development flag required to use defaults.")
-                    elif tune_info.get("best_params") is not None:
-                        kwargs_dict.update(tune_info["best_params"])
+                            raise ValueError(f"Tuning failed or missing/malformed parameters for {key}. Explicit development flag required to use defaults.")
+                    else:
+                        kwargs_dict.update(best_params)
 
     run_timestamp = datetime.now(timezone.utc).isoformat()
     classification = pd.DataFrame(

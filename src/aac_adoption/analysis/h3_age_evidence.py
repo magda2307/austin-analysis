@@ -53,7 +53,10 @@ def _adoption_rate_by_age(df: pd.DataFrame, animal_subset: str) -> pd.DataFrame:
 def _adopted_only_median_days(df: pd.DataFrame, animal_subset: str) -> pd.DataFrame:
     sub = df if animal_subset == "combined" else df[df["animal_type"].str.lower() == animal_subset.rstrip("s")]
     adopted = sub.loc[sub["classification_target"].eq(1)].copy()
-    adopted["days_to_adoption"] = adopted["regression_target_days"]
+    
+    if "days_to_adoption" not in adopted.columns:
+        raise ValueError("adopted-only timing analysis strictly requires 'days_to_adoption' column")
+        
     days_col = "days_to_adoption"
     
     if "age_group" not in adopted.columns:

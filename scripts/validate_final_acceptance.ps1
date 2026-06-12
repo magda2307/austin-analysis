@@ -9,6 +9,11 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($Long -and $SkipPytest) {
+    Write-Error "Invalid flags: -Long and -SkipPytest cannot be used together."
+    exit 1
+}
+
 $Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 Set-Location $Root
 
@@ -28,73 +33,90 @@ function Invoke-Step {
     }
 }
 
-Invoke-Step "Python compile dashboard helpers" @(
-    "python", "-m", "py_compile",
-    "src/aac_adoption/dashboard/data.py",
-    "streamlit_app.py"
-)
-
-if (-not $SkipScripts) {
-    Invoke-Step "Calibration CLI help" @("python", "scripts/calibrate_classifiers.py", "--help")
-    Invoke-Step "Backtesting CLI help" @("python", "scripts/evaluate_backtesting.py", "--help")
-    Invoke-Step "Recency CLI help" @("python", "scripts/compare_recency.py", "--help")
-}
-
-if (-not $SkipPytest) {
-    Invoke-Step "Dataset contract tests" @("python", "-m", "pytest", "tests/test_build_dataset.py", "-m", "not slow and not acceptance", "-q")
-    Invoke-Step "Dashboard tests" @("python", "-m", "pytest", "tests/test_dashboard_data.py", "-m", "not slow and not acceptance", "-q")
-    Invoke-Step "Temporal validation tests" @(
-        "python", "-m", "pytest",
-        "tests/test_backtesting.py",
-        "tests/test_yearly_backtesting.py",
-        "tests/test_recency_comparison.py",
-        "-m", "not slow and not acceptance",
-        "-q"
-    )
-    Invoke-Step "Method hardening tests" @(
-        "python", "-m", "pytest",
-        "tests/test_hyperparam_tuning.py",
-        "tests/test_ensemble.py",
-        "tests/test_diagnostics_outputs.py",
-        "-m", "not slow and not acceptance",
-        "-q"
-    )
-    Invoke-Step "Terminology/report tests" @(
-        "python", "-m", "pytest",
-        "tests/test_target_definitions.py",
-        "tests/test_report_outputs.py",
-        "-m", "not slow and not acceptance",
-        "-q"
-    )
-}
-
-if (-not $SkipScripts) {
-    $TempRoot = Join-Path $env:TEMP "aac_smoke_$([guid]::NewGuid().ToString('N'))"
-    New-Item -ItemType Directory -Path $TempRoot | Out-Null
-    Write-Host "Created temporary smoke root: $TempRoot" -ForegroundColor Gray
-
-    Invoke-Step "Quick yearly backtesting" @(
-        "python", "scripts/evaluate_backtesting.py",
-        "--quick",
-        "--n_bootstraps", "$BacktestBootstraps",
-        "--output", "$TempRoot/backtesting.csv"
-    )
-    Invoke-Step "Quick recency comparison" @(
-        "python", "scripts/compare_recency.py",
-        "--quick",
-        "--n-bootstraps", "$RecencyBootstraps",
-        "--iterations", "$RecencyIterations",
-        "--output", "$TempRoot/recency.csv",
-        "--figure-output", "$TempRoot/recency.png"
-    )
-}
-
 if ($Long) {
+    # Canonical acceptance mode
     $env:AAC_ACCEPTANCE = "1"
     Write-Host "Running in canonical acceptance mode (AAC_ACCEPTANCE=1)" -ForegroundColor Gray
     
+    Invoke-Step "Validate run receipts" @("python", "scripts/validate_run_receipts.py")
     Invoke-Step "Full pytest suite" @("python", "-m", "pytest", "-q")
+    
+    Write-Host ""
+    Write-Host "All requested validation steps passed." -ForegroundColor Green
+    exit 0
 }
 
-Write-Host ""
-Write-Host "All requested validation steps passed." -ForegroundColor Green
+# Short smoke paths
+try {
+    $TempRoot = $null
+    
+    Invoke-Step "Python compile dashboard helpers" @(
+        "python", "-m", "py_compile",
+        "src/aac_adoption/dashboard/data.py",
+        "streamlit_app.py"
+    )
+
+    if (-not $SkipScripts) {
+        Invoke-Step "Calibration CLI help" @("python", "scripts/calibrate_classifiers.py", "--help")
+        Invoke-Step "Backtesting CLI help" @("python", "scripts/evaluate_backtesting.py", "--help")
+        Invoke-Step "Recency CLI help" @("python", "scripts/compare_recency.py", "--help")
+    }
+
+    if (-not $SkipPytest) {
+        Invoke-Step "Dataset contract tests" @("python", "-m", "pytest", "tests/test_build_dataset.py", "-m", "not slow and not acceptance", "-q")
+        Invoke-Step "Dashboard tests" @("python", "-m", "pytest", "tests/test_dashboard_data.py", "-m", "not slow and not acceptance", "-q")
+        Invoke-Step "Temporal validation tests" @(
+            "python", "-m", "pytest",
+            "tests/test_backtesting.py",
+            "tests/test_yearly_backtesting.py",
+            "tests/test_recency_comparison.py",
+            "-m", "not slow and not acceptance",
+            "-q"
+        )
+        Invoke-Step "Method hardening tests" @(
+            "python", "-m", "pytest",
+            "tests/test_hyperparam_tuning.py",
+            "tests/test_ensemble.py",
+            "tests/test_diagnostics_outputs.py",
+            "-m", "not slow and not acceptance",
+            "-q"
+        )
+        Invoke-Step "Terminology/report tests" @(
+            "python", "-m", "pytest",
+            "tests/test_target_definitions.py",
+            "tests/test_report_outputs.py",
+            "-m", "not slow and not acceptance",
+            "-q"
+        )
+    }
+
+    if (-not $SkipScripts) {
+        $TempRoot = Join-Path $env:TEMP "aac_smoke_$([guid]::NewGuid().ToString('N'))"
+        New-Item -ItemType Directory -Path $TempRoot | Out-Null
+        Write-Host "Created temporary smoke root: $TempRoot" -ForegroundColor Gray
+
+        Invoke-Step "Quick yearly backtesting" @(
+            "python", "scripts/evaluate_backtesting.py",
+            "--quick",
+            "--n_bootstraps", "$BacktestBootstraps",
+            "--output", "$TempRoot/backtesting.csv"
+        )
+        Invoke-Step "Quick recency comparison" @(
+            "python", "scripts/compare_recency.py",
+            "--quick",
+            "--n-bootstraps", "$RecencyBootstraps",
+            "--iterations", "$RecencyIterations",
+            "--output", "$TempRoot/recency.csv",
+            "--figure-output", "$TempRoot/recency.png"
+        )
+    }
+
+    Write-Host ""
+    Write-Host "All requested validation steps passed." -ForegroundColor Green
+}
+finally {
+    if ($TempRoot -and (Test-Path $TempRoot)) {
+        Remove-Item -Recurse -Force $TempRoot
+        Write-Host "Cleaned up temporary smoke root: $TempRoot" -ForegroundColor Gray
+    }
+}

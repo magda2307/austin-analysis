@@ -178,10 +178,10 @@ def run_yearly_backtesting(
                 results.append(skipped_result)
                 continue
             
-            if len(train_df) < 2 or len(test_df) < 2:
+            if len(train_df) < 10 or len(test_df) < 10:
                 skipped_result = {
                     "status": "SKIPPED",
-                    "skip_reason": "Insufficient data (<2 rows)",
+                    "skip_reason": "Insufficient data (<10 rows)",
                     "error_type": None,
                     "error_message": None,
                     "train_start_year": train_start,

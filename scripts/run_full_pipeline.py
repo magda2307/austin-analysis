@@ -143,6 +143,12 @@ STEPS = [
     ),
     (
         17,
+        "Validate run receipts",
+        [sys.executable, "scripts/validate_run_receipts.py", "--allow-running"],
+        None,
+    ),
+    (
+        18,
         "Run test suite",
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
         None,
@@ -182,7 +188,12 @@ Examples:
     parser.add_argument(
         "--quick",
         action="store_true",
-        help="Quick mode: skip download (1), SHAP (11, 15), and tests (17).",
+        help="Quick mode: skip download (1), SHAP (11, 15), and tests (18).",
+    )
+    parser.add_argument(
+        "--skip-tests",
+        action="store_true",
+        help="Skip step 18 (test suite).",
     )
     parser.add_argument(
         "--steps",
@@ -217,7 +228,7 @@ def should_skip(step_number: int, tag: str | None, args: argparse.Namespace, onl
         return True
     if tag == "shap" and (args.skip_shap or args.quick):
         return True
-    if step_number == 17 and args.quick:
+    if step_number == 18 and (args.quick or args.skip_tests):
         return True
     return False
 
@@ -244,6 +255,7 @@ def main() -> None:
     receipt_path = ROOT / "reports" / "run_receipt.json"
     receipt_data = {
         "run_id": run_id,
+        "profile": "thesis-quick" if args.quick else "thesis-full",
         "producer_source_sha": shortsha,
         "started_at": datetime.now(tz=timezone.utc).isoformat(),
         "completed_at": None,
@@ -312,6 +324,9 @@ def main() -> None:
             # Pass run context via environment variables
             run_env = os.environ.copy()
             run_env["AAC_RUN_ID"] = run_id
+            run_env["AAC_PRODUCER_SOURCE_SHA"] = shortsha
+            run_env["AAC_RUN_PROFILE"] = "thesis-quick" if args.quick else "thesis-full"
+            run_env["AAC_RECEIPTS_DIR"] = str(ROOT / "reports" / "run_receipts")
 
             # Discover inputs from command arguments
             inputs = []

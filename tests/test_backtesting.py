@@ -5,14 +5,14 @@ import pandas as pd
 def test_backtesting_output_schema():
     """Test that yearly backtesting produces correct output schema with sufficient data."""
     df = pd.DataFrame({
-        "animal_id": list(range(12)),
-        "intake_year": [2018]*4 + [2019]*4 + [2020]*4,
-        "classification_target": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
-        "regression_target_days": [10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0],
-        "animal_type": ["Dog", "Cat", "Dog", "Cat"] * 3,
-        "intake_age_days": [100, 200, 100, 200] * 3,
-        "intake_datetime": pd.to_datetime(["2018-01-01", "2018-02-01", "2018-03-01", "2018-04-01"] * 3),
-        "outcome_datetime": pd.to_datetime(["2018-01-05", "2018-02-05", "2018-03-05", "2018-04-05"] * 3),
+        "animal_id": list(range(30)),
+        "intake_year": [2018]*10 + [2019]*10 + [2020]*10,
+        "classification_target": [1, 0, 1, 0, 1, 0, 1, 0, 1, 0] * 3,
+        "regression_target_days": [10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0, 10.0, 5.0] * 3,
+        "animal_type": ["Dog", "Cat"] * 15,
+        "intake_age_days": [100, 200] * 15,
+        "intake_datetime": pd.to_datetime(["2018-01-01", "2018-02-01"] * 15),
+        "outcome_datetime": pd.to_datetime(["2018-01-05", "2018-02-05"] * 15),
     })
     
     from aac_adoption.models.yearly_backtesting import run_yearly_backtesting, _detect_categorical_features

@@ -118,10 +118,14 @@ def tune_histgradient_boosting_classification(
                             "max_leaf_nodes": max_leaf_nodes,
                             "learning_rate": learning_rate,
                         }
-                except Exception:
-                    continue
+                except Exception as e:
+                    return {"status": "failed", "error": str(e)}
+    
+    if best_params is None:
+        return {"status": "failed", "error": "No valid parameters found."}
     
     return {
+        "status": "success",
         "best_score": best_score,
         "best_params": best_params,
     }
@@ -197,10 +201,14 @@ def tune_histgradient_boosting_regression(
                             "max_leaf_nodes": max_leaf_nodes,
                             "learning_rate": learning_rate,
                         }
-                except Exception:
-                    continue
+                except Exception as e:
+                    return {"status": "failed", "error": str(e)}
+    
+    if best_params is None:
+        return {"status": "failed", "error": "No valid parameters found."}
     
     return {
+        "status": "success",
         "best_score": best_score,
         "best_params": best_params,
     }

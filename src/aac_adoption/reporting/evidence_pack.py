@@ -397,8 +397,11 @@ def subgroup_adoption_milestones(data_path: str | Path, min_records: int = 50) -
     if not path.exists():
         return pd.DataFrame(columns=MILESTONE_COLUMNS)
     df = pd.read_csv(path)
-    if df.empty or "classification_target" not in df.columns:
+    if df.empty:
         return pd.DataFrame(columns=MILESTONE_COLUMNS)
+    missing = {"classification_target"} - set(df.columns)
+    if missing:
+        raise ValueError(f"modeling dataset missing target columns: {sorted(missing)}")
     df = add_animal_descriptors(df)
     days_column = "days_to_adoption" if "days_to_adoption" in df.columns else "days_to_outcome"
     if days_column not in df.columns:
@@ -515,7 +518,7 @@ def animal_journey_examples(
     rows = []
     for _, profile in animal_archetypes.head(max_examples).iterrows():
         record = build_profile_prediction_record(profile)
-        prediction: dict[str, float | None] = {"adoption_probability": np.nan, "predicted_days_to_outcome": np.nan}
+        prediction = None
         local_shap = pd.DataFrame()
         try:
             prediction = predict_from_record(record, models_dir)
@@ -543,8 +546,8 @@ def animal_journey_examples(
                 f"{similar_row['matching_level']}"
             )
 
-        probability = prediction.get("adoption_probability", np.nan)
-        days = prediction.get("predicted_days_to_outcome", np.nan)
+        probability = getattr(prediction, "adoption_probability", np.nan) if prediction else np.nan
+        days = getattr(prediction, "predicted_days_to_outcome", np.nan) if prediction else np.nan
         label = (
             visibility_need_from_prediction(float(probability), float(days))
             if not pd.isna(probability) and not pd.isna(days)
@@ -744,15 +747,15 @@ def create_evidence_pack(
     vulnerable_profiles = _read_table(tables / "vulnerable_profiles.csv")
     animal_archetypes = _read_table(tables / "animal_archetypes.csv")
 
-    evidence = pd.concat(
-        [
-            best_model_evidence(classification, regression),
-            shap_family_evidence(shap_family_classification, shap_family_regression),
-            animal_risk_evidence(vulnerable_profiles),
-        ],
-        ignore_index=True,
-    )
-    if evidence.empty:
+    evidence_parts = [
+        best_model_evidence(classification, regression),
+        shap_family_evidence(shap_family_classification, shap_family_regression),
+        animal_risk_evidence(vulnerable_profiles),
+    ]
+    valid_parts = [df for df in evidence_parts if not df.empty and not df.isna().all().all()]
+    if valid_parts:
+        evidence = pd.concat(valid_parts, ignore_index=True)
+    else:
         evidence = pd.DataFrame(columns=EVIDENCE_COLUMNS)
     limitations = model_limitations_by_cohort(predictions, min_records=min_cohort_records)
     subgroup = subgroup_reliability(predictions, min_records=min_cohort_records)

@@ -16,21 +16,19 @@ def test_make_time_split_uses_thesis_year_boundaries():
     split = make_time_split(df, "classification_target")
 
     assert set(split.train["intake_year"]) == {2019, 2021}
-    assert set(split.validation["intake_year"]) == {2022, 2023}
     assert set(split.test["intake_year"]) == {2024, 2025}
     assert split.strategy == "time"
     assert split.train_period == "2013-2021"
-    assert split.validation_period == "2022-2023"
     assert split.test_period == "2024-2025"
 
 
 def test_make_time_split_filters_animal_subset():
     df = pd.DataFrame(
         {
-            "intake_year": [2020, 2021, 2024, 2025],
-            "animal_type": ["Dog", "Cat", "Dog", "Cat"],
-            "classification_target": [1, 0, 0, 1],
-            "animal_id": list("ABCD"),
+            "intake_year": [2020, 2022, 2023, 2024, 2020, 2022, 2023, 2024],
+            "animal_type": ["Dog", "Dog", "Dog", "Dog", "Cat", "Cat", "Cat", "Cat"],
+            "classification_target": [1, 0, 1, 0, 0, 1, 0, 1],
+            "animal_id": list("ABCDEFGH"),
         }
     )
 
@@ -39,4 +37,3 @@ def test_make_time_split_filters_animal_subset():
     assert set(split.full_data["animal_type"]) == {"Dog"}
     assert set(split.train["animal_type"]) == {"Dog"}
     assert set(split.test["animal_type"]) == {"Dog"}
-

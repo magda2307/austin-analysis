@@ -125,8 +125,8 @@ def test_h2_h4_interpretation_reports_use_computed_values(tmp_path) -> None:
         {
             "intake_season": ["winter", "winter", "summer", "summer"],
             "is_black_or_dark": [True, True, False, False],
-            "adopted": [True, False, False, False],
-            "days_to_outcome": [2.0, 6.0, 10.0, 14.0],
+            "classification_target": [True, False, False, False],
+            "regression_target_days": [2.0, 6.0, 10.0, 14.0],
         }
     ).to_csv(data_path, index=False)
 

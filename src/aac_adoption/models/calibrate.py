@@ -263,26 +263,60 @@ def calibrate_classifiers(
                 calibrated_metadata,
             )
 
-            predictions = calibrated.predict(test_x).astype(int)
-            scores = calibrated.predict_proba(test_x)[:, 1]
-            metrics = classification_metrics(
-                split.test["classification_target"],
-                predictions,
-                scores,
-                compute_ci=False,
-            )
-            rows.append(
-                {
-                    **calibrated_metadata,
-                    "animal_subset": split.animal_subset,
-                    "task": "classification_calibrated",
-                    "split_strategy": split.strategy,
-                    "train_rows": len(split.train),
-                    "validation_rows": len(calibration_validation),
-                    "test_rows": len(split.test),
-                    **metrics,
-                }
-            )
+            if not split.selection.empty:
+                sel_x = _prepare_frame_for_artifact(model, split.selection, feature_columns, metadata)
+                sel_preds = calibrated.predict(sel_x).astype(int)
+                sel_scores = calibrated.predict_proba(sel_x)[:, 1]
+                sel_metrics = classification_metrics(
+                    split.selection["classification_target"],
+                    sel_preds,
+                    sel_scores,
+                    compute_ci=False,
+                )
+                rows.append(
+                    {
+                        **calibrated_metadata,
+                        "animal_subset": split.animal_subset,
+                        "task": "classification_calibrated",
+                        "split_strategy": split.strategy,
+                        "train_rows": len(split.train),
+                        "validation_rows": len(calibration_validation),
+                        "test_rows": len(split.test),
+                        **sel_metrics,
+                        "target_column": "classification_target",
+                        "target_transform": "identity",
+                        "prediction_inverse_transform": "identity",
+                        "metric_split": "selection",
+                        "selection_eligible": 1,
+                    }
+                )
+
+            if not split.test.empty:
+                test_preds = calibrated.predict(test_x).astype(int)
+                test_scores = calibrated.predict_proba(test_x)[:, 1]
+                test_metrics = classification_metrics(
+                    split.test["classification_target"],
+                    test_preds,
+                    test_scores,
+                    compute_ci=False,
+                )
+                rows.append(
+                    {
+                        **calibrated_metadata,
+                        "animal_subset": split.animal_subset,
+                        "task": "classification_calibrated",
+                        "split_strategy": split.strategy,
+                        "train_rows": len(split.train),
+                        "validation_rows": len(calibration_validation),
+                        "test_rows": len(split.test),
+                        **test_metrics,
+                        "target_column": "classification_target",
+                        "target_transform": "identity",
+                        "prediction_inverse_transform": "identity",
+                        "metric_split": "test",
+                        "selection_eligible": 0,
+                    }
+                )
 
     classification = pd.DataFrame(rows)
     classification.to_csv(metrics_output_dir / "calibrated_classification_metrics.csv", index=False)

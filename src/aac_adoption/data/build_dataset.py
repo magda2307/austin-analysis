@@ -300,27 +300,40 @@ def build_horizon_dataset(
 ) -> HorizonDatasetBuildResult:
     """Build a separate all-intake horizon cohort."""
     combined = pd.concat([matched_dataset, unresolved_intakes], ignore_index=True)
-    combined = combined.sort_values(["animal_id", "intake_datetime"])
+    combined["intake_datetime"] = pd.to_datetime(combined["intake_datetime"], errors="coerce")
+    if combined["intake_datetime"].isna().any():
+        raise ValueError("horizon cohort contains invalid intake_datetime values")
+    if combined["intake_datetime"].gt(extract_end_date).any():
+        raise ValueError("horizon cohort contains intakes after extract_end_date")
+
+    combined = combined.sort_values(["animal_id", "intake_datetime"], kind="stable")
     
     combined["next_intake_datetime"] = combined.groupby("animal_id")["intake_datetime"].shift(-1)
     end_date_series = pd.Series(extract_end_date, index=combined.index)
-    
-    combined["observation_end_actual"] = np.where(
-        combined["next_intake_datetime"].notna(),
-        combined["next_intake_datetime"],
-        end_date_series
-    )
+    combined["observation_end_actual"] = pd.concat(
+        [combined["next_intake_datetime"], end_date_series],
+        axis=1,
+    ).min(axis=1)
     
     combined["followup_days_available"] = (combined["observation_end_actual"] - combined["intake_datetime"]).dt.total_seconds() / 86400
+    if combined["followup_days_available"].lt(0).any():
+        raise ValueError("horizon cohort contains negative observable follow-up")
 
     for h in horizons:
         is_matched = combined["outcome_datetime"].notna()
         adopted = combined["adopted"].fillna(False)
         outcome_within_h = is_matched & (combined["days_to_outcome"] <= h)
+        outcome_before_boundary = (
+            combined["next_intake_datetime"].isna()
+            | combined["outcome_datetime"].lt(combined["next_intake_datetime"])
+        )
+        invalid_cross_boundary = is_matched & ~outcome_before_boundary
+        if invalid_cross_boundary.any():
+            raise ValueError("matched outcome crosses a later intake boundary")
         
-        cond1 = is_matched & adopted & outcome_within_h
-        cond2 = is_matched & (~adopted) & outcome_within_h
-        cond3 = is_matched & (combined["days_to_outcome"] > h)
+        cond1 = is_matched & outcome_before_boundary & adopted & outcome_within_h
+        cond2 = is_matched & outcome_before_boundary & (~adopted) & outcome_within_h
+        cond3 = is_matched & outcome_before_boundary & (combined["days_to_outcome"] > h)
         cond4 = (~is_matched) & (combined["followup_days_available"] >= h)
         
         combined[f"adopted_in_{h}d"] = np.nan
@@ -378,6 +391,34 @@ def build_modeling_dataset_from_files(
     output = Path(output_path)
     output.parent.mkdir(parents=True, exist_ok=True)
     
+    horizon_source_dataset = result.dataset
+    horizon_source_unresolved = result.unresolved_intakes
+
+    if extract_end_date is not None:
+        horizon_result = build_horizon_dataset(
+            horizon_source_dataset,
+            horizon_source_unresolved,
+            extract_end_date,
+        )
+        horizon_output = output.parent / "horizon_modeling_dataset.csv"
+        horizon_result.dataset.to_csv(horizon_output, index=False)
+
+        horizon_feature_columns = available_intake_features(horizon_result.dataset.columns)
+        validate_no_leakage(horizon_feature_columns)
+        horizon_target_columns = [
+            f"adopted_in_{horizon}d"
+            for horizon in horizon_result.horizon_days
+        ]
+
+        (output.parent / "horizon_feature_columns.json").write_text(
+            json.dumps(horizon_feature_columns, indent=2),
+            encoding="utf-8",
+        )
+        (output.parent / "horizon_target_columns.json").write_text(
+            json.dumps(horizon_target_columns, indent=2),
+            encoding="utf-8",
+        )
+
     if max_intake_volume_threshold is not None:
         if "intake_volume_7d" in result.dataset.columns:
             dataset = result.dataset
@@ -403,25 +444,6 @@ def build_modeling_dataset_from_files(
             )
 
     result.dataset.to_csv(output, index=False)
-    
-    # Save horizon dataset
-    if extract_end_date is not None:
-        horizon_result = build_horizon_dataset(result.dataset, result.unresolved_intakes, extract_end_date)
-        horizon_output = output.parent / "horizon_modeling_dataset.csv"
-        horizon_result.dataset.to_csv(horizon_output, index=False)
-        
-        horizon_feature_columns = available_intake_features(horizon_result.dataset.columns)
-        validate_no_leakage(horizon_feature_columns)
-        horizon_target_columns = [column for column in TARGET_COLUMNS if column in horizon_result.dataset.columns]
-        
-        (output.parent / "horizon_feature_columns.json").write_text(
-            json.dumps(horizon_feature_columns, indent=2),
-            encoding="utf-8",
-        )
-        (output.parent / "horizon_target_columns.json").write_text(
-            json.dumps(horizon_target_columns, indent=2),
-            encoding="utf-8",
-        )
     
     if unresolved_out_path is not None:
         unresolved_output = Path(unresolved_out_path)

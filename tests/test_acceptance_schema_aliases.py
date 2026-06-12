@@ -13,7 +13,7 @@ from aac_adoption.analysis.reliability_red_flags import create_reliability_red_f
 from aac_adoption.analysis.threshold_analysis import (
     _evaluate_thresholds,
     _find_best_model,
-    _validation_selected_thresholds,
+    _selection_selected_thresholds,
     create_threshold_analysis,
 )
 
@@ -89,6 +89,7 @@ def test_final_model_selection_adds_subset_alias(tmp_path):
                 "f1": 0.6,
                 "brier_score": 0.22,
                 "expected_calibration_error": 0.12,
+                "artifact_path": "path", "split_strategy": "time", "metric_split": "selection"
             },
             {
                 "model_name": "catboost",
@@ -98,13 +99,14 @@ def test_final_model_selection_adds_subset_alias(tmp_path):
                 "f1": 0.7,
                 "brier_score": 0.18,
                 "expected_calibration_error": 0.08,
+                "artifact_path": "path", "split_strategy": "time", "metric_split": "selection"
             },
         ]
     ).to_csv(tables_dir / "model_comparison_classification.csv", index=False)
     pd.DataFrame(
         [
-            {"model_name": "ridge", "animal_subset": "combined", "mae": 10.0, "rmse": 20.0},
-            {"model_name": "catboost", "animal_subset": "combined", "mae": 8.0, "rmse": 18.0},
+            {"model_name": "ridge", "animal_subset": "combined", "mae": 10.0, "rmse": 20.0, "artifact_path": "path", "split_strategy": "time", "metric_split": "selection"},
+            {"model_name": "catboost", "animal_subset": "combined", "mae": 8.0, "rmse": 18.0, "artifact_path": "path", "split_strategy": "time", "metric_split": "selection"},
         ]
     ).to_csv(tables_dir / "model_comparison_regression.csv", index=False)
 
@@ -121,8 +123,14 @@ def test_final_model_selection_uses_pr_auc_before_roc_auc(tmp_path):
     tables_dir.mkdir()
     pd.DataFrame(
         [
-            {"model_name": "higher_roc", "animal_subset": "combined", "roc_auc": 0.90, "pr_auc": 0.70, "f1": 0.6},
-            {"model_name": "higher_pr", "animal_subset": "combined", "roc_auc": 0.85, "pr_auc": 0.80, "f1": 0.7},
+            {
+                "model_name": "higher_roc", "animal_subset": "combined", "roc_auc": 0.90, "pr_auc": 0.70, "f1": 0.6,
+                "artifact_path": "path/a", "split_strategy": "time", "metric_split": "selection", "expected_calibration_error": 0.1
+            },
+            {
+                "model_name": "higher_pr", "animal_subset": "combined", "roc_auc": 0.85, "pr_auc": 0.80, "f1": 0.7,
+                "artifact_path": "path/b", "split_strategy": "time", "metric_split": "selection", "expected_calibration_error": 0.1
+            },
         ]
     ).to_csv(tables_dir / "model_comparison_classification.csv", index=False)
 
@@ -142,27 +150,27 @@ def test_threshold_analysis_adds_threshold_name_alias():
     assert {"threshold_label", "threshold_name", "selection_source"}.issubset(table.columns)
     assert table["threshold_name"].equals(table["threshold_label"])
     assert {"youden_j", "top_10_percent_capacity"}.issubset(set(table["threshold_label"]))
-    assert set(table["selection_source"]) == {"validation"}
+    assert set(table["selection_source"]) == {"selection"}
 
 
-def test_validation_selected_thresholds_freeze_thresholds_for_test():
-    table = _validation_selected_thresholds(
-        validation_true=np.array([0, 0, 1, 1, 1, 0]),
-        validation_score=np.array([0.1, 0.4, 0.7, 0.8, 0.9, 0.2]),
+def test_selection_selected_thresholds_freeze_thresholds_for_test():
+    table = _selection_selected_thresholds(
+        selection_true=np.array([0, 0, 1, 1, 1, 0]),
+        selection_score=np.array([0.1, 0.4, 0.7, 0.8, 0.9, 0.2]),
         test_true=np.array([0, 1, 1, 0, 1, 0]),
         test_score=np.array([0.7, 0.6, 0.55, 0.5, 0.45, 0.1]),
     )
 
     assert {
-        "validation_precision",
-        "validation_recall",
-        "validation_f1",
+        "selection_precision",
+        "selection_recall",
+        "selection_f1",
         "test_precision",
         "test_recall",
         "test_f1",
-        "validation_tactic",
+        "selection_tactic",
     }.issubset(table.columns)
-    assert table["validation_tactic"].str.contains("validation period only").all()
+    assert table["selection_tactic"].str.contains("selection period only").all()
 
 
 def test_create_threshold_analysis_writes_validation_and_test_metrics(tmp_path):
@@ -206,6 +214,7 @@ def test_create_threshold_analysis_writes_validation_and_test_metrics(tmp_path):
                 "subset": "combined",
                 "selected": True,
                 "task": "classification",
+                "artifact_path": str(model_path)
             }
         ]
     ).to_csv(tables_dir / "final_model_selection.csv", index=False)
@@ -213,9 +222,9 @@ def test_create_threshold_analysis_writes_validation_and_test_metrics(tmp_path):
     create_threshold_analysis(data_path, tables_dir, figures_dir, summary_dir, models_root)
     thresholds = pd.read_csv(tables_dir / "final_classifier_thresholds.csv")
 
-    assert set(thresholds["threshold_selection_period"]) == {"validation"}
+    assert set(thresholds["threshold_selection_period"]) == {"selection"}
     assert set(thresholds["evaluation_period"]) == {"test"}
-    assert {"validation_f1", "test_f1", "validation_tactic"}.issubset(thresholds.columns)
+    assert {"selection_f1", "test_f1", "selection_tactic"}.issubset(thresholds.columns)
 
 
 def test_threshold_model_finder_accepts_string_selected_and_artifact_path(tmp_path):

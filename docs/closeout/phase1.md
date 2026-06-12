@@ -31,6 +31,34 @@ reports/summary/data_audit.md
 reports/summary/matching_ambiguity.md
 data/processed/unresolved_intakes.csv
 Remaining risk: None
+
+## 2026-06-09 Re-Audit
+
+Status: Reopened, focused gate passing, final acceptance not granted.
+
+Fresh verification:
+
+- `python -m pytest tests/test_match_records.py tests/test_build_dataset.py tests/test_horizon_targets.py tests/test_context_data.py tests/features/test_rolling.py -q`
+- Result: 28 passed.
+
+Defects fixed during re-audit:
+
+- Outcomes after `extract_end_date` no longer enter matched episodes.
+- Unresolved follow-up is truncated at the next intake boundary.
+- Negative unresolved follow-up is rejected.
+- Duplicate prior outcome rows no longer inflate episode numbers.
+- Simultaneous intakes are excluded from strict `[t-window, t)` volume counts.
+- Duplicate raw export rows no longer inflate intake-volume context.
+- Missing raw-intake joins now fail explicitly instead of becoming plausible zeroes.
+- Horizon metadata lists only horizon target columns.
+- Weather tests enforce the one-day lag and nullable missingness.
+
+Remaining risk:
+
+- Full suite and long acceptance not run.
+- Deleted Phase 1/integration coverage still needs explicit replacement mapping.
+- Timezone-aware external context dates and 311 source-coverage missingness need
+  dedicated validation before final acceptance.
 Addendum (Bugfix): Fixed construction of unresolved rows to happen inside the per-animal loop so that `episode_info` correctly pulls from the current animal's state rather than a stale reference.
 
 Scope: Task 1A: Build a separate all-intake horizon cohort

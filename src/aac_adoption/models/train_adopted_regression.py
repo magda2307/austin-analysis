@@ -44,10 +44,11 @@ def _fit_and_save_adopted(
 ) -> tuple[Any, dict[str, Any]]:
     categorical_features = categorical_features_for(feature_columns)
     train_x = prepare_catboost_frame(split.train, feature_columns)
-    validation_x = prepare_catboost_frame(split.validation, feature_columns) if not split.validation.empty else None
+    eval_df = split.calibration if (split.calibration is not None and not split.calibration.empty) else split.validation
+    validation_x = prepare_catboost_frame(eval_df, feature_columns) if (eval_df is not None and not eval_df.empty) else None
     
     train_y = np.log1p(split.train[target_column])
-    validation_y = np.log1p(split.validation[target_column]) if not split.validation.empty else None
+    validation_y = np.log1p(eval_df[target_column]) if (eval_df is not None and not eval_df.empty) else None
 
     fit_kwargs: dict[str, Any] = {
         "X": train_x,

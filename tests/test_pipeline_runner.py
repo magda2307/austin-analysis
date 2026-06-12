@@ -71,20 +71,27 @@ def test_pipeline_quick_mode_skips_correct_steps(mock_subprocess, mock_write_rec
         
     executed_joined = "\n".join(executed_commands)
     
-    # Should skip download (step 1), shap (step 11, 15), tests (step 17)
+    # Should skip download (step 1), shap (step 11, 15), tests (step 18)
     assert "download_raw_data.py" not in executed_joined
     assert "generate_diagnostics.py" not in executed_joined
     assert "generate_feature_family_importance.py" not in executed_joined
     assert "pytest" not in executed_joined
     
-    # Should not skip backtesting (step 16)
+    # Should not skip backtesting (step 16) or validate run receipts (step 17)
     assert "evaluate_backtesting.py" in executed_joined
+    assert "validate_run_receipts.py" in executed_joined
 
 
 def test_pipeline_has_no_final_manifest_step():
     for step_num, name, cmd, tag in runner.STEPS:
         cmd_str = " ".join([str(x) for x in cmd])
         assert "generate_artifact_manifest.py" not in cmd_str
+
+
+def test_pipeline_receipt_validation_allows_in_progress_overall_receipt():
+    validation_step = next(step for step in runner.STEPS if step[0] == 17)
+
+    assert "--allow-running" in validation_step[2]
 
 
 def test_pipeline_steps_declares_partial_run(mock_subprocess, mock_write_receipt, mock_file_io, monkeypatch):
@@ -100,3 +107,15 @@ def test_pipeline_steps_declares_partial_run(mock_subprocess, mock_write_receipt
     
     log_content = log_files[0].read_text(encoding="utf-8")
     assert "WARNING:  Running partial pipeline with steps [4, 5]" in log_content
+
+
+def test_pipeline_propagates_complete_run_context(mock_subprocess, mock_write_receipt, mock_file_io, monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["run_full_pipeline.py", "--steps", "9"])
+
+    runner.main()
+
+    env = mock_subprocess.call_args.kwargs["env"]
+    assert env["AAC_RUN_ID"]
+    assert env["AAC_PRODUCER_SOURCE_SHA"] == "deadbeef"
+    assert env["AAC_RUN_PROFILE"] == "thesis-full"
+    assert env["AAC_RECEIPTS_DIR"] == str(mock_file_io / "reports" / "run_receipts")

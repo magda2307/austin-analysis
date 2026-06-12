@@ -53,8 +53,8 @@ def test_hypothesis_support_tables_are_created(tmp_path):
     tables_dir.mkdir()
     pd.DataFrame(
         {
-            "adopted": [True, False, True, False],
-            "days_to_outcome": [3.0, 20.0, 5.0, 12.0],
+            "classification_target": [True, False, True, False],
+            "regression_target_days": [3.0, 20.0, 5.0, 12.0],
             "intake_type": ["Stray", "Owner Surrender", "Stray", "Owner Surrender"],
             "intake_condition": ["Normal", "Normal", "Injured", "Normal"],
             "simplified_breed_group": ["retriever_type", "domestic_cat", "retriever_type", "domestic_cat"],
@@ -81,6 +81,16 @@ def test_hypothesis_support_tables_are_created(tmp_path):
     for filename in ["h1_intake_vs_appearance.csv", "h3_age_length_of_stay.csv", "h5_covid_period.csv"]:
         table = pd.read_csv(tables_dir / filename)
         assert {"records", "adoption_rate_pct", "median_days_to_outcome"}.issubset(table.columns)
+
+
+def test_hypothesis_support_tables_missing_targets_fails(tmp_path):
+    data_path = tmp_path / "modeling_dataset.csv"
+    tables_dir = tmp_path / "tables"
+    pd.DataFrame({"intake_type": ["Stray", "Owner Surrender"], "intake_condition": ["Normal", "Injured"]}).to_csv(data_path, index=False)
+    
+    import pytest
+    with pytest.raises(ValueError, match="modeling dataset missing target columns"):
+        create_hypothesis_support_tables(data_path, tables_dir)
 
 
 def test_context_model_comparison_from_separate_metric_dirs(tmp_path):

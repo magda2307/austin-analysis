@@ -230,18 +230,29 @@ def add_context_features(
         on=["animal_id", "_join_datetime"],
         how="left"
     )
+    missing_history = result[["intake_volume_7d", "intake_volume_30d"]].isna().any(axis=1)
+    if missing_history.any():
+        raise ValueError(
+            f"{int(missing_history.sum())} modeling rows are missing from raw intake history"
+        )
 
-    result["weather_available"] = result["daily_temp_max"].notna()
+    weather_columns = ["daily_temp_max", "daily_temp_min", "daily_precipitation"]
+    result["weather_available"] = result[weather_columns].notna().any(axis=1)
     
     result["is_extreme_heat"] = pd.Series(pd.NA, index=result.index, dtype="boolean")
-    result.loc[result["weather_available"], "is_extreme_heat"] = result.loc[result["weather_available"], "daily_temp_max"] >= 95
+    max_temp_available = result["daily_temp_max"].notna()
+    result.loc[max_temp_available, "is_extreme_heat"] = (
+        result.loc[max_temp_available, "daily_temp_max"] >= 95
+    )
 
     result["is_rainy_day"] = pd.Series(pd.NA, index=result.index, dtype="boolean")
     precip_avail = result["daily_precipitation"].notna()
     result.loc[precip_avail, "is_rainy_day"] = result.loc[precip_avail, "daily_precipitation"] > 0
 
-    for column in ["animal_311_requests_7d", "animal_311_requests_30d", "intake_volume_7d", "intake_volume_30d"]:
+    for column in ["animal_311_requests_7d", "animal_311_requests_30d"]:
         result[column] = result[column].fillna(0).astype(float)
+    for column in ["intake_volume_7d", "intake_volume_30d"]:
+        result[column] = result[column].astype(float)
 
     result = result.drop(columns=["context_date", "_join_datetime", "weather_context_date"], errors="ignore")
     return result

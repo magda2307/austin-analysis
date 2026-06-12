@@ -138,7 +138,7 @@ def _evaluate_thresholds(y_true: np.ndarray, y_score: np.ndarray) -> pd.DataFram
 
     df = pd.DataFrame(rows)
     df["threshold_name"] = df["threshold_label"]
-    df["selection_source"] = "validation"
+    df["selection_source"] = "selection"
     return df
 
 
@@ -165,30 +165,30 @@ def _evaluate_fixed_thresholds(y_true: np.ndarray, y_score: np.ndarray, threshol
     return pd.DataFrame(rows)
 
 
-def _validation_selected_thresholds(
-    validation_true: np.ndarray,
-    validation_score: np.ndarray,
+def _selection_selected_thresholds(
+    selection_true: np.ndarray,
+    selection_score: np.ndarray,
     test_true: np.ndarray,
     test_score: np.ndarray,
 ) -> pd.DataFrame:
-    selected = _evaluate_thresholds(validation_true, validation_score).rename(
+    selected = _evaluate_thresholds(selection_true, selection_score).rename(
         columns={
-            "precision": "validation_precision",
-            "recall": "validation_recall",
-            "f1": "validation_f1",
-            "false_positive_rate": "validation_false_positive_rate",
-            "false_negative_rate": "validation_false_negative_rate",
-            "tp": "validation_tp",
-            "fp": "validation_fp",
-            "tn": "validation_tn",
-            "fn": "validation_fn",
+            "precision": "selection_precision",
+            "recall": "selection_recall",
+            "f1": "selection_f1",
+            "false_positive_rate": "selection_false_positive_rate",
+            "false_negative_rate": "selection_false_negative_rate",
+            "tp": "selection_tp",
+            "fp": "selection_fp",
+            "tn": "selection_tn",
+            "fn": "selection_fn",
         }
     )
     test_metrics = _evaluate_fixed_thresholds(test_true, test_score, selected, "test")
     result = selected.merge(test_metrics, on="threshold_label", how="left")
     result["threshold_name"] = result["threshold_label"]
-    result["validation_tactic"] = (
-        "Threshold chosen on validation period only; test metrics apply the frozen threshold without re-selection."
+    result["selection_tactic"] = (
+        "Threshold chosen on selection period only; test metrics apply the frozen threshold without re-selection."
     )
     return result
 
@@ -247,6 +247,7 @@ def create_threshold_analysis(
     model = _load_model(model_path)
     metadata = _model_metadata(model_path)
 
+
     # Reconstruct validation/test split
     from aac_adoption.models.split import make_time_split
 
@@ -255,7 +256,7 @@ def create_threshold_analysis(
     df = pd.read_csv(data_path, parse_dates=parse_dates)
 
     split = make_time_split(df, "classification_target", animal_subset=animal_subset)
-    if split.validation.empty:
+    if split.selection.empty:
         pd.DataFrame(
             [
                 {
@@ -263,40 +264,32 @@ def create_threshold_analysis(
                     "animal_subset": animal_subset,
                     "model_path": str(model_path),
                     "status": "skipped",
-                    "threshold_selection_period": "validation",
+                    "threshold_selection_period": "selection",
                     "evaluation_period": "test",
-                    "validation_tactic": "Skipped because validation split is empty; thresholds must not be selected on test labels.",
+                    "selection_tactic": "Skipped because selection split is empty; thresholds must not be selected on test labels.",
                 }
             ]
         ).to_csv(tables / "final_classifier_thresholds.csv", index=False)
-        print("[4.3] Validation split empty - wrote skip record for final_classifier_thresholds.csv")
+        print("[4.3] Selection split empty - wrote skip record for final_classifier_thresholds.csv")
         return
     feature_cols = _feature_columns(metadata, split.train)
 
-    try:
-        validation_score = _predict_scores(model, model_name, split.validation, feature_cols)
-        test_score = _predict_scores(model, model_name, split.test, feature_cols)
-    except Exception as e:
-        print(f"[4.3] predict_proba failed: {e} — skipping.")
-        return
+    selection_score = _predict_scores(model, model_name, split.selection, feature_cols)
+    test_score = _predict_scores(model, model_name, split.test, feature_cols)
 
-    validation_true = split.validation["classification_target"].values
+    selection_true = split.selection["classification_target"].values
     test_true = split.test["classification_target"].values
 
-    thresholds_df = _validation_selected_thresholds(validation_true, validation_score, test_true, test_score)
+    thresholds_df = _selection_selected_thresholds(selection_true, selection_score, test_true, test_score)
     thresholds_df.insert(0, "model_name", model_name)
     thresholds_df.insert(1, "animal_subset", animal_subset)
     thresholds_df.insert(2, "model_path", str(model_path))
-    thresholds_df.insert(3, "threshold_selection_period", "validation")
+    thresholds_df.insert(3, "threshold_selection_period", "selection")
     thresholds_df.insert(4, "evaluation_period", "test")
     thresholds_df.to_csv(tables / "final_classifier_thresholds.csv", index=False)
     print(f"[4.3] Wrote final_classifier_thresholds.csv")
 
     _plot_confusion_matrices(test_true, test_score, thresholds_df, figures / "final_confusion_matrix.png")
-    _write_threshold_md(thresholds_df, animal_subset, str(model_path), summary)
-
-
-def _write_threshold_md(df: pd.DataFrame, animal_subset: str, model_path: str, summary: Path) -> None:
     lines = [
         "# Threshold Selection — Classification Model\n\n",
         f"**Model:** `{model_path}`\n",
@@ -318,7 +311,7 @@ def _write_threshold_md(df: pd.DataFrame, animal_subset: str, model_path: str, s
         "| `top_10_percent_capacity` | Fixed campaign capacity | Flags only highest-scored animals |\n\n",
         "## Thesis Statement\n\n",
         "The classifier is evaluated primarily as a **ranking / decision-support tool**, not a binary decision maker. "
-        "Operating thresholds are selected on the validation period and applied unchanged to the test period. "
+        "Operating thresholds are selected on the selection period and applied unchanged to the test period. "
         "If the shelter wished to use this model operationally, final threshold choice would depend on the cost "
         "of false positives (resources allocated to animals unlikely to be adopted) vs. "
         "false negatives (adoption-ready animals not flagged for promotion).\n",

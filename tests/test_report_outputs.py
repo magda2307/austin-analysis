@@ -11,16 +11,16 @@ def test_create_report_outputs_writes_summary_and_figures(tmp_path):
 
     pd.DataFrame(
         [
-            {"animal_subset": "combined", "model_name": "logistic_regression", "roc_auc": 0.75, "f1": 0.7},
-            {"animal_subset": "combined", "model_name": "hist_gradient_boosting", "roc_auc": 0.84, "f1": 0.8},
-            {"animal_subset": "dogs", "model_name": "hist_gradient_boosting", "roc_auc": 0.81, "f1": 0.78},
+            {"animal_subset": "combined", "model_name": "logistic_regression", "roc_auc": 0.75, "f1": 0.7, "metric_split": "selection"},
+            {"animal_subset": "combined", "model_name": "hist_gradient_boosting", "roc_auc": 0.84, "f1": 0.8, "metric_split": "selection"},
+            {"animal_subset": "dogs", "model_name": "hist_gradient_boosting", "roc_auc": 0.81, "f1": 0.78, "metric_split": "selection"},
         ]
     ).to_csv(tables_dir / "model_comparison_classification.csv", index=False)
     pd.DataFrame(
         [
-            {"animal_subset": "combined", "model_name": "ridge", "mae": 24.0, "rmse": 35.0},
-            {"animal_subset": "combined", "model_name": "hist_gradient_boosting", "mae": 20.2, "rmse": 32.0},
-            {"animal_subset": "cats", "model_name": "hist_gradient_boosting", "mae": 18.3, "rmse": 29.0},
+            {"animal_subset": "combined", "model_name": "ridge", "mae": 24.0, "rmse": 35.0, "metric_split": "selection"},
+            {"animal_subset": "combined", "model_name": "hist_gradient_boosting", "mae": 20.2, "rmse": 32.0, "metric_split": "selection"},
+            {"animal_subset": "cats", "model_name": "hist_gradient_boosting", "mae": 18.3, "rmse": 29.0, "metric_split": "selection"},
         ]
     ).to_csv(tables_dir / "model_comparison_regression.csv", index=False)
     pd.DataFrame(
@@ -72,7 +72,7 @@ def test_create_report_outputs_writes_summary_and_figures(tmp_path):
 
     assert summary_path.exists()
     summary_text = summary_path.read_text(encoding="utf-8")
-    assert "Best classification models by ROC-AUC" in summary_text
+    assert "Best classification models by 2023 selection PR-AUC:" in summary_text
     assert "External Context Feature Test" in summary_text
     assert "H3 age-group patterns" in summary_text
     assert (figures_dir / "model_comparison_classification_roc_auc.png").exists()

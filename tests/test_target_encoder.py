@@ -23,13 +23,12 @@ def sample_data():
     return df, target
 
 
-def test_target_encoder_filters_leakage_columns():
-    encoder = OOFBayesianTargetEncoder(
-        columns=["high_card_col", "adopted", "intake_datetime"],
-        smoothing=10.0,
-    )
-    
-    assert "adopted" not in encoder.columns
+def test_target_encoder_rejects_leakage_columns():
+    with pytest.raises(ValueError, match="Leakage columns"):
+        OOFBayesianTargetEncoder(
+            columns=["high_card_col", "adopted", "intake_datetime"],
+            smoothing=10.0,
+        )
 
 
 def test_target_encoder_high_cardinality_detection(sample_data):

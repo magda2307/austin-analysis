@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 from aac_adoption.data.context_data import _rolling_prior_counts
+from aac_adoption.features.rolling_features_cache import compute_prior_intake_counts
 
 
 def test_rolling_prior_counts_excludes_current_day():
@@ -47,3 +48,41 @@ def test_rolling_prior_counts_excludes_current_day():
     
     # Check Jan 7: Prior 7 days are Dec 31 to Jan 6. Includes Jan 6 (100) -> 160
     assert res_dict[pd.Timestamp("2024-01-07")]["intake_volume_7d"] == 160
+
+
+def test_prior_intake_counts_exclude_all_simultaneous_intakes():
+    raw_intakes = pd.DataFrame(
+        {
+            "animal_id": ["A1", "A2", "A3"],
+            "intake_datetime": pd.to_datetime(
+                [
+                    "2024-01-01 08:00:00",
+                    "2024-01-02 08:00:00",
+                    "2024-01-02 08:00:00",
+                ]
+            ),
+        }
+    )
+
+    result = compute_prior_intake_counts(raw_intakes, windows=[7])
+
+    assert result["intake_volume_7d"].tolist() == [0, 1, 1]
+
+
+def test_duplicate_raw_export_rows_do_not_inflate_intake_volume():
+    raw_intakes = pd.DataFrame(
+        {
+            "animal_id": ["A1", "A1", "A2"],
+            "intake_datetime": pd.to_datetime(
+                [
+                    "2024-01-01 08:00:00",
+                    "2024-01-01 08:00:00",
+                    "2024-01-02 08:00:00",
+                ]
+            ),
+        }
+    )
+
+    result = compute_prior_intake_counts(raw_intakes, windows=[7])
+
+    assert result.loc[result["animal_id"].eq("A2"), "intake_volume_7d"].item() == 1

@@ -3,6 +3,7 @@
 import pandas as pd
 from dataclasses import dataclass
 
+
 @dataclass(frozen=True)
 class MatchResult:
     matched_episodes: pd.DataFrame
@@ -17,7 +18,7 @@ def verify_reintake_patterns(
     """Verify re-intake patterns and track episodes."""
     episodes = []
     
-    intakes_sorted = intakes.sort_values("intake_datetime").to_dict("records")
+    intakes_sorted = intakes.sort_values("intake_datetime", kind="stable").to_dict("records")
     intakes_grouped = {}
     for row in intakes_sorted:
         intakes_grouped.setdefault(row["animal_id"], []).append(row)
@@ -30,7 +31,7 @@ def verify_reintake_patterns(
     for animal_id, animal_intakes in intakes_grouped.items():
         animal_outcomes = outcomes_grouped.get(animal_id, [])
         
-        for intake in animal_intakes:
+        for episode_number, intake in enumerate(animal_intakes, start=1):
             intake_time = intake["intake_datetime"]
             
             # Find prev outcomes using loop over sorted list
@@ -45,9 +46,9 @@ def verify_reintake_patterns(
             episodes.append({
                 "animal_id": animal_id,
                 "intake_datetime": intake_time,
-                "episode_number": len(prev_outcomes) + 1,
+                "episode_number": episode_number,
                 "days_since_last_stay": days_since_last_stay,
-                "is_reintake": len(prev_outcomes) > 0,
+                "is_reintake": episode_number > 1,
             })
     
     return pd.DataFrame(episodes)
@@ -85,6 +86,11 @@ def match_intakes_to_future_outcomes(
     rows: list[dict] = []
     unmatched_intakes = 0
 
+    if "intake_datetime" not in intakes.columns:
+        raise ValueError("Intake data must contain intake_datetime column")
+    if "outcome_datetime" not in outcomes.columns:
+        raise ValueError("Outcome data must contain outcome_datetime column")
+
     episodes = verify_reintake_patterns(intakes, outcomes)
     episodes_sorted = episodes.to_dict("records")
     episodes_by_animal = {}
@@ -96,12 +102,7 @@ def match_intakes_to_future_outcomes(
     for row in outcomes_sorted:
         outcomes_by_animal.setdefault(row["animal_id"], []).append(row)
     
-    if "intake_datetime" not in intakes.columns:
-        raise ValueError("Intake data must contain intake_datetime column")
-    if "outcome_datetime" not in outcomes.columns:
-        raise ValueError("Outcome data must contain outcome_datetime column")
-
-    intakes_sorted = intakes.sort_values("intake_datetime").to_dict("records")
+    intakes_sorted = intakes.sort_values("intake_datetime", kind="stable").to_dict("records")
     intakes_by_animal = {}
     for row in intakes_sorted:
         intakes_by_animal.setdefault(row["animal_id"], []).append(row)
@@ -128,17 +129,29 @@ def match_intakes_to_future_outcomes(
 
             if outcome_index < len(outcome_records):
                 outcome = outcome_records[outcome_index]
-                
-                # Check if outcome belongs to next intake episode
-                if next_intake_time is not None and outcome["outcome_datetime"] >= next_intake_time:
+
+                crosses_next_intake = (
+                    next_intake_time is not None
+                    and outcome["outcome_datetime"] >= next_intake_time
+                )
+                exceeds_extract = (
+                    extract_end_date is not None
+                    and outcome["outcome_datetime"] > extract_end_date
+                )
+                if crosses_next_intake or exceeds_extract:
                     unmatched_intakes += 1
                     if extract_end_date is None:
                         raise ValueError("extract_end_date is required to process unresolved intakes")
-                    
+                    if extract_end_date < intake["intake_datetime"]:
+                        raise ValueError("extract_end_date cannot precede an unresolved intake")
+
+                    observation_end = extract_end_date
+                    if next_intake_time is not None:
+                        observation_end = min(observation_end, next_intake_time)
                     row = intake.copy()
                     row["unresolved_reason"] = "no_unused_future_outcome"
-                    row["observation_end"] = extract_end_date
-                    row["followup_days_available"] = (extract_end_date - intake["intake_datetime"]).days
+                    row["observation_end"] = observation_end
+                    row["followup_days_available"] = (observation_end - intake["intake_datetime"]).days
                     
                     episode_info = episodes_by_time.get(intake["intake_datetime"], {})
                     row["episode_number"] = episode_info.get("episode_number", 1)
@@ -168,11 +181,16 @@ def match_intakes_to_future_outcomes(
                 unmatched_intakes += 1
                 if extract_end_date is None:
                     raise ValueError("extract_end_date is required to process unresolved intakes")
-                
+                if extract_end_date < intake["intake_datetime"]:
+                    raise ValueError("extract_end_date cannot precede an unresolved intake")
+
+                observation_end = extract_end_date
+                if next_intake_time is not None:
+                    observation_end = min(observation_end, next_intake_time)
                 row = intake.copy()
                 row["unresolved_reason"] = "no_unused_future_outcome"
-                row["observation_end"] = extract_end_date
-                row["followup_days_available"] = (extract_end_date - intake["intake_datetime"]).days
+                row["observation_end"] = observation_end
+                row["followup_days_available"] = (observation_end - intake["intake_datetime"]).days
                 
                 episode_info = episodes_by_time.get(intake["intake_datetime"], {})
                 row["episode_number"] = episode_info.get("episode_number", 1)

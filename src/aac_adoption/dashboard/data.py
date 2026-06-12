@@ -65,7 +65,6 @@ from aac_adoption.features.feature_engineering import (
     simplified_breed_group,
     simplify_color,
 )
-from aac_adoption.features.feature_sets import INTAKE_TIME_FEATURES
 from aac_adoption.models.artifacts import artifact_path
 from aac_adoption.models.train_advanced import prepare_catboost_frame
 
@@ -347,13 +346,10 @@ def load_model(models_dir: str | Path, task: str, subset: str = "combined", mode
 
 @st.cache_data(show_spinner=False)
 def _cached_load_metadata(path: Path, fingerprint: tuple[str, int, int]) -> dict[str, Any]:
-    try:
-        meta = json.loads(path.read_text(encoding="utf-8"))
-        from aac_adoption.models.metadata import validate_model_metadata
-        validate_model_metadata(meta)
-        return meta
-    except Exception:
-        return {}
+    meta = json.loads(path.read_text(encoding="utf-8"))
+    from aac_adoption.models.metadata import validate_model_metadata
+    validate_model_metadata(meta)
+    return meta
 
 def load_model_metadata(models_dir: str | Path, task: str, subset: str = "combined", model_name: str = "catboost") -> dict[str, Any]:
     """Load sidecar model metadata when available."""
@@ -364,7 +360,7 @@ def load_model_metadata(models_dir: str | Path, task: str, subset: str = "combin
         
     path = artifact_path(base_dir, task, subset, model_name).with_suffix(".json")
     if not path.exists():
-        return {}
+        raise FileNotFoundError(f"Missing model metadata: {path}")
     return _cached_load_metadata(path, _file_fingerprint(path))
 
 
@@ -377,15 +373,11 @@ def model_feature_columns(
 ) -> list[str]:
     """Return feature columns expected by a saved model."""
     metadata = load_model_metadata(models_dir, task, subset, model_name)
-    expected = metadata.get("feature_columns")
-    if expected is not None:
-        missing = [c for c in expected if c not in record.columns]
-        if missing:
-            raise ValueError(f"Missing required features: {missing}")
-        return expected
-    
-    fallback = [col for col in INTAKE_TIME_FEATURES if col in record.columns]
-    return fallback
+    expected = metadata["feature_columns"]
+    missing = [c for c in expected if c not in record.columns]
+    if missing:
+        raise ValueError(f"Missing required features: {missing}")
+    return expected
 
 
 def _infer_models_dir(model_name: str) -> str:
@@ -432,27 +424,46 @@ def predict_from_record(
     """Predict adoption probability and expected days to outcome for one row."""
     selection = load_table(PROJECT_ROOT / "reports/tables", "final_model_selection")
     
+    if selection.empty or "selected" not in selection.columns:
+        return PredictionResult(
+            ok=False,
+            adoption_probability=None,
+            predicted_days_to_outcome=None,
+            los_bucket=None,
+            is_calibrated=False,
+            model_artifacts={},
+            error_code="MISSING_SELECTION",
+            error_message="final_model_selection.csv is missing or empty — cannot determine selected model",
+        )
+
     clf_name = "catboost"
     clf_dir = "models/advanced"
     reg_name = "catboost"
     reg_dir = "models/advanced"
 
-    if not selection.empty and "selected" in selection.columns:
-        clf_rows = selection[(selection["selected"] == True) & (selection["task"] == "classification") & (selection["animal_subset"] == subset)]
-        if not clf_rows.empty:
-            clf_name = clf_rows.iloc[0]["model_name"]
-            clf_dir = _infer_models_dir(clf_name)
-            
-        reg_rows = selection[(selection["selected"] == True) & (selection["task"] == "regression") & (selection["animal_subset"] == subset)]
-        if not reg_rows.empty:
-            reg_name = reg_rows.iloc[0]["model_name"]
-            reg_dir = _infer_models_dir(reg_name)
+    clf_rows = selection[(selection["selected"] == True) & (selection["task"] == "classification") & (selection["animal_subset"] == subset)]
+    if not clf_rows.empty:
+        clf_name = clf_rows.iloc[0]["model_name"]
+        clf_dir = _infer_models_dir(clf_name)
+        
+    reg_rows = selection[(selection["selected"] == True) & (selection["task"] == "regression") & (selection["animal_subset"] == subset)]
+    if not reg_rows.empty:
+        reg_name = reg_rows.iloc[0]["model_name"]
+        reg_dir = _infer_models_dir(reg_name)
 
-    base_dir = Path(models_dir) if models_dir else PROJECT_ROOT / "models"
-    
-    clf_dir_path = base_dir.parent / clf_dir if models_dir else PROJECT_ROOT / clf_dir
-    reg_dir_path = base_dir.parent / reg_dir if models_dir else PROJECT_ROOT / reg_dir
-    calibrated_base_dir = base_dir.parent / "calibrated" if models_dir else PROJECT_ROOT / "models/calibrated"
+    if models_dir:
+        supplied_dir = Path(models_dir)
+        models_root = (
+            supplied_dir.parent
+            if supplied_dir.name in {"advanced", "baseline", "boosting", "calibrated"}
+            else supplied_dir
+        )
+    else:
+        models_root = PROJECT_ROOT / "models"
+
+    clf_dir_path = models_root / Path(clf_dir).name
+    reg_dir_path = models_root / Path(reg_dir).name
+    calibrated_base_dir = models_root / "calibrated"
 
     calibrated_path = artifact_path(
         base_dir=calibrated_base_dir,

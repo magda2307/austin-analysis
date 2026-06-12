@@ -1,7 +1,7 @@
 """Generate a manifest of all thesis artifact files under reports/ and docs/.
 
 Usage:
-    python scripts/generate_artifact_manifest.py
+    python scripts/generate_artifact_manifest.py --run-id RUN_ID
 
 Outputs:
     reports/artifact_manifest.csv
@@ -10,16 +10,26 @@ Outputs:
 
 from __future__ import annotations
 
+import argparse
+import json
 import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
+from aac_adoption.acceptance import (
+    AcceptanceError,
+    compute_sha256,
+    normalize_relative_path,
+    resolve_source_path,
+    validate_artifact_manifest,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 REPORTS_DIR = ROOT / "reports"
 SUMMARY_DIR = REPORTS_DIR / "summary"
-SUMMARY_DIR.mkdir(parents=True, exist_ok=True)
 
 # -------------------------------------------------------------------------
 # Curated metadata: for known artifacts, override chapter/source/required.
@@ -249,6 +259,83 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "chapter": "Chapter 4 — Model Evaluation",
         "notes": "Subgroup reliability narrative summary",
     },
+    "data/processed/modeling_dataset.csv": {
+        "artifact_type": "dataset",
+        "source_script": "scripts/build_dataset.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Canonical matched-episode modeling dataset",
+    },
+    "data/processed/modeling_dataset_context.csv": {
+        "artifact_type": "dataset",
+        "source_script": "scripts/build_dataset.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Modeling dataset with intake-time context features",
+    },
+    "data/processed/feature_columns.json": {
+        "artifact_type": "metadata",
+        "source_script": "scripts/build_dataset.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Leakage-safe feature registry",
+    },
+    "data/processed/context_feature_columns.json": {
+        "artifact_type": "metadata",
+        "source_script": "scripts/build_dataset.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Intake-time context feature registry",
+    },
+    "data/processed/target_columns.json": {
+        "artifact_type": "metadata",
+        "source_script": "scripts/build_dataset.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Canonical classification and timing target registry",
+    },
+    "reports/tables/final_model_selection.csv": {
+        "artifact_type": "table",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 4 - Model Evaluation",
+        "notes": "Frozen validation-period model selections",
+    },
+    "reports/summary/final_model_selection.md": {
+        "artifact_type": "report",
+        "source_script": "scripts/run_analysis.py",
+        "required_for_thesis": True,
+        "chapter": "Chapter 4 - Model Evaluation",
+        "notes": "Selection rules and selected-model rationale",
+    },
+    "README.md": {
+        "artifact_type": "documentation",
+        "source_script": "manual-doc",
+        "required_for_thesis": True,
+        "chapter": "Front Matter",
+        "notes": "Project overview and reproducibility entry point",
+    },
+    "docs/METHODOLOGY.md": {
+        "artifact_type": "documentation",
+        "source_script": "manual-doc",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Final thesis methodology",
+    },
+    "docs/RESULTS.md": {
+        "artifact_type": "documentation",
+        "source_script": "manual-doc",
+        "required_for_thesis": True,
+        "chapter": "Chapter 4 - Results",
+        "notes": "Final thesis results",
+    },
+    "docs/target_definitions.md": {
+        "artifact_type": "documentation",
+        "source_script": "manual-doc",
+        "required_for_thesis": True,
+        "chapter": "Chapter 3 - Data And Methods",
+        "notes": "Canonical predictive target definitions",
+    },
     "reports/artifact_manifest.csv": {
         "artifact_type": "manifest",
         "source_script": "scripts/generate_artifact_manifest.py",
@@ -293,108 +380,152 @@ def _clean_text(value: object) -> object:
     )
 
 
-def collect_artifacts() -> list[dict]:
-    rows = []
-    
-    receipts_dir = REPORTS_DIR / "run_receipts"
-    # Find the most recent successful thesis-full run
-    valid_runs = []
-    if receipts_dir.exists():
-        for run_dir in receipts_dir.iterdir():
-            if not run_dir.is_dir():
-                continue
-            receipts = list(run_dir.glob("*.json"))
-            if not receipts:
-                continue
-            
-            # Check profile and run integrity from the first receipt
-            import json
-            try:
-                with open(receipts[0], "r") as f:
-                    data = json.load(f)
-                    if data.get("profile") == "thesis-full":
-                        valid_runs.append((data.get("completed_at", ""), run_dir, receipts))
-            except Exception:
-                pass
-                
-    if not valid_runs:
-        print("WARNING: No successful thesis-full run receipts found.")
-        # Fallback to empty list, meaning all artifacts will be 'missing'
-        # unless overridden
-        pass
-    else:
-        valid_runs.sort(reverse=True) # newest first
-        _, run_dir, receipts = valid_runs[0]
-        
-        import json
-        import hashlib
-        
-        def compute_file_sha256(path_obj: Path) -> str:
-            if not path_obj.exists():
-                return "unavailable_not_found"
-            hasher = hashlib.sha256()
-            with open(path_obj, "rb") as f:
-                for chunk in iter(lambda: f.read(65536), b""):
-                    hasher.update(chunk)
-            return hasher.hexdigest()
+def _receipt_relative_path(root: Path, value: object) -> str:
+    path = Path(str(value))
+    resolved = path.resolve() if path.is_absolute() else (root / path).resolve()
+    try:
+        return resolved.relative_to(root.resolve()).as_posix()
+    except ValueError as exc:
+        raise AcceptanceError(f"receipt output is outside project root: {value}") from exc
 
-        for receipt_path in receipts:
-            with open(receipt_path, "r") as f:
-                data = json.load(f)
-                
-            if data.get("status") != "ok":
-                continue
-                
-            for out_path_str, expected_hash in data.get("output_hashes", {}).items():
-                fpath = Path(out_path_str)
-                if not fpath.exists():
-                    continue
-                    
-                rel = str(fpath.relative_to(ROOT)).replace("\\", "/")
-                meta = ARTIFACT_METADATA.get(rel, {})
-                mtime = datetime.fromtimestamp(fpath.stat().st_mtime, tz=timezone.utc).isoformat()
-                
-                # Check hash match
-                actual_hash = compute_file_sha256(fpath)
-                if actual_hash != expected_hash:
-                    print(f"ERROR: Hash mismatch for {rel}. Expected {expected_hash}, got {actual_hash}")
-                    # In a strict pipeline, we would exit 1 here, but let's record it.
-                    continue
-                    
-                rows.append(
-                    {
-                        "artifact_path": rel,
-                        "artifact_type": _clean_text(meta.get("artifact_type", _infer_type(fpath))),
-                        "created_at": mtime,
-                        "source_script": _clean_text(meta.get("source_script", "")),
-                        "required_for_thesis": meta.get("required_for_thesis", False),
-                        "chapter": _clean_text(meta.get("chapter", _infer_chapter(rel))),
-                        "notes": _clean_text(meta.get("notes", "")),
-                        "exists_on_disk": True,
-                        "run_id": data.get("run_id", run_dir.name),
-                        "file_hash": actual_hash,
-                    }
+
+def _load_requested_receipts(
+    root: Path, run_id: str
+) -> tuple[Path, dict[str, str], dict[str, str], str]:
+    receipts_dir = root / "reports" / "run_receipts" / run_id
+    if not receipts_dir.is_dir():
+        raise AcceptanceError(f"unknown run: {run_id}")
+    receipt_paths = sorted(receipts_dir.glob("*.json"))
+    if not receipt_paths:
+        raise AcceptanceError(f"unknown run or no receipts: {run_id}")
+
+    output_hashes: dict[str, str] = {}
+    output_sources: dict[str, str] = {}
+    source_shas: set[str] = set()
+    for receipt_path in receipt_paths:
+        try:
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise AcceptanceError(f"invalid receipt: {receipt_path}") from exc
+        if receipt.get("status") != "ok":
+            raise AcceptanceError(f"receipt status is not ok: {receipt_path}")
+        if receipt.get("run_id") != run_id:
+            raise AcceptanceError(f"receipt run_id mismatch: {receipt_path}")
+        if receipt.get("profile") != "thesis-full":
+            raise AcceptanceError(f"receipt profile must be thesis-full: {receipt_path}")
+        source_sha = str(receipt.get("producer_source_sha", "")).strip()
+        if not source_sha:
+            raise AcceptanceError(f"receipt producer_source_sha is missing: {receipt_path}")
+        source_shas.add(source_sha)
+        candidate_source = f"scripts/{receipt_path.stem}.py"
+        if not (root / candidate_source).is_file():
+            candidate_source = ""
+        for output_path, expected_hash in receipt.get("output_hashes", {}).items():
+            relative = _receipt_relative_path(root, output_path)
+            expected = str(expected_hash)
+            previous = output_hashes.get(relative)
+            if previous is not None and previous != expected:
+                raise AcceptanceError(
+                    f"conflicting receipt hashes for output: {relative}"
                 )
-                
-    # Also add known artifacts that don't exist yet or weren't in receipts
-    on_disk = {r["artifact_path"] for r in rows}
-    for rel, meta in ARTIFACT_METADATA.items():
-        if rel not in on_disk:
-            rows.append(
-                {
-                    "artifact_path": rel,
-                    "artifact_type": _clean_text(meta.get("artifact_type", "unknown")),
-                    "created_at": "",
-                    "source_script": _clean_text(meta.get("source_script", "")),
-                    "required_for_thesis": meta.get("required_for_thesis", False),
-                    "chapter": _clean_text(meta.get("chapter", "")),
-                    "notes": _clean_text(meta.get("notes", "")),
-                    "exists_on_disk": False,
-                    "run_id": "",
-                    "file_hash": "",
-                }
-            )
-    return rows
+            output_hashes[relative] = expected
+            if candidate_source:
+                output_sources[relative] = candidate_source
+
+    if len(source_shas) != 1:
+        raise AcceptanceError("requested run has mixed producer_source_sha values")
+    return receipts_dir, output_hashes, output_sources, source_shas.pop()
+
+
+def _selected_model_metadata(
+    root: Path, output_sources: dict[str, str]
+) -> dict[str, dict]:
+    selection_path = root / "reports" / "tables" / "final_model_selection.csv"
+    if not selection_path.is_file() or selection_path.stat().st_size == 0:
+        return {}
+    selection = pd.read_csv(selection_path)
+    if "artifact_path" not in selection.columns:
+        return {}
+    if "selected" in selection.columns:
+        selected = selection[
+            selection["selected"].astype(str).str.strip().str.lower().isin({"true", "1"})
+        ]
+    else:
+        selected = selection
+
+    derived: dict[str, dict] = {}
+    for value in selected["artifact_path"].dropna():
+        relative = _receipt_relative_path(root, value)
+        sidecar = Path(relative).with_suffix(".json").as_posix()
+        for artifact_path, artifact_type, notes in (
+            (relative, "model", "Selected final model artifact"),
+            (sidecar, "metadata", "Selected final model metadata sidecar"),
+        ):
+            derived[artifact_path] = {
+                "artifact_type": artifact_type,
+                "source_script": output_sources.get(
+                    artifact_path, "scripts/run_analysis.py"
+                ),
+                "required_for_thesis": True,
+                "chapter": "Chapter 4 - Model Evaluation",
+                "notes": notes,
+            }
+    return derived
+
+
+def collect_artifacts(root: Path, run_id: str) -> tuple[list[dict], Path]:
+    receipts_dir, receipt_hashes, output_sources, source_sha = (
+        _load_requested_receipts(root, run_id)
+    )
+    registry = {
+        path: metadata
+        for path, metadata in ARTIFACT_METADATA.items()
+        if metadata.get("required_for_thesis")
+    }
+    registry.update(_selected_model_metadata(root, output_sources))
+
+    normalized = [normalize_relative_path(path) for path in registry]
+    if len(normalized) != len(set(normalized)):
+        raise AcceptanceError("registry contains duplicate normalized artifact paths")
+
+    rows = []
+    for relative, meta in registry.items():
+        relative = normalize_relative_path(relative)
+        artifact = root / relative
+        if not artifact.is_file():
+            raise AcceptanceError(f"required artifact does not exist: {relative}")
+        if artifact.stat().st_size == 0:
+            raise AcceptanceError(f"required artifact is empty: {relative}")
+        actual_hash = compute_sha256(artifact)
+        receipt_hash = receipt_hashes.get(relative)
+        if receipt_hash is None:
+            raise AcceptanceError(f"no receipt output found for required artifact: {relative}")
+        if receipt_hash != actual_hash:
+            raise AcceptanceError(f"receipt hash mismatch for {relative}")
+        source_script = str(meta.get("source_script", "")).strip()
+        source_path = resolve_source_path(root, source_script)
+        if source_path is not None and not source_path.is_file():
+            raise AcceptanceError(f"artifact source does not exist: {source_script}")
+        rows.append(
+            {
+                "artifact_path": relative,
+                "artifact_type": _clean_text(
+                    meta.get("artifact_type", _infer_type(artifact))
+                ),
+                "created_at": datetime.fromtimestamp(
+                    artifact.stat().st_mtime, tz=timezone.utc
+                ).isoformat(),
+                "source_script": _clean_text(source_script),
+                "required_for_thesis": True,
+                "chapter": _clean_text(meta.get("chapter", _infer_chapter(relative))),
+                "notes": _clean_text(meta.get("notes", "")),
+                "exists_on_disk": True,
+                "run_id": run_id,
+                "producer_source_sha": source_sha,
+                "file_hash": actual_hash,
+            }
+        )
+    return sorted(rows, key=lambda row: row["artifact_path"]), receipts_dir
 
 
 def markdown_cell(value: object) -> str:
@@ -428,16 +559,60 @@ def build_markdown(df: pd.DataFrame) -> str:
     return "\n".join(lines)
 
 
-def main() -> None:
-    print("=== Artifact Manifest Generator ===")
-    rows = collect_artifacts()
-    df = pd.DataFrame(rows)
-    csv_out = REPORTS_DIR / "artifact_manifest.csv"
-    df.to_csv(csv_out, index=False)
-    print(f"Saved: {csv_out} ({len(df)} entries)")
+def _temporary_path(parent: Path, suffix: str) -> Path:
+    descriptor, name = tempfile.mkstemp(
+        prefix=".artifact_manifest.", suffix=suffix, dir=parent
+    )
+    os.close(descriptor)
+    return Path(name)
 
-    md_out = SUMMARY_DIR / "artifact_manifest.md"
-    md_out.write_text(build_markdown(df), encoding="utf-8")
+
+def generate_manifest(root: str | Path, run_id: str) -> tuple[Path, Path]:
+    root_path = Path(root).resolve()
+    rows, receipts_dir = collect_artifacts(root_path, run_id)
+    frame = pd.DataFrame(rows)
+    reports_dir = root_path / "reports"
+    summary_dir = reports_dir / "summary"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    summary_dir.mkdir(parents=True, exist_ok=True)
+    csv_out = reports_dir / "artifact_manifest.csv"
+    md_out = summary_dir / "artifact_manifest.md"
+    csv_temp = _temporary_path(reports_dir, ".csv")
+    md_temp = _temporary_path(summary_dir, ".md")
+    try:
+        frame.to_csv(csv_temp, index=False)
+        md_temp.write_text(build_markdown(frame), encoding="utf-8")
+        validate_artifact_manifest(
+            root_path,
+            csv_temp,
+            run_id=run_id,
+            receipts_dir=receipts_dir,
+        )
+        os.replace(csv_temp, csv_out)
+        os.replace(md_temp, md_out)
+    finally:
+        csv_temp.unlink(missing_ok=True)
+        md_temp.unlink(missing_ok=True)
+    return csv_out, md_out
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Generate a strict final thesis artifact manifest."
+    )
+    parser.add_argument(
+        "--run-id",
+        required=True,
+        help="Exact reports/run_receipts/<run-id> directory to finalize.",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    print("=== Artifact Manifest Generator ===")
+    csv_out, md_out = generate_manifest(ROOT, args.run_id)
+    print(f"Saved: {csv_out}")
     print(f"Saved: {md_out}")
 
 

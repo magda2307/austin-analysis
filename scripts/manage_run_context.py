@@ -57,7 +57,7 @@ def main() -> None:
             
         receipts = list(receipts_dir.glob("*.json"))
         print(f"Run {args.run_id} finalized with {len(receipts)} receipts.")
-        # We don't build the manifest here, just print info. The pipeline builds manifest in step 16.
+        # Pipeline completion relies on step 17 (receipt validation) and step 18 (test verification).
 
 if __name__ == "__main__":
     main()
