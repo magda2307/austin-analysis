@@ -95,10 +95,12 @@ def test_pipeline_download_step_is_repeatable():
 
 
 def test_pipeline_bounds_expensive_research_steps():
+    analysis_step = next(step for step in runner.STEPS if step[0] == 10)
     tuning_step = next(step for step in runner.STEPS if step[0] == 6)
     diagnostics_step = next(step for step in runner.STEPS if step[0] == 11)
     backtesting_step = next(step for step in runner.STEPS if step[0] == 16)
 
+    assert "--skip-report-outputs" in analysis_step[2]
     assert tuning_step[2][-8:] == [
         "--max-rows", "30000",
         "--n-trials", "5",

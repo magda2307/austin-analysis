@@ -56,6 +56,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run H1 feature-family ablation study training (slow)",
     )
+    parser.add_argument(
+        "--skip-report-outputs",
+        action="store_true",
+        help="Leave final report generation to a later pipeline step",
+    )
     return parser.parse_args()
 
 
@@ -128,8 +133,9 @@ def main() -> None:
     create_hypothesis_evidence_matrix(args.tables_dir, args.figures_dir, args.summary_dir)
 
     # 9. Regenerate final report current results summary markdown and figures
-    print("Regenerating final report summaries...")
-    create_report_outputs(args.tables_dir, args.figures_dir, args.summary_dir)
+    if not args.skip_report_outputs:
+        print("Regenerating final report summaries...")
+        create_report_outputs(args.tables_dir, args.figures_dir, args.summary_dir)
 
     print(f"\nSuccessfully wrote all analysis tables to {args.tables_dir}")
     print(f"Wrote all figures to {args.figures_dir}")

@@ -105,7 +105,12 @@ STEPS = [
     (
         10,
         "Run analysis",
-        [sys.executable, "scripts/run_analysis.py", "--data", DATA_ARG],
+        [
+            sys.executable,
+            "scripts/run_analysis.py",
+            "--data", DATA_ARG,
+            "--skip-report-outputs",
+        ],
         None,
     ),
     (
