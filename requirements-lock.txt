@@ -1,4 +1,4 @@
--e git+https://github.com/magda2307/austin-analysis.git@b273011fe284683a031d327b694d484b225c126d#egg=aac_adoption
+-e git+https://github.com/magda2307/austin-analysis.git@5efce00531451d91896140f61ef8fa446d11b529#egg=aac_adoption
 alembic==1.18.4
 altair==6.1.0
 annotated-doc==0.0.4
@@ -6,6 +6,7 @@ anyio==4.13.0
 attrs==26.1.0
 autograd==1.8.0
 autograd-gamma==0.5.0
+black==26.5.1
 blinker==1.9.0
 cachetools==7.1.4
 catboost==1.2.10
@@ -49,6 +50,7 @@ MarkupSafe==3.0.3
 matplotlib==3.10.9
 mdurl==0.1.2
 mpmath==1.3.0
+mypy_extensions==1.1.0
 narwhals==2.21.2
 networkx==3.6.1
 numba==0.65.1
@@ -56,7 +58,9 @@ numpy==2.4.6
 optuna==4.9.0
 packaging==26.2
 pandas==2.3.3
+pathspec==1.1.1
 pillow==12.2.0
+platformdirs==4.10.0
 plotly==6.7.0
 pluggy==1.6.0
 protobuf==7.35.0
@@ -69,6 +73,7 @@ python-dateutil==2.9.0.post0
 python-docx==1.2.0
 python-dotenv==1.2.2
 python-multipart==0.0.29
+pytokens==0.4.1
 pytz==2026.2
 PyYAML==6.0.3
 referencing==0.37.0
@@ -76,6 +81,7 @@ regex==2026.5.9
 requests==2.34.2
 rich==15.0.0
 rpds-py==2026.5.1
+ruff==0.15.17
 safetensors==0.7.0
 scikit-learn==1.8.0
 scipy==1.17.1

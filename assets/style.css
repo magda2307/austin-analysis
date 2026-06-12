@@ -123,11 +123,15 @@ div[data-testid="stAlert"] {
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
     background-color: transparent;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: thin;
 }
 
 .stTabs [data-baseweb="tab"] {
     height: 40px;
-    white-space: pre-wrap;
+    white-space: nowrap;
+    flex: 0 0 auto;
     background-color: rgba(30, 41, 59, 0.5);
     border-radius: 8px 8px 0 0;
     gap: 1px;

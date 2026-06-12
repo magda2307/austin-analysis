@@ -16,7 +16,7 @@ from aac_adoption.models.train_advanced import train_all_advanced
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Train advanced AAC CatBoost models")
-    parser.add_argument("--data", default="data/processed/modeling_dataset.csv")
+    parser.add_argument("--data", dest="data_path", type=Path, default="data/processed/modeling_dataset.csv")
     parser.add_argument("--metrics-dir", default="reports/metrics")
     parser.add_argument("--models-dir", default="models/advanced")
     parser.add_argument("--max-rows", type=int, default=0)

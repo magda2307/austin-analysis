@@ -329,6 +329,56 @@ PL = {
     "Regression RMSE": "Regresja RMSE",
     "Predicted adoption chance (calibrated)": "Prognozowana szansa adopcji (skalibrowana)",
     "Predicted adoption probability (calibrated)": "Prognozowane prawdopodobieństwo adopcji (skalibrowane)",
+    "**Adoption Rates by Intake Type**": "**Wskaźniki adopcji według typu przyjęcia**",
+    "**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes.": "**Wniosek:** Starsze zwierzęta mają znacznie mniejsze szanse na adopcję. Czas oczekiwania na jakikolwiek wynik jest złożony, ponieważ seniorzy mogą szybciej opuszczać schronisko z powodu wyższych wskaźników wyników innych niż adopcja.",
+    "**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition).": "**Wniosek:** Wygląd fizyczny (rasa i kolor) oraz wiek są najsilniejszymi predyktorami adopcji, znacznie przewyższającymi kontekst przybycia zwierzęcia (okoliczności przyjęcia i stan).",
+    "**Finding:** The COVID-19 pandemic period was associated with a marked increase in adoption rates and a reduction in total volume. These period shifts must be accounted for to prevent model drift.": "**Wniosek:** Okres pandemii COVID-19 był związany z wyraźnym wzrostem wskaźników adopcji i spadkiem całkowitej liczby przyjęć. Te zmiany w czasie muszą zostać uwzględnione, aby zapobiec dryfowi modelu.",
+    "**Global SHAP Feature Importance (Classification)**": "**Globalna ważność cech SHAP (klasyfikacja)**",
+    "**Median Days to Outcome by Age**": "**Mediana dni do wyniku według wieku**",
+    "**Volume and Outcomes Across Periods**": "**Liczba przyjęć i wyniki w różnych okresach**",
+    "All generated thesis deliverables, target definitions, and validation reports are listed below.": "Wszystkie wygenerowane materiały dyplomowe, definicje celów i raporty walidacyjne są wymienione poniżej.",
+    "Artifact Manifest": "Manifest artefaktów",
+    "Artifact Path": "Ścieżka artefaktu",
+    "Artifact Type": "Typ artefaktu",
+    "Automated euthanasia triaging": "Zautomatyzowane selekcjonowanie eutanazji",
+    "Best Use Case": "Najlepszy przypadek użycia",
+    "CatBoost consistently outperformed baseline models at separating adoptions from other outcomes, offering the highest precision-recall area under the curve (PR-AUC) for this imbalanced task.": "CatBoost konsekwentnie przewyższał modele bazowe w oddzielaniu adopcji od innych wyników, oferując najwyższe pole pod krzywą precision-recall (PR-AUC) dla tego niezbalansowanego zadania.",
+    "Chapter": "Rozdział",
+    "Data only reflects intake time": "Dane odzwierciedlają tylko moment przyjęcia",
+    "Days": "Dni",
+    "Exists": "Istnieje",
+    "For predicting the exact length of stay, CatBoost provided the lowest average error. However, length-of-stay is highly skewed and right-censored.": "W przewidywaniu dokładnej długości pobytu CatBoost zapewnił najniższy średni błąd. Jednak długość pobytu jest bardzo skośna i prawostronnie cenzurowana.",
+    "Higher is better. Evaluated on out-of-time test set.": "Więcej znaczy lepiej. Oceniane na wyodrębnionym w czasie zbiorze testowym.",
+    "Importance Impact": "Wpływ ważności",
+    "Lower is better. Mean absolute error on test set.": "Mniej znaczy lepiej. Średni błąd bezwzględny na zbiorze testowym.",
+    "Model output is unavailable. Check model artifacts and metadata.": "Wynik modelu jest niedostępny. Sprawdź artefakty i metadane modelu.",
+    "No classification artifacts found.": "Nie znaleziono artefaktów klasyfikacji.",
+    "No model is perfect. Here is exactly where the model struggles and the magnitude of its errors:": "Żaden model nie jest doskonały. Oto dokładnie, gdzie model ma trudności oraz wielkość jego błędów:",
+    "No regression artifacts found.": "Nie znaleziono artefaktów regresji.",
+    "Notes": "Notatki",
+    "Prediction failed.": "Predykcja nie powiodła się.",
+    "Primary Limitation": "Główne ograniczenie",
+    "Primary Metric (MAE)": "Główna metryka (MAE)",
+    "Primary Metric (PR-AUC)": "Główna metryka (PR-AUC)",
+    "Prioritizing visibility campaigns": "Priorytetyzacja kampanii widoczności",
+    "Read Thesis & Methodology Reports": "Przeczytaj raporty dyplomowe i metodologiczne",
+    "Refresh Data": "Odśwież dane",
+    "Required": "Wymagane",
+    "Riskiest Use Case": "Najbardziej ryzykowne użycie",
+    "Run `python scripts/generate_diagnostics.py` to see error slices.": "Uruchom `python scripts/generate_diagnostics.py`, aby zobaczyć przekroje błędów.",
+    "Run `python scripts/generate_evidence_pack.py` to see failure modes.": "Uruchom `python scripts/generate_evidence_pack.py`, aby zobaczyć tryby błędów.",
+    "Source Script": "Skrypt źródłowy",
+    "The machine learning pipeline evaluated logistic regression, random forests, histogram gradient boosting, and CatBoost models. Here is the final selection based on empirical validation data:": "Potok uczenia maszynowego ocenił modele regresji logistycznej, lasów losowych, histogram gradient boosting i CatBoost. Oto ostateczny wybór oparty na empirycznych danych walidacyjnych:",
+    "The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:": "Średni błąd bezwzględny (MAE) modelu regresji różni się drastycznie w zależności od podgrupy:",
+    "This dashboard translates raw shelter data into concrete evidence. Below are the finalized findings across the primary thesis hypotheses.": "Ten dashboard przekłada surowe dane ze schroniska na konkretne dowody. Poniżej znajdują się ostateczne ustalenia dotyczące głównych hipotez pracy.",
+    "Uses the combined classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.": "Używa połączonego klasyfikatora i regresora, gdy istnieją artefakty modeli zaawansowanych. To predykcja demonstracyjna, nie przyczynowa reguła decyzyjna.",
+    "View Full Executive Summary Report": "Wyświetl pełny raport podsumowujący",
+    "When the model misclassifies an outcome, these are the most common failure modes:": "Gdy model błędnie klasyfikuje wynik, są to najczęstsze tryby błędów:",
+    "While machine learning successfully ranks animals by placement difficulty, **these predictions are associative, not causal.**": "Chociaż uczenie maszynowe skutecznie uszeregowuje zwierzęta według trudności umieszczenia, **te predykcje są powiązane, a nie przyczynowe.**",
+    "While puppies and kittens ('baby') often leave the shelter within 6-7 days, 'adult' animals face similar wait times. 'Senior' animals exhibit shorter median days to any outcome (e.g. 4.2 days), reflecting alternative outcome pathways. Age remains a critical predictive feature.": "Chociaż szczenięta i kocięta ('młode') często opuszczają schronisko w ciągu 6-7 dni, 'dorosłe' zwierzęta mają podobny czas oczekiwania. 'Seniorzy' wykazują krótszą medianę dni do jakiegokolwiek wyniku (np. 4,2 dnia), odzwierciedlając alternatywne ścieżki wyników. Wiek pozostaje kluczową cechą predykcyjną.",
+    "⚠️ Interpretation limits": "⚠️ Ograniczenia interpretacji",
+    "🎓 Thesis Conclusions": "🎓 Wnioski z pracy",
+    "This explanation shows model feature contributions, not real-world causes of this animal's outcome. Feature families like breed or coat color represent associations in the training set, not proof of direct impact.": "To wyjaśnienie pokazuje wkład cech modelu, a nie rzeczywiste przyczyny wyniku tego zwierzęcia. Rodziny cech takie jak rasa czy kolor sierści reprezentują powiązania w zbiorze treningowym, a nie dowód na bezpośredni wpływ.",
 }
 
 
@@ -589,14 +639,6 @@ with tabs[2]:
         selected_label = st.selectbox(t("Animal profile"), labels, format_func=localized_profile_label)
         selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
         profile_record = build_profile_prediction_record(selected)
-        profile_prediction = None
-        profile_similarity = similar_historical_cases(DATA_PATH, profile_record)
-        try:
-            profile_prediction = predict_from_record(profile_record, MODELS_DIR)
-            if not profile_prediction.ok:
-                profile_prediction = None
-        except Exception:
-            profile_prediction = None
 
         col1, col2, col3, col4 = st.columns(4)
         col1.metric(t("Similar records"), f"{int(selected['records']):,}")
@@ -617,52 +659,62 @@ with tabs[2]:
         mix_cols[1].metric(t("Return-to-owner rate"), f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
         mix_cols[2].metric(t("Euthanasia rate"), f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
 
-        st.subheader(t("Model View for This Journey"))
-        if profile_prediction is None:
-            st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards."))
-        else:
-            predicted_probability = profile_prediction.adoption_probability
-            predicted_days = profile_prediction.predicted_days_to_outcome
-            wait_bucket = profile_prediction.los_bucket
-
-            model_cols = st.columns(4)
-            prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.is_calibrated else t("Predicted adoption chance")
-            model_cols[0].metric(prob_label, f"{predicted_probability * 100:.1f}%")
-            model_cols[1].metric(t("Predicted days to outcome"), f"{predicted_days:.1f} days")
-            model_cols[2].metric(t("Length-of-stay bucket"), wait_bucket)
-            model_cols[3].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
-            with st.expander(t("Representative model record")):
-                st.dataframe(profile_record, width='stretch', hide_index=True)
-
-        st.subheader(t("Similar Historical Cases"))
-        if profile_similarity.empty:
-            st.info(t("No similar historical cases found for this representative card."))
-        else:
-            st.dataframe(profile_similarity, width='stretch', hide_index=True)
-
-        st.subheader(t("Top SHAP Reasons"))
-        shap_view = pd.DataFrame()
-        if profile_prediction is not None:
+        if st.button(t("Analyze Profile")):
+            profile_prediction = None
+            profile_similarity = similar_historical_cases(DATA_PATH, profile_record)
             try:
-                shap_view = local_shap_explanations(profile_record, MODELS_DIR, task="classification", top_n=8)
-            except FileNotFoundError:
-                shap_view = pd.DataFrame()
-        if shap_view.empty:
-            shap_view = profile_global_shap_reasons(selected, tables["shap_classification"], top_n=8)
-            if shap_view.empty:
-                st.info(t("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons."))
-            else:
-                st.caption(t("Model-wide SHAP signals mapped onto this animal profile; associations, not causes."))
-                st.dataframe(shap_view, width='stretch', hide_index=True)
-        else:
-            st.caption(t("Local CatBoost SHAP values for the representative journey record; associations, not causes."))
-            st.dataframe(shap_view, width='stretch', hide_index=True)
+                profile_prediction = predict_from_record(profile_record, MODELS_DIR)
+                if not profile_prediction.ok:
+                    profile_prediction = None
+            except Exception:
+                profile_prediction = None
 
-        with st.expander(t("⚠️ Interpretation limits")):
-            st.info(
-                t("This explanation shows model feature contributions, not real-world causes of this animal's outcome. "
-                  "Feature families like breed or coat color represent associations in the training set, not proof of direct impact.")
-            )
+            st.subheader(t("Model View for This Journey"))
+            if profile_prediction is None:
+                st.info(t("Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards."))
+            else:
+                predicted_probability = profile_prediction.adoption_probability
+                predicted_days = profile_prediction.predicted_days_to_outcome
+                wait_bucket = profile_prediction.los_bucket
+    
+                model_cols = st.columns(4)
+                prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.is_calibrated else t("Predicted adoption chance")
+                model_cols[0].metric(prob_label, f"{predicted_probability * 100:.1f}%")
+                model_cols[1].metric(t("Predicted days to outcome"), f"{predicted_days:.1f} days")
+                model_cols[2].metric(t("Length-of-stay bucket"), wait_bucket)
+                model_cols[3].metric(t("Model visibility label"), t(visibility_need_from_prediction(predicted_probability, predicted_days)))
+                with st.expander(t("Representative model record")):
+                    st.dataframe(profile_record, width='stretch', hide_index=True)
+    
+            st.subheader(t("Similar Historical Cases"))
+            if profile_similarity.empty:
+                st.info(t("No similar historical cases found for this representative card."))
+            else:
+                st.dataframe(profile_similarity, width='stretch', hide_index=True)
+    
+            st.subheader(t("Top SHAP Reasons"))
+            shap_view = pd.DataFrame()
+            if profile_prediction is not None:
+                try:
+                    shap_view = local_shap_explanations(profile_record, MODELS_DIR, task="classification", top_n=8)
+                except FileNotFoundError:
+                    shap_view = pd.DataFrame()
+            if shap_view.empty:
+                shap_view = profile_global_shap_reasons(selected, tables["shap_classification"], top_n=8)
+                if shap_view.empty:
+                    st.info(t("Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons."))
+                else:
+                    st.caption(t("Model-wide SHAP signals mapped onto this animal profile; associations, not causes."))
+                    st.dataframe(shap_view, width='stretch', hide_index=True)
+            else:
+                st.caption(t("Local CatBoost SHAP values for the representative journey record; associations, not causes."))
+                st.dataframe(shap_view, width='stretch', hide_index=True)
+    
+            with st.expander(t("⚠️ Interpretation limits")):
+                st.info(
+                    t("This explanation shows model feature contributions, not real-world causes of this animal's outcome. "
+                      "Feature families like breed or coat color represent associations in the training set, not proof of direct impact.")
+                )
 
     st.subheader(t("Key Animal Contrasts"))
     contrasts = tables["profile_contrasts"]
@@ -959,30 +1011,31 @@ with tabs[8]:
         for col, field in zip(cols, ["animal_type", "age_group", "intake_type", "covid_period"]):
             options = ["All"] + sorted(predictions[field].dropna().astype(str).unique().tolist())
             filters[field] = col.selectbox(t(field.replace("_", " ").title()), options, format_func=t)
-        cohort = predictions.copy()
-        for field, value in filters.items():
-            if value != "All":
-                cohort = cohort[cohort[field].astype(str).eq(value)]
-        if cohort.empty:
-            st.warning(t("No records match this cohort."))
-        else:
-            cols = st.columns(4)
-            cols[0].metric(t("Cohort size"), f"{len(cohort):,}")
-            cols[1].metric(t("Observed adoption"), f"{cohort['classification_target'].mean() * 100:.1f}%")
-            cols[2].metric(t("Mean predicted adoption"), f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
-            cols[3].metric(t("Median predicted days"), f"{cohort['predicted_days_to_outcome'].median():.1f}")
-            st.write(
-                t(
-                    "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low "
-                    "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
+        if st.button(t("Find Candidates")):
+            cohort = predictions.copy()
+            for field, value in filters.items():
+                if value != "All":
+                    cohort = cohort[cohort[field].astype(str).eq(value)]
+            if cohort.empty:
+                st.warning(t("No records match this cohort."))
+            else:
+                cols = st.columns(4)
+                cols[0].metric(t("Cohort size"), f"{len(cohort):,}")
+                cols[1].metric(t("Observed adoption"), f"{cohort['classification_target'].mean() * 100:.1f}%")
+                cols[2].metric(t("Mean predicted adoption"), f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
+                cols[3].metric(t("Median predicted days"), f"{cohort['predicted_days_to_outcome'].median():.1f}")
+                st.write(
+                    t(
+                        "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low "
+                        "or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact."
+                    )
                 )
-            )
-            st.dataframe(cohort.head(100), width='stretch', hide_index=True)
+                st.dataframe(cohort.head(100), width='stretch', hide_index=True)
 
 with tabs[9]:
     st.subheader(t("Model Sensitivity Demo"))
     st.warning(CAUSAL_WARNING)
-    st.caption(t("Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule."))
+    st.caption(t("Uses the combined classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule."))
 
     left, right = st.columns(2)
     with left:
@@ -1227,7 +1280,7 @@ with tabs[13]:
     st.write(t("This dashboard translates raw shelter data into concrete evidence. Below are the finalized findings across the primary thesis hypotheses."))
     
     st.markdown("### 📌 H1: Appearance vs. Intake Context")
-    st.info(t("**Finding:** The context of how an animal arrives (Intake Type and Condition) is a dramatically stronger predictor of adoption than physical appearance (Breed and Color)."))
+    st.info(t("**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition)."))
     h1_col1, h1_col2 = st.columns(2)
     with h1_col1:
         if not tables["shap_family_classification"].empty:
@@ -1244,10 +1297,12 @@ with tabs[13]:
     with h1_col2:
         if not tables["h1"].empty:
             st.write(t("**Adoption Rates by Intake Type**"))
-            st.dataframe(tables["h1"][["intake_type", "records", "adoption_rate_pct"]].sort_values("adoption_rate_pct", ascending=False).head(5), width='stretch', hide_index=True)
+            h1_view = tables["h1"][tables["h1"]["variable"] == "intake_type"].copy()
+            h1_view = h1_view.rename(columns={"value": "intake_type"})
+            st.dataframe(h1_view[["intake_type", "records", "adoption_rate_pct"]].sort_values("adoption_rate_pct", ascending=False).head(5), width='stretch', hide_index=True)
 
     st.markdown("### 📌 H3: Age Penalties")
-    st.warning(t("**Finding:** Older animals face severe penalties in both adoption likelihood and wait times, but the effect is non-linear and accelerates sharply for seniors."))
+    st.warning(t("**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes."))
     h3_col1, h3_col2 = st.columns(2)
     with h3_col1:
         if not tables["h3"].empty:
@@ -1261,10 +1316,10 @@ with tabs[13]:
                 width='stretch'
             )
     with h3_col2:
-        st.write(t("While puppies and kittens ('baby') often leave the shelter within 5-7 days, 'adult' and 'senior' animals face wait times that are often 2x to 4x longer. Advanced models identify age as one of the top 3 critical predictive features."))
+        st.write(t("While puppies and kittens ('baby') often leave the shelter within 6-7 days, 'adult' animals face similar wait times. 'Senior' animals exhibit shorter median days to any outcome (e.g. 4.2 days), reflecting alternative outcome pathways. Age remains a critical predictive feature."))
 
     st.markdown("### 📌 H5: COVID-19 Period Dynamics")
-    st.success(t("**Finding:** The COVID-19 pandemic radically disrupted shelter operations, causing an artificial spike in adoption rates and a plunge in total volume that must be accounted for to prevent model drift."))
+    st.success(t("**Finding:** The COVID-19 pandemic period was associated with a marked increase in adoption rates and a reduction in total volume. These period shifts must be accounted for to prevent model drift."))
     if not tables["h5"].empty:
         st.write(t("**Volume and Outcomes Across Periods**"))
         st.dataframe(tables["h5"][["covid_period", "records", "adoption_rate_pct", "median_days_to_outcome"]], width='stretch', hide_index=True)

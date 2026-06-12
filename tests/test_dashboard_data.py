@@ -7,7 +7,9 @@ from aac_adoption.dashboard.data import (
     best_model_rows,
     build_prediction_record,
     build_profile_prediction_record,
+    diagnostic_slice_view,
     model_feature_columns,
+    overview_model_row,
     profile_global_shap_reasons,
     similar_historical_cases,
     visibility_need_from_prediction,
@@ -64,6 +66,41 @@ def test_best_model_rows_selects_expected_metrics():
     assert clf_row_no_pr["model_name"] == "boosting"
     assert clf_row_no_pr["primary_metric"] == "roc_auc"
     assert clf_row_no_pr["score"] == 0.8
+
+
+def test_overview_model_row_prefers_combined_subset():
+    rows = pd.DataFrame(
+        [
+            {"task": "classification", "animal_subset": "cats", "model_name": "cats_model"},
+            {"task": "classification", "animal_subset": "combined", "model_name": "combined_model"},
+        ]
+    )
+
+    result = overview_model_row(rows, "classification")
+
+    assert result is not None
+    assert result["model_name"] == "combined_model"
+
+
+@pytest.mark.parametrize(
+    ("frame", "expected_cohort"),
+    [
+        (
+            pd.DataFrame([{"cohort": "senior", "mae": 12.5, "records": 120}]),
+            "senior",
+        ),
+        (
+            pd.DataFrame([{"slice": "age_group", "value": "senior", "mae": 12.5, "records": 120}]),
+            "age_group: senior",
+        ),
+    ],
+)
+def test_diagnostic_slice_view_supports_current_and_legacy_schemas(frame, expected_cohort):
+    result = diagnostic_slice_view(frame, "mae")
+
+    assert result.to_dict("records") == [
+        {"cohort": expected_cohort, "mae": 12.5, "records": 120}
+    ]
 
 
 def test_build_prediction_record_creates_model_features():

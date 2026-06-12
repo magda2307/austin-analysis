@@ -16,13 +16,162 @@ import streamlit as st
 from aac_adoption.config import PROJECT_ROOT
 
 DASHBOARD_TABLE_SCHEMAS = {
-    "final_model_selection": {"selected": "bool", "task": "str", "animal_subset": "str", "model_name": "str"},
-    "classification": {"model_name": "str", "roc_auc": "float", "pr_auc": "float"},
-    "regression": {"model_name": "str", "mae": "float"},
-    "animal_archetypes": {"profile_label": "str", "is_named": "bool"},
-    "model_limitations_by_cohort": {"cohort": "str", "small_cohort_flag": "bool"},
-    "subgroup_reliability": {"cohort": "str", "small_cohort_flag": "bool"},
-    "context_model_comparison": {"task": "str", "higher_is_better": "bool"},
+    "final_model_selection": {
+        "selected": "bool",
+        "task": "str",
+        "animal_subset": "str",
+        "model_name": "str",
+    },
+    "classification": {
+        "model_name": "str",
+        "roc_auc": "float",
+        "pr_auc": "float",
+        "animal_subset": "str",
+    },
+    "regression": {
+        "model_name": "str",
+        "mae": "float",
+        "animal_subset": "str",
+    },
+    "h1": {
+        "variable": "str",
+        "value": "str",
+        "records": "int",
+        "adoption_rate_pct": "float",
+    },
+    "h3": {
+        "age_group": "str",
+        "median_days_to_outcome": "float",
+        "adoption_rate_pct": "float",
+    },
+    "h5": {
+        "covid_period": "str",
+        "records": "int",
+        "adoption_rate_pct": "float",
+        "median_days_to_outcome": "float",
+    },
+    "animal_archetypes": {
+        "profile_label": "str",
+        "is_named": "bool",
+        "records": "int",
+        "adoption_rate_pct": "float",
+        "median_days_to_outcome": "float",
+        "visibility_need": "str",
+        "animal_type": "str",
+        "age_group": "str",
+        "intake_type": "str",
+        "intake_condition": "str",
+        "health_profile": "str",
+        "behavior_support_flag": "str",
+        "simplified_breed_group": "str",
+        "simplified_color_group": "str",
+        "transfer_rate_pct": "float",
+        "return_to_owner_rate_pct": "float",
+        "euthanasia_rate_pct": "float",
+    },
+    "profile_contrasts": {
+        "contrast": "str",
+        "contrast_value": "str",
+        "adoption_rate_pct": "float",
+        "records": "int",
+        "median_days_to_outcome": "float",
+        "euthanasia_rate_pct": "float",
+    },
+    "model_limitations_by_cohort": {
+        "cohort": "str",
+        "small_cohort_flag": "bool",
+        "calibration_gap": "float",
+        "value": "str",
+        "records": "int",
+        "mae": "float",
+        "false_negative_rate": "float",
+    },
+    "metric_confidence_intervals": {
+        "metric": "str",
+        "lower": "float",
+        "upper": "float",
+        "animal_subset": "str",
+        "estimate": "float",
+        "bootstrap_samples": "int",
+    },
+    "subgroup_reliability": {
+        "cohort": "str",
+        "small_cohort_flag": "bool",
+        "calibration_gap": "float",
+        "value": "str",
+        "records": "int",
+        "observed_adoption_rate": "float",
+        "mean_predicted_adoption_probability": "float",
+        "mae": "float",
+    },
+    "subgroup_metric_confidence_intervals": {
+        "status": "str",
+    },
+    "subgroup_adoption_milestones": {
+        "cohort": "str",
+        "value": "str",
+        "records": "int",
+        "adoptions": "int",
+        "adoption_rate_pct": "float",
+        "adopted_by_day_7_pct": "float",
+        "adopted_by_day_30_pct": "float",
+        "adopted_by_day_60_pct": "float",
+        "adopted_by_day_90_pct": "float",
+    },
+    "context_model_comparison": {
+        "task": "str",
+        "higher_is_better": "bool",
+        "delta": "float",
+        "model_name": "str",
+        "animal_subset": "str",
+        "primary_metric": "str",
+        "base_score": "float",
+        "context_score": "float",
+    },
+    "thresholds": {
+        "threshold": "float",
+        "precision": "float",
+        "recall": "float",
+        "f1": "float",
+        "flagged_for_adoption_share": "float",
+    },
+    "calibration": {
+        "mean_predicted_probability": "float",
+        "observed_adoption_rate": "float",
+        "probability_bin": "str",
+        "records": "int",
+    },
+    "regression_slices": {
+        "cohort": "str",
+        "mae": "float",
+        "records": "int",
+    },
+    "predictions": {
+        "predicted_adoption_probability": "float",
+        "predicted_days_to_outcome": "float",
+        "animal_type": "str",
+        "age_group": "str",
+        "intake_type": "str",
+        "covid_period": "str",
+        "classification_target": "float",
+    },
+    "milestones": {
+        "group": "str",
+        "value": "str",
+        "adoptions": "int",
+        "adopted_by_day_7_pct": "float",
+        "adopted_by_day_30_pct": "float",
+        "adopted_by_day_90_pct": "float",
+    },
+    "shap_classification": {
+        "feature": "str",
+        "mean_abs_shap": "float",
+    },
+    "shap_family_classification": {
+        "feature_family": "str",
+        "mean_abs_shap": "float",
+        "features": "str",
+    },
 }
 
 def parse_strict_boolean(value: Any) -> bool | None:
@@ -241,6 +390,42 @@ def best_model_rows(classification: pd.DataFrame, regression: pd.DataFrame) -> p
                 }
             )
     return pd.DataFrame(rows)
+
+
+def overview_model_row(
+    best_rows: pd.DataFrame,
+    task: str,
+    preferred_subset: str = "combined",
+) -> pd.Series | None:
+    """Return the preferred overview row, falling back to the first available subset."""
+    task_rows = best_rows[best_rows["task"] == task]
+    if task_rows.empty:
+        return None
+    preferred = task_rows[task_rows["animal_subset"] == preferred_subset]
+    return (preferred if not preferred.empty else task_rows).iloc[0]
+
+
+def diagnostic_slice_view(frame: pd.DataFrame, metric: str) -> pd.DataFrame:
+    """Normalize current and legacy diagnostic slice schemas for display."""
+    if frame.empty or metric not in frame.columns or "records" not in frame.columns:
+        return pd.DataFrame()
+
+    if "cohort" in frame.columns:
+        label = frame["cohort"].astype(str)
+    elif {"slice", "value"}.issubset(frame.columns):
+        label = frame["slice"].astype(str) + ": " + frame["value"].astype(str)
+    elif "value" in frame.columns:
+        label = frame["value"].astype(str)
+    else:
+        return pd.DataFrame()
+
+    return pd.DataFrame(
+        {
+            "cohort": label,
+            metric: frame[metric],
+            "records": frame["records"],
+        }
+    )
 
 
 def build_prediction_record(
@@ -562,19 +747,36 @@ def local_shap_explanations(
     task: str = "classification",
     subset: str = "combined",
     top_n: int = 8,
+    model_name: str | None = None,
 ) -> pd.DataFrame:
-    """Compute local CatBoost SHAP explanations for a single prediction row."""
+    """Compute local SHAP explanations for a single prediction row."""
     try:
         import numpy as np
         import shap
     except ImportError:
         return pd.DataFrame()
 
-    model = load_model(models_dir, task, subset)
-    feature_columns = model_feature_columns(record, models_dir, task, subset)
-    catboost_record = prepare_catboost_frame(record, feature_columns)
-    explainer = shap.TreeExplainer(model)
-    shap_values = explainer.shap_values(catboost_record)
+    if model_name is None:
+        selection = load_table(PROJECT_ROOT / "reports/tables", "final_model_selection")
+        if not selection.empty and "selected" in selection.columns:
+            rows = selection[(selection["selected"] == True) & (selection["task"] == task) & (selection["animal_subset"] == subset)]
+            if not rows.empty:
+                model_name = rows.iloc[0]["model_name"]
+                models_dir = _infer_models_dir(model_name)
+
+    model = load_model(models_dir, task, subset, model_name)
+    feature_columns = model_feature_columns(record, models_dir, task, subset, model_name)
+    
+    if model_name and "catboost" not in model_name:
+        model_record = record[feature_columns]
+    else:
+        model_record = prepare_catboost_frame(record, feature_columns)
+
+    try:
+        explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(model_record)
+    except Exception:
+        return pd.DataFrame()
     if isinstance(shap_values, list):
         shap_values = shap_values[-1]
     values = np.asarray(shap_values)

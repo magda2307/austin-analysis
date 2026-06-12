@@ -432,17 +432,6 @@ Key docs:
 | `docs/PROJECT_CLOSEOUT_TASKS.md` | Detailed acceptance and closeout checklist. |
 | `reports/summary/model_evidence_pack.md` | Generated evidence-pack interpretation. |
 
-## Project Scope
-
-Current scope:
-
-- load raw AAC intake and outcome CSV files,
-- clean and standardize columns,
-- keep dogs and cats only,
-- join intake episodes with valid future outcomes,
-- create a modeling dataset,
-- create initial target columns for classification and regression.
-
 ## Research Priority
 
 Do not treat all thesis hypotheses as equal implementation priorities.

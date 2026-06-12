@@ -1,0 +1,54 @@
+{
+  "catboost_classification": {
+    "status": "ok",
+    "best_params": {
+      "learning_rate": 0.11536162338241392,
+      "depth": 4,
+      "l2_leaf_reg": 0.005337032762603957,
+      "subsample": 0.5917022549267169
+    },
+    "best_value": 0.7351616570350056,
+    "completed_trials": 5,
+    "pruned_trials": 0,
+    "failure_reason": null
+  },
+  "catboost_regression": {
+    "status": "ok",
+    "best_params": {
+      "learning_rate": 0.030834348179355788,
+      "depth": 8,
+      "l2_leaf_reg": 0.0012087541473056963,
+      "subsample": 0.9849549260809971
+    },
+    "best_value": 16.8961507454413,
+    "completed_trials": 5,
+    "pruned_trials": 0,
+    "failure_reason": null
+  },
+  "hist_gradient_boosting_classification": {
+    "status": "ok",
+    "best_params": {
+      "learning_rate": 0.0024348773534554596,
+      "max_leaf_nodes": 32,
+      "l2_regularization": 0.0017073967431528124,
+      "min_samples_leaf": 88
+    },
+    "best_value": 0.7120402614565157,
+    "completed_trials": 5,
+    "pruned_trials": 0,
+    "failure_reason": null
+  },
+  "hist_gradient_boosting_regression": {
+    "status": "ok",
+    "best_params": {
+      "learning_rate": 0.008468008575248327,
+      "max_leaf_nodes": 122,
+      "l2_regularization": 0.8471801418819978,
+      "min_samples_leaf": 64
+    },
+    "best_value": 17.848400609852103,
+    "completed_trials": 5,
+    "pruned_trials": 0,
+    "failure_reason": null
+  }
+}

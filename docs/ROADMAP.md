@@ -275,9 +275,9 @@ Model selection code uses PR-AUC first, ROC-AUC second. Reports need regeneratio
 - [x] Adopted-only timing model exists separately from generic LOS modeling.
 - [ ] Reports and dashboard consistently distinguish generic LOS from days to adoption.
 - [x] Horizon adoption targets exist for 7, 30, 60, and 90 days.
-- [ ] End-of-dataset follow-up/censoring rules are applied and summarized.
-- [ ] Re-intake matching ambiguity is audited and summarized.
-- [ ] Yearly backtesting table exists.
+- [x] End-of-dataset follow-up/censoring rules are applied and summarized.
+- [x] Re-intake matching ambiguity is audited and summarized.
+- [x] Yearly backtesting table exists.
 - [x] Survival analysis is explicitly documented as descriptive/future work.
 - [ ] If survival is promoted to a model, censoring and competing risks are handled.
 - [x] Subgroup reliability includes calibration and sample-size safeguards.
