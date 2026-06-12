@@ -9,6 +9,7 @@ from aac_adoption.diagnostics.model_diagnostics import (
     diagnostics_validation_tactics,
     error_slices,
     placement_risk_table,
+    shap_outputs,
     threshold_table,
 )
 from aac_adoption.models.evaluate import classification_metrics, expected_calibration_error
@@ -87,6 +88,45 @@ def test_diagnostics_validation_tactics_cover_generated_parts():
     assert {"diagnostic_part", "validation_tactic"}.issubset(tactics.columns)
     assert {"selected_model_resolution", "calibration_table", "shap_outputs"}.issubset(set(tactics["diagnostic_part"]))
     assert tactics["validation_tactic"].str.len().min() > 20
+
+
+def test_shap_skip_removes_stale_unselected_regression_outputs(
+    tmp_path, monkeypatch
+):
+    tables = tmp_path / "reports" / "tables"
+    figures = tmp_path / "reports" / "figures"
+    tables.mkdir(parents=True)
+    figures.mkdir(parents=True)
+    stale_paths = [
+        tables / "shap_global_regression.csv",
+        tables / "shap_feature_families_regression.csv",
+        tables / "feature_family_importance_regression.csv",
+        figures / "shap_summary_regression.png",
+        figures / "shap_feature_families_regression.png",
+        figures / "feature_family_importance_regression.png",
+    ]
+    for path in stale_paths:
+        path.write_text("stale", encoding="utf-8")
+    data_path = tmp_path / "modeling.csv"
+    pd.DataFrame({"classification_target": [0], "regression_target_days": [1]}).to_csv(
+        data_path, index=False
+    )
+    monkeypatch.setattr(
+        "aac_adoption.diagnostics.model_diagnostics._selected_model_row",
+        lambda _tables, _task, _subset: {"model_name": "random_forest"},
+    )
+
+    shap_outputs(
+        data_path,
+        tmp_path / "models",
+        tables,
+        figures,
+        10,
+        tables,
+    )
+
+    assert all(not path.exists() for path in stale_paths)
+    assert (tables / "shap_regression_skip_note.csv").exists()
 
 
 def test_feature_family_mapping():

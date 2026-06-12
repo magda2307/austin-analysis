@@ -114,6 +114,23 @@ def test_pipeline_bounds_expensive_research_steps():
     ]
 
 
+def test_pipeline_refreshes_diagnostics_before_analysis():
+    step_numbers = [step[0] for step in runner.STEPS]
+
+    assert step_numbers.index(11) < step_numbers.index(10)
+
+
+def test_pipeline_snapshots_manual_documents_before_receipt_validation():
+    step_numbers = [step[0] for step in runner.STEPS]
+
+    assert step_numbers.index(19) < step_numbers.index(17)
+    assert runner.EXPLICIT_OUTPUTS_BY_STEP[19] == [
+        "README.md",
+        "docs/METHODOLOGY.md",
+        "docs/RESULTS.md",
+        "docs/target_definitions.md",
+    ]
+
 def test_pipeline_receipt_validation_allows_in_progress_overall_receipt():
     validation_step = next(step for step in runner.STEPS if step[0] == 17)
 

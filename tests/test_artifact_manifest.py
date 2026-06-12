@@ -316,6 +316,29 @@ def test_generator_uses_only_exact_requested_receipts(tmp_path: Path, monkeypatc
     assert frame["artifact_path"].tolist() == ["reports/tables/requested.csv"]
 
 
+def test_generator_accepts_shap_skip_note_for_unselected_model() -> None:
+    generator = _load_generator()
+    registry = {
+        "reports/tables/shap_global_regression.csv": {"required_for_thesis": True},
+        "reports/tables/shap_feature_families_regression.csv": {
+            "required_for_thesis": True
+        },
+        "reports/tables/feature_family_importance_regression.csv": {
+            "required_for_thesis": True
+        },
+        "reports/figures/feature_family_importance_regression.png": {
+            "required_for_thesis": True
+        },
+    }
+    skip_note = "reports/tables/shap_regression_skip_note.csv"
+
+    resolved = generator._resolve_shap_registry(
+        registry, {skip_note: "receipt-hash"}
+    )
+
+    assert set(resolved) == {skip_note}
+
+
 def test_generator_derives_selected_model_and_sidecar_from_selection_output(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -359,10 +382,9 @@ def test_curated_registry_includes_core_datasets_and_final_documents() -> None:
     generator = _load_generator()
     required = {
         "data/processed/modeling_dataset.csv",
-        "data/processed/modeling_dataset_context.csv",
         "data/processed/feature_columns.json",
-        "data/processed/context_feature_columns.json",
         "data/processed/target_columns.json",
+        "reports/tables/h3_adopted_only_age_speed.csv",
         "reports/tables/final_model_selection.csv",
         "reports/summary/final_model_selection.md",
         "README.md",
@@ -380,7 +402,7 @@ def test_curated_registry_includes_core_datasets_and_final_documents() -> None:
 def test_manifest_h3_preserves_adopted_only_timing_wording() -> None:
     generator = _load_generator()
     notes = generator.ARTIFACT_METADATA[
-        "reports/tables/h3_age_adoption_speed.csv"
+        "reports/tables/h3_adopted_only_age_speed.csv"
     ]["notes"].lower()
 
     assert "adoption timing among adopted animals" in notes

@@ -463,6 +463,15 @@ def shap_outputs(
         selected_row = _selected_model_row(selection_tables_dir, task, "combined")
         selected_name = str(selected_row["model_name"]) if selected_row is not None else "catboost"
         if selected_name != "catboost":
+            for stale_path in [
+                Path(tables_dir) / f"shap_global_{filename_suffix}.csv",
+                Path(tables_dir) / f"shap_feature_families_{filename_suffix}.csv",
+                Path(tables_dir) / f"feature_family_importance_{filename_suffix}.csv",
+                Path(figures_dir) / f"shap_summary_{filename_suffix}.png",
+                Path(figures_dir) / f"shap_feature_families_{filename_suffix}.png",
+                Path(figures_dir) / f"feature_family_importance_{filename_suffix}.png",
+            ]:
+                stale_path.unlink(missing_ok=True)
             _save_table(
                 pd.DataFrame(
                     [

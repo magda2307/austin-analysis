@@ -66,6 +66,13 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    for stale_output in [
+        Path(args.tables_dir) / "h3_age_adoption_speed.csv",
+        Path(args.summary_dir) / "external_validity_limitations.md",
+        Path(args.summary_dir) / "breed_color_justification.md",
+        Path(args.summary_dir) / "descriptive_baseline_comparison.md",
+    ]:
+        stale_output.unlink(missing_ok=True)
     
     # 1. Run basic EDA and model comparison
     print("Running EDA and model comparison...")

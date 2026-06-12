@@ -123,7 +123,7 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "chapter": "Chapter 3 — Hypotheses",
         "notes": "H2 evidence: seasonality summary table",
     },
-    "reports/tables/h3_age_adoption_speed.csv": {
+    "reports/tables/h3_adopted_only_age_speed.csv": {
         "artifact_type": "table",
         "source_script": "scripts/run_analysis.py",
         "required_for_thesis": True,
@@ -161,21 +161,21 @@ ARTIFACT_METADATA: dict[str, dict] = {
     "reports/summary/external_validity_limitations.md": {
         "artifact_type": "report",
         "source_script": "scripts/run_analysis.py",
-        "required_for_thesis": True,
+        "required_for_thesis": False,
         "chapter": "Chapter 5 — Interpretation",
         "notes": "External validity and causal limitations report",
     },
     "reports/summary/breed_color_justification.md": {
         "artifact_type": "report",
         "source_script": "scripts/run_analysis.py",
-        "required_for_thesis": True,
+        "required_for_thesis": False,
         "chapter": "Chapter 3 — Hypotheses",
         "notes": "Breed and coat colour engineering justification report",
     },
     "reports/summary/descriptive_baseline_comparison.md": {
         "artifact_type": "report",
         "source_script": "scripts/run_analysis.py",
-        "required_for_thesis": True,
+        "required_for_thesis": False,
         "chapter": "Chapter 4 — Model Evaluation",
         "notes": "Non-ML descriptive baseline vs ML model comparison report",
     },
@@ -269,7 +269,7 @@ ARTIFACT_METADATA: dict[str, dict] = {
     "data/processed/modeling_dataset_context.csv": {
         "artifact_type": "dataset",
         "source_script": "scripts/build_dataset.py",
-        "required_for_thesis": True,
+        "required_for_thesis": False,
         "chapter": "Chapter 3 - Data And Methods",
         "notes": "Modeling dataset with intake-time context features",
     },
@@ -283,7 +283,7 @@ ARTIFACT_METADATA: dict[str, dict] = {
     "data/processed/context_feature_columns.json": {
         "artifact_type": "metadata",
         "source_script": "scripts/build_dataset.py",
-        "required_for_thesis": True,
+        "required_for_thesis": False,
         "chapter": "Chapter 3 - Data And Methods",
         "notes": "Intake-time context feature registry",
     },
@@ -344,6 +344,30 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "notes": "Self-referential manifest entry",
     },
 }
+
+def _resolve_shap_registry(
+    registry: dict[str, dict], receipt_hashes: dict[str, str]
+) -> dict[str, dict]:
+    resolved = dict(registry)
+    for task in ("classification", "regression"):
+        skip_note = f"reports/tables/shap_{task}_skip_note.csv"
+        if skip_note not in receipt_hashes:
+            continue
+        for path in (
+            f"reports/tables/shap_global_{task}.csv",
+            f"reports/tables/shap_feature_families_{task}.csv",
+            f"reports/tables/feature_family_importance_{task}.csv",
+            f"reports/figures/feature_family_importance_{task}.png",
+        ):
+            resolved.pop(path, None)
+        resolved[skip_note] = {
+            "artifact_type": "table",
+            "source_script": "scripts/generate_diagnostics.py --include-shap",
+            "required_for_thesis": True,
+            "chapter": "Chapter 5 - Interpretation",
+            "notes": f"SHAP skip rationale for the selected {task} model",
+        }
+    return resolved
 
 
 def _infer_type(path: Path) -> str:
@@ -482,6 +506,7 @@ def collect_artifacts(root: Path, run_id: str) -> tuple[list[dict], Path]:
         for path, metadata in ARTIFACT_METADATA.items()
         if metadata.get("required_for_thesis")
     }
+    registry = _resolve_shap_registry(registry, receipt_hashes)
     registry.update(_selected_model_metadata(root, output_sources))
 
     normalized = [normalize_relative_path(path) for path in registry]

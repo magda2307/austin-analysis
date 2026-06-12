@@ -223,6 +223,25 @@ def test_build_modeling_dataset_from_files_adds_context_features(tmp_path):
     assert metadata["context_weather_lag_days"] == 1
 
 
+def test_build_without_context_removes_stale_context_artifacts(tmp_path):
+    intakes_path = tmp_path / "intakes.csv"
+    outcomes_path = tmp_path / "outcomes.csv"
+    output_path = tmp_path / "processed" / "modeling_dataset.csv"
+    output_path.parent.mkdir(parents=True)
+    stale_paths = [
+        output_path.parent / "context_feature_columns.json",
+        output_path.parent / "modeling_dataset_context.csv",
+    ]
+    for path in stale_paths:
+        path.write_text("stale", encoding="utf-8")
+    _sample_intakes().to_csv(intakes_path, index=False)
+    _sample_outcomes().to_csv(outcomes_path, index=False)
+
+    build_modeling_dataset_from_files(intakes_path, outcomes_path, output_path)
+
+    assert all(not path.exists() for path in stale_paths)
+
+
 def test_build_modeling_dataset_keeps_raw_los_outliers():
     """Test that build_dataset stores raw LOS outliers (winsorization happens train-only)."""
     rows = []

@@ -497,6 +497,11 @@ def build_modeling_dataset_from_files(
             encoding="utf-8",
         )
     else:
+        for stale_context_path in [
+            output.parent / "context_feature_columns.json",
+            output.parent / "modeling_dataset_context.csv",
+        ]:
+            stale_context_path.unlink(missing_ok=True)
         # No context: write base-only feature_columns.json
         (output.parent / "feature_columns.json").write_text(
             json.dumps(feature_columns, indent=2),

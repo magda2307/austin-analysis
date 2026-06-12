@@ -20,6 +20,14 @@ import os
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_ARG = "data/processed/modeling_dataset.csv"
+EXPLICIT_OUTPUTS_BY_STEP = {
+    19: [
+        "README.md",
+        "docs/METHODOLOGY.md",
+        "docs/RESULTS.md",
+        "docs/target_definitions.md",
+    ]
+}
 
 # -------------------------------------------------------------------------
 # Pipeline step definitions
@@ -103,17 +111,6 @@ STEPS = [
         None,
     ),
     (
-        10,
-        "Run analysis",
-        [
-            sys.executable,
-            "scripts/run_analysis.py",
-            "--data", DATA_ARG,
-            "--skip-report-outputs",
-        ],
-        None,
-    ),
-    (
         11,
         "Generate diagnostics (with SHAP)",
         [
@@ -124,6 +121,17 @@ STEPS = [
             "--shap-max-rows", "2000",
         ],
         "shap",
+    ),
+    (
+        10,
+        "Run analysis",
+        [
+            sys.executable,
+            "scripts/run_analysis.py",
+            "--data", DATA_ARG,
+            "--skip-report-outputs",
+        ],
+        None,
     ),
     (
         12,
@@ -161,15 +169,21 @@ STEPS = [
         "expensive",
     ),
     (
-        17,
-        "Validate run receipts",
-        [sys.executable, "scripts/validate_run_receipts.py", "--allow-running"],
-        None,
-    ),
-    (
         18,
         "Run test suite",
         [sys.executable, "-m", "pytest", "tests/", "-v", "--tb=short"],
+        None,
+    ),
+    (
+        19,
+        "Snapshot final documents",
+        [sys.executable, "scripts/snapshot_final_documents.py"],
+        None,
+    ),
+    (
+        17,
+        "Validate run receipts",
+        [sys.executable, "scripts/validate_run_receipts.py", "--allow-running"],
         None,
     ),
 ]
@@ -385,6 +399,10 @@ def main() -> None:
             for path, mtime in after_state.items():
                 if path not in before_state or before_state[path] != mtime:
                     outputs.append(ROOT / path)
+            for explicit_path in EXPLICIT_OUTPUTS_BY_STEP.get(step_number, []):
+                artifact = ROOT / explicit_path
+                if artifact.is_file() and artifact not in outputs:
+                    outputs.append(artifact)
 
             # Write receipt
             import sys
