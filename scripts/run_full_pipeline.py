@@ -36,7 +36,7 @@ STEPS = [
     (
         1,
         "Download raw data",
-        [sys.executable, "scripts/download_raw_data.py"],
+        [sys.executable, "scripts/download_raw_data.py", "--overwrite"],
         "download",
     ),
     (
@@ -397,8 +397,8 @@ def main() -> None:
 
         _log("=== Pipeline Summary ===")
         for r in results:
-            icon = {"ok": "✓", "failed": "✗", "skipped": "—"}.get(r["status"], "?")
-            _log(f"  {icon} Step {r['step']:02d}: {r['name']} [{r['status']}]")
+            icon = {"ok": "OK", "failed": "FAILED", "skipped": "SKIPPED"}.get(r["status"], "?")
+            _log(f"  [{icon}] Step {r['step']:02d}: {r['name']} [{r['status']}]")
 
         _log("")
         if failed:

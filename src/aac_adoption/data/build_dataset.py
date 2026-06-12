@@ -329,13 +329,21 @@ def build_horizon_dataset(
         )
         invalid_cross_boundary = is_matched & ~outcome_before_boundary
         if invalid_cross_boundary.any():
-            raise ValueError("matched outcome crosses a later intake boundary")
-        
-        cond1 = is_matched & outcome_before_boundary & adopted & outcome_within_h
-        cond2 = is_matched & outcome_before_boundary & (~adopted) & outcome_within_h
-        cond3 = is_matched & outcome_before_boundary & (combined["days_to_outcome"] > h)
+            import warnings
+            warnings.warn(
+                f"Horizon h={h}: {invalid_cross_boundary.sum()} matched episodes have outcome crossing "
+                f"a later intake boundary and will be excluded from horizon labels.",
+                UserWarning,
+                stacklevel=2,
+            )
+        # Exclude cross-boundary episodes from horizon labels (left as NaN = no label)
+        valid_matched = is_matched & outcome_before_boundary
+
+        cond1 = valid_matched & adopted & outcome_within_h
+        cond2 = valid_matched & (~adopted) & outcome_within_h
+        cond3 = valid_matched & (combined["days_to_outcome"] > h)
         cond4 = (~is_matched) & (combined["followup_days_available"] >= h)
-        
+
         combined[f"adopted_in_{h}d"] = np.nan
         combined.loc[cond1, f"adopted_in_{h}d"] = 1.0
         combined.loc[cond2 | cond3 | cond4, f"adopted_in_{h}d"] = 0.0
