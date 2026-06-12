@@ -44,3 +44,8 @@ catboost_info/
 !models/baseline/.gitkeep
 !models/boosting/.gitkeep
 !models/advanced/.gitkeep
+
+# Pipeline execution artifacts (generated at runtime)
+logs/
+reports/run_receipts/
+reports/run_receipt.json
