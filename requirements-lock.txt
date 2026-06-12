@@ -1,4 +1,4 @@
--e git+https://github.com/magda2307/austin-analysis.git@c9f68e9ec495041ef4b7fc48371a60a74cfd953e#egg=aac_adoption
+-e git+https://github.com/magda2307/austin-analysis.git@b273011fe284683a031d327b694d484b225c126d#egg=aac_adoption
 alembic==1.18.4
 altair==6.1.0
 annotated-doc==0.0.4

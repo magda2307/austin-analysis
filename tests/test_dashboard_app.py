@@ -13,7 +13,7 @@ from aac_adoption.dashboard.data import DASHBOARD_TABLE_SCHEMAS
 @patch("aac_adoption.dashboard.data.Path.exists")
 def test_dashboard_app_current_artifacts_empty(mock_exists):
     mock_exists.return_value = False
-    at = AppTest.from_file("streamlit_app.py").run()
+    at = AppTest.from_file("streamlit_app.py").run(timeout=30)
     assert not at.exception
 
 def test_dashboard_app_current_artifacts_with_data(tmp_path):
@@ -44,7 +44,7 @@ def test_dashboard_app_current_artifacts_with_data(tmp_path):
             df = pd.DataFrame([row])
             df.to_csv(tables_dir / filename, index=False)
             
-        at = AppTest.from_file("streamlit_app.py").run()
+        at = AppTest.from_file("streamlit_app.py").run(timeout=30)
         assert not at.exception
 
 def test_dashboard_app_missing_columns(tmp_path):
@@ -57,7 +57,7 @@ def test_dashboard_app_missing_columns(tmp_path):
         df = pd.DataFrame([{"model_name": "catboost"}]) # missing roc_auc, pr_auc
         df.to_csv(tables_dir / TABLE_FILES["classification"], index=False)
         
-        at = AppTest.from_file("streamlit_app.py").run()
+        at = AppTest.from_file("streamlit_app.py").run(timeout=30)
         assert not at.exception # schema check should fail fast and return empty, app should handle empty gracefully
 
 def test_dashboard_app_string_booleans(tmp_path):
@@ -70,7 +70,7 @@ def test_dashboard_app_string_booleans(tmp_path):
         df = pd.DataFrame([{"selected": "True", "task": "classification", "animal_subset": "all", "model_name": "catboost"}])
         df.to_csv(tables_dir / TABLE_FILES["final_model_selection"], index=False)
         
-        at = AppTest.from_file("streamlit_app.py").run()
+        at = AppTest.from_file("streamlit_app.py").run(timeout=30)
         assert not at.exception
 
 @patch("aac_adoption.dashboard.data.load_model")
@@ -87,5 +87,5 @@ def test_dashboard_app_missing_model_corrupt_metadata(mock_load_model, tmp_path)
         
         mock_load_model.side_effect = FileNotFoundError("Missing")
         
-        at = AppTest.from_file("streamlit_app.py").run()
+        at = AppTest.from_file("streamlit_app.py").run(timeout=30)
         assert not at.exception

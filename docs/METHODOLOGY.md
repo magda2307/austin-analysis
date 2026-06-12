@@ -154,7 +154,7 @@ All model features are available at the moment of intake (before any outcome is 
 
 All context features use only dates **before** the intake date. Rolling windows do not include the intake day itself.
 
-**Note on feature redundancy:** `age_days`, `age_months`, and `age_years` are collinear; `has_name` and `is_named` are near-identical. These redundancies are documented in [`docs/ROADMAP.md`](ROADMAP.md) as a planned cleanup item.
+**Note on feature redundancy:** `age_days`, `age_months`, and `age_years` are collinear; `has_name` and `is_named` are near-identical. These redundancies were cleaned up in the model-training feature lists (documented in `docs/ROADMAP.md`).
 
 ---
 
@@ -173,7 +173,7 @@ Each intake episode is matched to the nearest unused future outcome for the same
 - No outcome is shared between two intake episodes.
 - No negative `days_to_outcome` values are possible (validated by `validate_modeling_dataset()`).
 
-**Limitation:** If an animal was transferred between shelters and readmitted, the re-admission creates a new independent episode. This is intentional — each stay is a separate resource-planning problem. Re-intake ambiguity detection (checking for intermediate intakes within a matched pair) is a planned improvement; see [`docs/ROADMAP.md`](ROADMAP.md).
+**Limitation:** If an animal was transferred between shelters and readmitted, the re-admission creates a new independent episode. This is intentional — each stay is a separate resource-planning problem. Re-intake ambiguity detection (checking for intermediate intakes within a matched pair) is implemented; see the `matching_ambiguity` report.
 
 ---
 

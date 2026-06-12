@@ -250,6 +250,6 @@ pytest
 pytest -q
 ```
 
-Latest verified result: **81 passed** (local environment, 2026-05-31).
+Latest verified result: **209 passed** (local environment, 2026-06-12).
 
 Known warning: `FutureWarning` in `evidence_pack.py` during pandas concat with empty/all-NA frames in synthetic tests. Does not fail the suite.

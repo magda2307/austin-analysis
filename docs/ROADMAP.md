@@ -15,9 +15,9 @@ Status labels:
 
 ## Immediate Priorities
 
-1. **Fix calibration reproducibility.** `scripts/calibrate_classifiers.py` imports `calibrate_classifiers`, but `src/aac_adoption/models/calibrate.py` does not define it. The full pipeline currently has a broken calibration step.
-2. **Regenerate reports after recent code changes.** Model selection now uses PR-AUC first, but existing generated text still mentions ROC-AUC-first wording in some places.
-3. **Implement real horizon targets with follow-up cutoffs.** Adoption-within-7/30/60/90-day targets remain missing.
+1. **Fix calibration reproducibility.** `scripts/calibrate_classifiers.py` imports `calibrate_classifiers`, but `src/aac_adoption/models/calibrate.py` does not define it. The full pipeline currently has a broken calibration step. (DONE)
+2. **Regenerate reports after recent code changes.** Model selection now uses PR-AUC first, but existing generated text still mentions ROC-AUC-first wording in some places. (DONE)
+3. **Implement real horizon targets with follow-up cutoffs.** Adoption-within-7/30/60/90-day targets remain missing. (DONE)
 4. **Audit re-intake ambiguity properly.** Current matching records re-intake metadata, but does not reject or summarize matches where another intake occurs before the candidate outcome.
 5. **Replace shallow leakage checks with risk classes.** Borderline predictors need `safe`, `probably_safe`, `needs_audit`, or `unsafe` labels.
 6. **Add yearly backtesting.** One chronological split is not enough evidence for temporal stability.
@@ -102,7 +102,7 @@ Status labels:
 - Include only intakes with sufficient follow-up time per horizon.
 - Report PR-AUC, ROC-AUC, Brier score, ECE, lift, precision@top-k, and recall@top-k by horizon.
 
-### TODO 10. Yearly temporal backtesting
+### DONE 10. Yearly temporal backtesting
 
 Evaluate rolling historical windows:
 
