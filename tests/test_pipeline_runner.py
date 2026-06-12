@@ -88,6 +88,12 @@ def test_pipeline_has_no_final_manifest_step():
         assert "generate_artifact_manifest.py" not in cmd_str
 
 
+def test_pipeline_download_step_is_repeatable():
+    download_step = next(step for step in runner.STEPS if step[0] == 1)
+
+    assert "--overwrite" in download_step[2]
+
+
 def test_pipeline_receipt_validation_allows_in_progress_overall_receipt():
     validation_step = next(step for step in runner.STEPS if step[0] == 17)
 
