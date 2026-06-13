@@ -316,6 +316,140 @@ def test_generator_uses_only_exact_requested_receipts(tmp_path: Path, monkeypatc
     assert frame["artifact_path"].tolist() == ["reports/tables/requested.csv"]
 
 
+def test_generator_ignores_conflicting_hashes_for_unregistered_output(
+    tmp_path: Path, monkeypatch
+) -> None:
+    required = tmp_path / "reports" / "tables" / "required.csv"
+    screenshot = tmp_path / "reports" / "figures" / "ui.png"
+    required.parent.mkdir(parents=True)
+    screenshot.parent.mkdir(parents=True)
+    required.write_text("value\n1\n", encoding="utf-8")
+    screenshot.write_bytes(b"first")
+    source = tmp_path / "scripts" / "producer.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("# producer\n", encoding="utf-8")
+    _write_receipt(
+        tmp_path,
+        run_id="run-a",
+        name="first",
+        outputs=[required, screenshot],
+    )
+    second = _write_receipt(
+        tmp_path,
+        run_id="run-a",
+        name="second",
+        outputs=[screenshot],
+    )
+    receipt_data = json.loads(second.read_text(encoding="utf-8"))
+    receipt_data["output_hashes"][str(screenshot)] = "f" * 64
+    second.write_text(json.dumps(receipt_data), encoding="utf-8")
+    generator = _load_generator()
+    monkeypatch.setattr(
+        generator,
+        "ARTIFACT_METADATA",
+        {
+            "reports/tables/required.csv": {
+                "artifact_type": "table",
+                "source_script": "scripts/producer.py",
+                "required_for_thesis": True,
+                "chapter": "Chapter 4 - Model Evaluation",
+                "notes": "Required output",
+            }
+        },
+    )
+
+    csv_out, _ = generator.generate_manifest(tmp_path, "run-a")
+
+    assert pd.read_csv(csv_out)["artifact_path"].tolist() == [
+        "reports/tables/required.csv"
+    ]
+
+
+def test_generator_rejects_conflicting_hashes_for_required_output(
+    tmp_path: Path, monkeypatch
+) -> None:
+    required = tmp_path / "reports" / "tables" / "required.csv"
+    required.parent.mkdir(parents=True)
+    required.write_text("value\n1\n", encoding="utf-8")
+    source = tmp_path / "scripts" / "producer.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("# producer\n", encoding="utf-8")
+    _write_receipt(tmp_path, run_id="run-a", name="first", outputs=[required])
+    second = _write_receipt(
+        tmp_path,
+        run_id="run-a",
+        name="second",
+        outputs=[required],
+    )
+    receipt_data = json.loads(second.read_text(encoding="utf-8"))
+    receipt_data["output_hashes"][str(required)] = "f" * 64
+    second.write_text(json.dumps(receipt_data), encoding="utf-8")
+    generator = _load_generator()
+    monkeypatch.setattr(
+        generator,
+        "ARTIFACT_METADATA",
+        {
+            "reports/tables/required.csv": {
+                "artifact_type": "table",
+                "source_script": "scripts/producer.py",
+                "required_for_thesis": True,
+                "chapter": "Chapter 4 - Model Evaluation",
+                "notes": "Required output",
+            }
+        },
+    )
+
+    with pytest.raises(AcceptanceError, match="conflicting receipt hashes"):
+        generator.generate_manifest(tmp_path, "run-a")
+
+
+def test_generator_rejects_conflicting_dynamic_shap_skip_note(
+    tmp_path: Path, monkeypatch
+) -> None:
+    shap = tmp_path / "reports" / "tables" / "shap_global_regression.csv"
+    skip_note = tmp_path / "reports" / "tables" / "shap_regression_skip_note.csv"
+    shap.parent.mkdir(parents=True)
+    shap.write_text("feature,importance\nage,1\n", encoding="utf-8")
+    skip_note.write_text("reason\nselected model unsupported\n", encoding="utf-8")
+    source = tmp_path / "scripts" / "producer.py"
+    source.parent.mkdir(parents=True)
+    source.write_text("# producer\n", encoding="utf-8")
+    _write_receipt(
+        tmp_path,
+        run_id="run-a",
+        name="first",
+        outputs=[shap, skip_note],
+    )
+    second = _write_receipt(
+        tmp_path,
+        run_id="run-a",
+        name="second",
+        outputs=[skip_note],
+    )
+    receipt_data = json.loads(second.read_text(encoding="utf-8"))
+    receipt_data["output_hashes"][str(skip_note)] = "f" * 64
+    second.write_text(json.dumps(receipt_data), encoding="utf-8")
+    generator = _load_generator()
+    monkeypatch.setattr(
+        generator,
+        "ARTIFACT_METADATA",
+        {
+            "reports/tables/shap_global_regression.csv": {
+                "artifact_type": "table",
+                "source_script": "scripts/producer.py",
+                "required_for_thesis": True,
+                "chapter": "Chapter 5 - Interpretation",
+                "notes": "Regression SHAP",
+            }
+        },
+    )
+
+    with pytest.raises(
+        AcceptanceError, match="shap_regression_skip_note.csv"
+    ):
+        generator.generate_manifest(tmp_path, "run-a")
+
+
 def test_generator_accepts_shap_skip_note_for_unselected_model() -> None:
     generator = _load_generator()
     registry = {

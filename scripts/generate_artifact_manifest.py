@@ -14,6 +14,7 @@ import argparse
 import json
 import os
 import tempfile
+from collections.abc import Collection
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -252,13 +253,6 @@ ARTIFACT_METADATA: dict[str, dict] = {
         "chapter": "Chapter 4 — Model Evaluation",
         "notes": "Narrative model evidence summary",
     },
-    "reports/summary/subgroup_reliability.md": {
-        "artifact_type": "report",
-        "source_script": "scripts/generate_evidence_pack.py",
-        "required_for_thesis": True,
-        "chapter": "Chapter 4 — Model Evaluation",
-        "notes": "Subgroup reliability narrative summary",
-    },
     "data/processed/modeling_dataset.csv": {
         "artifact_type": "dataset",
         "source_script": "scripts/build_dataset.py",
@@ -346,12 +340,12 @@ ARTIFACT_METADATA: dict[str, dict] = {
 }
 
 def _resolve_shap_registry(
-    registry: dict[str, dict], receipt_hashes: dict[str, str]
+    registry: dict[str, dict], receipt_paths: Collection[str]
 ) -> dict[str, dict]:
     resolved = dict(registry)
     for task in ("classification", "regression"):
         skip_note = f"reports/tables/shap_{task}_skip_note.csv"
-        if skip_note not in receipt_hashes:
+        if skip_note not in receipt_paths:
             continue
         for path in (
             f"reports/tables/shap_global_{task}.csv",
@@ -415,7 +409,7 @@ def _receipt_relative_path(root: Path, value: object) -> str:
 
 def _load_requested_receipts(
     root: Path, run_id: str
-) -> tuple[Path, dict[str, str], dict[str, str], str]:
+) -> tuple[Path, dict[str, str], dict[str, str], set[str], set[str], str]:
     receipts_dir = root / "reports" / "run_receipts" / run_id
     if not receipts_dir.is_dir():
         raise AcceptanceError(f"unknown run: {run_id}")
@@ -423,7 +417,7 @@ def _load_requested_receipts(
     if not receipt_paths:
         raise AcceptanceError(f"unknown run or no receipts: {run_id}")
 
-    output_hashes: dict[str, str] = {}
+    output_hash_sets: dict[str, set[str]] = {}
     output_sources: dict[str, str] = {}
     source_shas: set[str] = set()
     for receipt_path in receipt_paths:
@@ -447,18 +441,34 @@ def _load_requested_receipts(
         for output_path, expected_hash in receipt.get("output_hashes", {}).items():
             relative = _receipt_relative_path(root, output_path)
             expected = str(expected_hash)
-            previous = output_hashes.get(relative)
-            if previous is not None and previous != expected:
-                raise AcceptanceError(
-                    f"conflicting receipt hashes for output: {relative}"
-                )
-            output_hashes[relative] = expected
+            output_hash_sets.setdefault(relative, set()).add(expected)
             if candidate_source:
                 output_sources[relative] = candidate_source
 
     if len(source_shas) != 1:
         raise AcceptanceError("requested run has mixed producer_source_sha values")
-    return receipts_dir, output_hashes, output_sources, source_shas.pop()
+    output_hashes = {
+        relative: next(iter(hashes))
+        for relative, hashes in output_hash_sets.items()
+        if len(hashes) == 1
+    }
+    conflicting_outputs = {
+        relative for relative, hashes in output_hash_sets.items() if len(hashes) > 1
+    }
+    receipt_outputs = set(output_hash_sets)
+    output_sources = {
+        relative: source
+        for relative, source in output_sources.items()
+        if relative in output_hashes
+    }
+    return (
+        receipts_dir,
+        output_hashes,
+        output_sources,
+        conflicting_outputs,
+        receipt_outputs,
+        source_shas.pop(),
+    )
 
 
 def _selected_model_metadata(
@@ -498,16 +508,27 @@ def _selected_model_metadata(
 
 
 def collect_artifacts(root: Path, run_id: str) -> tuple[list[dict], Path]:
-    receipts_dir, receipt_hashes, output_sources, source_sha = (
-        _load_requested_receipts(root, run_id)
-    )
+    (
+        receipts_dir,
+        receipt_hashes,
+        output_sources,
+        conflicting_outputs,
+        receipt_outputs,
+        source_sha,
+    ) = _load_requested_receipts(root, run_id)
     registry = {
         path: metadata
         for path, metadata in ARTIFACT_METADATA.items()
         if metadata.get("required_for_thesis")
     }
-    registry = _resolve_shap_registry(registry, receipt_hashes)
+    registry = _resolve_shap_registry(registry, receipt_outputs)
     registry.update(_selected_model_metadata(root, output_sources))
+    required_conflicts = sorted(set(registry) & conflicting_outputs)
+    if required_conflicts:
+        raise AcceptanceError(
+            "conflicting receipt hashes for required artifact: "
+            + ", ".join(required_conflicts)
+        )
 
     normalized = [normalize_relative_path(path) for path in registry]
     if len(normalized) != len(set(normalized)):

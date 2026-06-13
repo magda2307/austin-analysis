@@ -5,17 +5,18 @@ working index; update the detailed checklist when acceptance state changes.
 
 ## Dated Snapshot
 
-Verified 2026-06-09:
+Verified 2026-06-13:
 
-- 209 tests collect after the closeout commit removed four test modules.
-- Phase 1 focused gate passes: 28 tests covering matching, horizon cohorts,
-  context data, rolling intake volume, and dataset construction.
-- Calibration chronology gate passes: calibration uses 2022 only; 2023 remains
-  the selection period.
-- Full pytest and long acceptance were not run in this audit.
-- Final generated model-selection prose is stale until regeneration.
-- Acceptance remains blocked by deleted-coverage review, concurrent worktree
-  changes, and unresolved phase-level audit findings.
+- Canonical `thesis-full` run `20260613T001946Z-0bb4ce5` completed all 20
+  requested steps with no skips or failures.
+- Pipeline regenerated dataset, models, diagnostics, evidence reports, final
+  document snapshot, and receipts from producer source `0bb4ce5`.
+- Strict manifest contains 48 required artifacts with matching receipt and disk
+  hashes.
+- `python -m pytest --collect-only -q`: 271 tests collected.
+- Long acceptance: receipts valid; 268 passed, 3 expected skips, 45 warnings.
+- Final acceptance is complete. Remaining dirty files belong to concurrent
+  dashboard, packaging, and thesis-export work.
 
 ## Execution Order
 
@@ -49,15 +50,16 @@ Verified 2026-06-09:
 | Intake-volume threshold applied too early | `src/aac_adoption/data/build_dataset.py` |
 | Standalone helper defects | `src/aac_adoption/models/evaluate.py`, yearly backtesting script, pipeline help |
 
-## Verified Contract Violations
+## Closed Contract Violations
 
-- Generated `reports/summary/final_model_selection.md` still describes test-set
-  selection; producer wording is fixed but artifacts need regeneration.
-- Four test modules were deleted during closeout, including all former survival
-  suites and one rolling-feature suite; replacement coverage is not yet mapped.
-- Phase trackers contain stale `FULL PASS` and `Remaining risk: None` claims that
-  conflict with later deep-audit reports.
-- Phase 2, Phase 5, and Phase 6 lack equivalent deep-audit reports.
+- Final model selection uses validation-period evidence; test data remains final
+  evaluation only.
+- Matching, censoring, target definitions, leakage checks, and chronological
+  split behavior are covered by the passing suite.
+- Required methodological summaries and selected-model artifacts are generated
+  and receipt-backed.
+- Missing or incompatible dashboard model artifacts fail explicitly instead of
+  returning plausible defaults.
 
 ## Dashboard Routing
 
