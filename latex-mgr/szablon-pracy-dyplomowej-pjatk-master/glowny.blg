@@ -1,0 +1,55 @@
+This is BibTeX, Version 0.99d (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: glowny.aux
+The style file: unsrt.bst
+Database file #1: bibliografia.bib
+Warning--I didn't find a database entry for "Prokhorenkova2018"
+Warning--I didn't find a database entry for "Grinsztajn2022"
+Warning--I didn't find a database entry for "Cain2020"
+Warning--I didn't find a database entry for "Hawes2022"
+Warning--I didn't find a database entry for "Gunter2022"
+Warning--I didn't find a database entry for "Gunter2016"
+Warning--I didn't find a database entry for "Fawcett2006"
+Warning--I didn't find a database entry for "Brier1950"
+You've used 14 entries,
+            1791 wiz_defined-function locations,
+            552 strings with 6094 characters,
+and the built_in function-call counts, 2647 in all, are:
+= -- 230
+> -- 100
+< -- 4
++ -- 40
+- -- 26
+* -- 112
+:= -- 414
+add.period$ -- 48
+call.type$ -- 14
+change.case$ -- 14
+chr.to.int$ -- 0
+cite$ -- 14
+duplicate$ -- 126
+empty$ -- 301
+format.name$ -- 26
+if$ -- 615
+int.to.chr$ -- 0
+int.to.str$ -- 14
+missing$ -- 8
+newline$ -- 79
+num.names$ -- 14
+pop$ -- 66
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 64
+stack$ -- 0
+substring$ -- 79
+swap$ -- 34
+text.length$ -- 4
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 0
+while$ -- 23
+width$ -- 16
+write$ -- 161
+(There were 8 warnings)

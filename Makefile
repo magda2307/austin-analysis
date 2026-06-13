@@ -1,4 +1,4 @@
-.PHONY: setup pipeline test dashboard clean
+.PHONY: setup pipeline test dashboard clean docker-dashboard docker-pipeline docker-quick docker-test
 
 setup:
 	pip install -r requirements.txt
@@ -20,3 +20,15 @@ clean:
 	rm -rf reports/
 	rm -rf models/
 	rm -rf data/processed/
+
+docker-dashboard:
+	docker compose up dashboard
+
+docker-pipeline:
+	docker compose run --rm pipeline-full
+
+docker-quick:
+	docker compose run --rm pipeline-quick
+
+docker-test:
+	docker compose run --rm test

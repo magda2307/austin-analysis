@@ -888,6 +888,53 @@
           "turn_count": 3
         }
       }
+    },
+    "019ebe1e-7553-7ea3-b9dc-d28f3f519fc0": {
+      "session_id": "019ebe1e-7553-7ea3-b9dc-d28f3f519fc0",
+      "leader_thread_id": "019ebe1e-96ad-7b70-9190-81441009318f",
+      "updated_at": "2026-06-13T01:58:30.777Z",
+      "threads": {
+        "019ebe1e-96ad-7b70-9190-81441009318f": {
+          "thread_id": "019ebe1e-96ad-7b70-9190-81441009318f",
+          "kind": "leader",
+          "first_seen_at": "2026-06-12T23:15:41.217Z",
+          "last_seen_at": "2026-06-12T23:15:41.217Z",
+          "last_turn_id": "019ebe1e-9729-7963-a6da-d7ab863162a8",
+          "turn_count": 1
+        },
+        "019ebe1e-7553-7ea3-b9dc-d28f3f519fc0": {
+          "thread_id": "019ebe1e-7553-7ea3-b9dc-d28f3f519fc0",
+          "kind": "subagent",
+          "first_seen_at": "2026-06-12T23:16:45.936Z",
+          "last_seen_at": "2026-06-12T23:16:45.936Z",
+          "last_turn_id": "019ebe1e-96b5-7340-b996-78b2ac726f17",
+          "turn_count": 1
+        },
+        "019ebe9e-39ba-7f82-8c9a-07bf851ae867": {
+          "thread_id": "019ebe9e-39ba-7f82-8c9a-07bf851ae867",
+          "kind": "subagent",
+          "first_seen_at": "2026-06-13T01:35:11.518Z",
+          "last_seen_at": "2026-06-13T01:35:11.518Z",
+          "last_turn_id": "019ebe9e-3a34-7053-8807-b0e24262ea13",
+          "turn_count": 1
+        },
+        "019ebe9e-1003-7ce2-8494-59c495f6ab12": {
+          "thread_id": "019ebe9e-1003-7ce2-8494-59c495f6ab12",
+          "kind": "subagent",
+          "first_seen_at": "2026-06-13T01:36:30.814Z",
+          "last_seen_at": "2026-06-13T01:40:53.506Z",
+          "last_turn_id": "019ebea3-5811-7362-9fc9-940dc540dd9c",
+          "turn_count": 3
+        },
+        "019ebd00-1542-77c2-b8a8-6c258ec30b28": {
+          "thread_id": "019ebd00-1542-77c2-b8a8-6c258ec30b28",
+          "kind": "subagent",
+          "first_seen_at": "2026-06-13T01:58:30.777Z",
+          "last_seen_at": "2026-06-13T01:58:30.777Z",
+          "last_turn_id": "019ebd00-f396-7e20-b1b4-bf8833a6e9f5",
+          "turn_count": 1
+        }
+      }
     }
   }
 }

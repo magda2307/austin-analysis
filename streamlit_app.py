@@ -90,296 +90,1410 @@ LANGUAGES = {
     "Polski": "pl",
 }
 
-PL = {
-    "AAC Adoption Thesis Demo": "Demo pracy dyplomowej: adopcje AAC",
-    "Artifact-driven dashboard for model results, hypothesis signals, and model sensitivity checks.": "Dashboard oparty na artefaktach: wyniki modeli, sygnaly hipotez i testy wrazliwosci modelu.",
-    "Language": "Język",
-    "Executive Overview": "Przegląd",
-    "Story Mode": "Narracja",
-    "Animal Stories": "Historie zwierząt",
-    "Model Quality": "Jakość modelu",
-    "Trust & Limits": "Zaufanie i ograniczenia",
-    "Interpretability": "Interpretowalność",
-    "Risk Explorer": "Eksplorator ryzyka",
-    "Hypothesis Lab": "Laboratorium hipotez",
-    "Campaign Finder": "Wyszukiwarka kampanii",
-    "Adoption Timeline": "Oś czasu adopcji",
-    "Artifacts": "Artefakty",
-    "Context Data": "Dane kontekstowe",
-    "Run the training and analysis pipeline to populate model comparison outputs.": "Uruchom pipeline trenowania i analizy, aby wypełnić wyniki porównania modeli.",
-    "Missing figure": "Brak wykresu",
-    "Data-to-Decision Story": "Od danych do decyzji",
-    "How raw shelter records become thesis evidence and practical shelter-facing signals.": "Jak surowe rekordy schroniska stają się materiałem do pracy i praktycznymi sygnałami dla schroniska.",
-    "Approach Comparison": "Porównanie podejść",
-    "Analytical layer": "Warstwa analityczna",
-    "Story weight": "Waga narracyjna",
-    "Probability Trust": "Wiarygodność prawdopodobieństw",
-    "When model says 70% adoption chance, does reality agree?": "Gdy model mówi o 70% szansy adopcji, czy rzeczywistość się zgadza?",
-    "Calibration curve": "Krzywa kalibracji",
-    "Long-stay Risk": "Ryzyko długiego pobytu",
-    "Which animals look adoptable but may wait longer?": "Które zwierzęta wyglądają na adopcyjne, ale mogą czekać dłużej?",
-    "Model Failure Modes": "Tryby błędów modelu",
-    "Where do false negatives and large LOS errors cluster?": "Gdzie grupują się fałszywe negatywy i duże błędy długości pobytu?",
-    "Which cohorts may deserve targeted visibility?": "Które kohorty mogą wymagać większej widoczności?",
-    "Similar Cases": "Podobne przypadki",
-    "What happened historically to animals like this one?": "Co historycznie działo się ze zwierzętami podobnymi do tego?",
-    "Real-life Shelter Questions": "Praktyczne pytania schroniska",
-    "Animal Journey Cards": "Karty ścieżki zwierzęcia",
-    "Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories.": "Uruchom `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv`, aby wypełnić historie zwierząt.",
-    "Animal profile": "Profil zwierzęcia",
-    "Similar records": "Podobne rekordy",
-    "Adoption rate": "Odsetek adopcji",
-    "Median days to outcome": "Mediana dni do wyniku",
-    "Visibility need": "Potrzeba widoczności",
-    "Profile": "Profil",
-    "has recorded name": "ma zapisane imię",
-    "no recorded name": "brak zapisanego imienia",
-    "Transfer rate": "Odsetek transferów",
-    "Return-to-owner rate": "Odsetek powrotów do opiekuna",
-    "Euthanasia rate": "Odsetek eutanazji",
-    "Model View for This Journey": "Widok modelu dla tej ścieżki",
-    "Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.": "Uruchom `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv`, aby dodać predykcje CatBoost do kart ścieżki.",
-    "Predicted adoption chance": "Prognozowana szansa adopcji",
-    "Predicted wait": "Prognozowane oczekiwanie",
-    "Predicted Time to Any Outcome": "Prognozowany czas do zakończenia pobytu",
-    "Model visibility label": "Etykieta widoczności modelu",
-    "Length-of-stay bucket": "Przedział długości pobytu",
-    "Representative model record": "Reprezentatywny rekord modelu",
-    "high visibility need": "wysoka potrzeba widoczności",
-    "medium visibility need": "średnia potrzeba widoczności",
-    "standard visibility": "standardowa widoczność",
-    "low": "niska",
-    "medium": "średnia",
-    "high": "wysoka",
-    "Similar Historical Cases": "Podobne przypadki historyczne",
-    "No similar historical cases found for this representative card.": "Nie znaleziono podobnych przypadków historycznych dla tej karty.",
-    "Top SHAP Reasons": "Najważniejsze powody SHAP",
-    "Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons.": "Uruchom `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap`, aby wypełnić powody SHAP.",
-    "Model-wide SHAP signals mapped onto this animal profile; associations, not causes.": "Globalne sygnały SHAP przypisane do profilu; to powiązania, nie przyczyny.",
-    "Local CatBoost SHAP values for the representative journey record; associations, not causes.": "Lokalne wartości SHAP CatBoost dla reprezentatywnego rekordu; to powiązania, nie przyczyny.",
-    "Key Animal Contrasts": "Kluczowe kontrasty zwierząt",
-    "Contrast": "Kontrast",
-    "Animal group": "Grupa zwierząt",
-    "Largest animal archetypes": "Największe archetypy zwierząt",
-    "Animal profiles needing visibility or support": "Profile wymagające widoczności lub wsparcia",
-    "Vulnerable Profiles": "Profile wrażliwe",
-    "Health and Behavior Support Profiles": "Profile zdrowia i wsparcia behawioralnego",
-    "Classification Table": "Tabela klasyfikacji",
-    "Regression Table": "Tabela regresji",
-    "Probability Trust Meter": "Miernik wiarygodności prawdopodobieństw",
-    "Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics.": "Uruchom `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv`, aby wypełnić diagnostykę kalibracji.",
-    "Mean predicted probability": "Średnie prognozowane prawdopodobieństwo",
-    "Observed adoption rate": "Zaobserwowany odsetek adopcji",
-    "Reliability Figures": "Wykresy wiarygodności",
-    "Advanced model ROC curve": "Krzywa ROC modelu zaawansowanego",
-    "Advanced model precision-recall curve": "Krzywa precision-recall modelu zaawansowanego",
-    "Probability calibration": "Kalibracja prawdopodobieństw",
-    "Regression predicted vs actual": "Regresja: prognoza vs wartość rzeczywista",
-    "Model Evidence Pack": "Pakiet dowodów modelu",
-    "Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts.": "Uruchom `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv`, aby wypełnić artefakty zaufania i ograniczeń.",
-    "Metric Confidence Intervals": "Przedziały ufności metryk",
-    "Metric": "Metryka",
-    "Bootstrap interval": "Przedział bootstrap",
-    "Cohort Reliability Limits": "Ograniczenia wiarygodności kohort",
-    "Calibration gap": "Luka kalibracji",
-    "Cohort value": "Wartość kohorty",
-    "Subgroup Explorer": "Eksplorator podgrup",
-    "Reliability subgroup": "Podgrupa wiarygodności",
-    "Where the Model Struggles": "Gdzie model ma trudności",
-    "Subgroup Metric Intervals": "Przedziały metryk podgrup",
-    "Time-to-Adoption Milestones": "Kamienie milowe czasu do adopcji",
-    "Milestone subgroup": "Podgrupa kamieni milowych",
-    "Adopted animals (%)": "Zwierzęta adoptowane (%)",
-    "Milestone": "Kamień milowy",
-    "Value": "Wartość",
-    "Records": "Rekordy",
-    "Adoptions": "Adopcje",
-    "Adopted by day": "Adoptowane do dnia",
-    "Animal Journey Evidence Examples": "Przykłady dowodów ścieżek zwierząt",
-    "SHAP Global Explanations": "Globalne wyjaśnienia SHAP",
-    "SHAP values describe factors associated with model predictions, not causal effects.": "Wartości SHAP opisują czynniki powiązane z predykcjami modelu, nie efekty przyczynowe.",
-    "Classification SHAP summary": "Podsumowanie SHAP klasyfikacji",
-    "Regression SHAP summary": "Podsumowanie SHAP regresji",
-    "Feature Family Scores": "Wyniki rodzin cech",
-    "Sum mean absolute SHAP": "Suma średnich bezwzględnych SHAP",
-    "Feature family": "Rodzina cech",
-    "Run diagnostics with `--include-shap` to populate interpretation artifacts.": "Uruchom diagnostykę z `--include-shap`, aby wypełnić artefakty interpretacji.",
-    "Risk Threshold Simulator": "Symulator progu ryzyka",
-    "Run diagnostics to populate threshold tradeoffs.": "Uruchom diagnostykę, aby wypełnić kompromisy progów.",
-    "Adoption probability threshold": "Próg prawdopodobieństwa adopcji",
-    "Precision": "Precyzja",
-    "Recall": "Czułość",
-    "F1": "F1",
-    "Flagged share": "Odsetek oznaczonych",
-    "Threshold": "Próg",
-    "Metric value": "Wartość metryki",
-    "Placement Risk Quadrant": "Kwadrant ryzyka umieszczenia",
-    "Predicted adoption probability": "Prognozowane prawdopodobieństwo adopcji",
-    "Predicted days to outcome": "Prognozowane dni do wyniku",
-    "Error Slice Explorer": "Eksplorator przekrojów błędów",
-    "H1: Intake vs Appearance": "H1: Przyjęcie vs wygląd",
-    "H3: Age and Length of Stay": "H3: Wiek i długość pobytu",
-    "H5: COVID-period Dynamics": "H5: Dynamika okresu COVID",
-    "Campaign Candidate Finder": "Wyszukiwarka kandydatów do kampanii",
-    "Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.": "Eksploracyjna wyszukiwarka kohort, które mogą skorzystać z większej widoczności. To nie jest logika rekomendacji przyczynowej.",
-    "Run diagnostics to populate campaign cohorts.": "Uruchom diagnostykę, aby wypełnić kohorty kampanii.",
-    "All": "Wszystkie",
-    "No records match this cohort.": "Brak rekordów pasujących do tej kohorty.",
-    "Cohort size": "Wielkość kohorty",
-    "Observed adoption": "Zaobserwowana adopcja",
-    "Mean predicted adoption": "Średnia prognozowana adopcja",
-    "Median predicted days": "Mediana prognozowanych dni",
-    "Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact.": "Ujęcie kampanii: ta kohorta może być użyteczna dla działań zwiększających widoczność, gdy prognozowana szansa adopcji jest niska lub prognozowany czas do wyniku jest wysoki. Traktuj to jako sygnał priorytetyzacji, nie dowód wpływu interwencji.",
-    "Animal Type": "Typ zwierzęcia",
-    "Age Group": "Grupa wieku",
-    "Intake Type": "Typ przyjęcia",
-    "Covid Period": "Okres COVID",
-    "Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.": "Używa połączonego klasyfikatora i regresora CatBoost, gdy istnieją artefakty modeli zaawansowanych. To predykcja demonstracyjna, nie przyczynowa reguła decyzyjna.",
-    "Animal type": "Typ zwierzęcia",
-    "Intake type": "Typ przyjęcia",
-    "Intake condition": "Stan przy przyjęciu",
-    "Sex upon intake": "Status płciowy przy przyjęciu",
-    "Has name": "Ma imię",
-    "Age in years": "Wiek w latach",
-    "Breed": "Rasa",
-    "Color": "Kolor",
-    "Intake date": "Data przyjęcia",
-    "Run prediction": "Uruchom predykcję",
-    "Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.": "Najpierw uruchom `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv`.",
-    "Timeline group": "Grupa osi czasu",
-    "Run diagnostics to generate adoption timeline milestones.": "Uruchom diagnostykę, aby wygenerować kamienie milowe adopcji.",
-    "Share adopted (%)": "Odsetek adoptowanych (%)",
-    "Adoption timeline milestones": "Kamienie milowe osi czasu adopcji",
-    "Generated Artifacts": "Wygenerowane artefakty",
-    "Core commands:": "Główne komendy:",
-    "Reports directory:": "Katalog raportów:",
-    "Models directory:": "Katalog modeli:",
-    "External Context Feature Test": "Test cech kontekstowych",
-    "Run the commands below to populate `context_model_comparison.csv`.": "Uruchom poniższe komendy, aby wypełnić `context_model_comparison.csv`.",
-    "Context features use intake-date weather and prior-window 311/intake-volume counts only.": "Cechy kontekstowe używają pogody z dnia przyjęcia oraz wcześniejszych okien 311/liczby przyjęć.",
-    "Context minus base metric delta": "Różnica metryki: kontekst minus baza",
-    "Model": "Model",
-    "Effect": "Efekt",
-    "Task": "Zadanie",
-    "improved": "poprawa",
-    "worsened": "pogorszenie",
-    "Dog": "Pies",
-    "Cat": "Kot",
-    "Stray": "Znalezione/bezdomne",
-    "Owner Surrender": "Oddane przez właściciela",
-    "Public Assist": "Pomoc publiczna",
-    "Abandoned": "Porzucone",
-    "Euthanasia Request": "Prośba o eutanazję",
-    "Normal": "Normalny",
-    "Injured": "Ranny",
-    "Sick": "Chory",
-    "Nursing": "Karmiący",
-    "Neonatal": "Noworodek",
-    "Aged": "Starszy",
-    "Medical": "Medyczny",
-    "Behavior": "Behawioralny",
-    "Other": "Inny",
-    "Intact Male": "Samiec niesterylizowany",
-    "Intact Female": "Samica niesterylizowana",
-    "Neutered Male": "samiec kastrowany",
-    "Spayed Female": "samica sterylizowana",
-    "Unknown": "nieznane",
-    "unknown health": "nieznany stan zdrowia",
-    "unknown behavior signal": "nieznany sygnał behawioralny",
-    "📖 Thesis Guide": "Przewodnik po pracy",
-    "Model Sensitivity Demo": "Demo wrażliwości modelu",
-    "Generated Artifacts": "Wygenerowane artefakty",
-    "Filter by Required for Thesis": "Filtruj: tylko wymagane do pracy",
-    "Select Report to View": "Wybierz raport do wyświetlenia",
-    "Viewing Report:": "Wyświetlany raport:",
-    "Report file not found on disk.": "Plik raportu nie został znaleziony na dysku.",
-    "Target Definitions & Outcome Mappings": "Definicje celów i mapowania wyników",
-    "External Causal Validity & Generalisation Limits": "Zewnętrzna wiarygodność przyczynowa i granice generalizacji",
-    "Breed and Coat Colour Feature Engineering Justification": "Uzasadnienie inżynierii cech rasy i maści",
-    "Machine Learning vs. Descriptive Non-ML Baselines": "Uczenie maszynowe kontra opisowe linie bazowe bez ML",
-    "H1 — Intake Profile & Causal Context": "H1 — Profil przyjęcia i kontekst przyczynowy",
-    "H2 — Seasonality & Intake Dynamics": "H2 — Sezonowość i dynamika przyjęć",
-    "H3 — Age and Time-to-Outcome Timing": "H3 — Wiek i czas do zakończenia pobytu",
-    "H4 — Coat Colour (Black/Dark Animal Syndrome Check)": "H4 — Maść (Syndrom czarnego psa/kota)",
-    "H5 — COVID-Period Population Shift and Volume Impact": "H5 — Zmiana populacji w okresie COVID i wpływ liczby przyjęć",
-    "H1 - Intake Profile & Causal Context": "H1 - Profil przyjecia i kontekst przyczynowy",
-    "H2 - Seasonality & Intake Dynamics": "H2 - Sezonowosc i dynamika przyjec",
-    "H3 - Age and Time-to-Outcome Timing": "H3 - Wiek i czas do zakonczenia pobytu",
-    "H4 - Coat Colour (Black/Dark Animal Syndrome Check)": "H4 - Masc (Syndrom czarnego psa/kota)",
-    "H5 - COVID-Period Population Shift and Volume Impact": "H5 - Zmiana populacji w okresie COVID i wplyw liczby przyjec",
-    "Hypothesis Evidence Matrix Summary": "Podsumowanie macierzy dowodów hipotez",
-    "Data Leakage Audit & Control Log": "Audyt wycieku danych i dziennik kontroli",
-    "Propensity Score Matching Validation Examples": "Przykłady walidacji dopasowania wskaźnika skłonności (PSM)",
-    "Narrative Model Evidence & Key Findings Pack": "Pakiet opisowych dowodów modelu i kluczowych wniosków",
-    "Subgroup Reliability & Underrepresented Cohorts": "Niezawodność w podgrupach i niedoreprezentowane kohorty",
-    "Final Model Architecture Selection": "Wybór ostatecznej architektury modelu",
-    "Optimal Classification Threshold & Utility Analysis": "Optymalny próg klasyfikacji i analiza użyteczności",
-    "Model Probability Calibration Interpretation": "Interpretacja kalibracji prawdopodobieństwa modelu",
-    "Operational Risk & Model Reliability Red Flags": "Ryzyko operacyjne i czerwone flagi niezawodności modelu",
-    "Data Pipeline Audit & Attrition Logging": "Audyt potoku danych i logowanie atrycji",
-    "Reproducibility Snapshot & Environment Info": "Migawka odtwarzalności i informacje o środowisku",
-    "quick placement likely": "prawdopodobne szybkie umieszczenie",
-    "needs visibility": "wymaga promowania",
-    "long-stay risk": "ryzyko długiego pobytu",
-    "outcome support priority": "priorytet wsparcia",
-    "Classification PR-AUC": "Klasyfikacja PR-AUC",
-    "Classification ROC-AUC": "Klasyfikacja ROC-AUC",
-    "Classification F1": "Klasyfikacja F1",
-    "Regression MAE": "Regresja MAE",
-    "Regression RMSE": "Regresja RMSE",
-    "Predicted adoption chance (calibrated)": "Prognozowana szansa adopcji (skalibrowana)",
-    "Predicted adoption probability (calibrated)": "Prognozowane prawdopodobieństwo adopcji (skalibrowane)",
-    "**Adoption Rates by Intake Type**": "**Wskaźniki adopcji według typu przyjęcia**",
-    "**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes.": "**Wniosek:** Starsze zwierzęta mają znacznie mniejsze szanse na adopcję. Czas oczekiwania na jakikolwiek wynik jest złożony, ponieważ seniorzy mogą szybciej opuszczać schronisko z powodu wyższych wskaźników wyników innych niż adopcja.",
-    "**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition).": "**Wniosek:** Wygląd fizyczny (rasa i kolor) oraz wiek są najsilniejszymi predyktorami adopcji, znacznie przewyższającymi kontekst przybycia zwierzęcia (okoliczności przyjęcia i stan).",
-    "**Finding:** The COVID-19 pandemic period was associated with a marked increase in adoption rates and a reduction in total volume. These period shifts must be accounted for to prevent model drift.": "**Wniosek:** Okres pandemii COVID-19 był związany z wyraźnym wzrostem wskaźników adopcji i spadkiem całkowitej liczby przyjęć. Te zmiany w czasie muszą zostać uwzględnione, aby zapobiec dryfowi modelu.",
-    "**Global SHAP Feature Importance (Classification)**": "**Globalna ważność cech SHAP (klasyfikacja)**",
-    "**Median Days to Outcome by Age**": "**Mediana dni do wyniku według wieku**",
-    "**Volume and Outcomes Across Periods**": "**Liczba przyjęć i wyniki w różnych okresach**",
-    "All generated thesis deliverables, target definitions, and validation reports are listed below.": "Wszystkie wygenerowane materiały dyplomowe, definicje celów i raporty walidacyjne są wymienione poniżej.",
-    "Artifact Manifest": "Manifest artefaktów",
-    "Artifact Path": "Ścieżka artefaktu",
-    "Artifact Type": "Typ artefaktu",
-    "Automated euthanasia triaging": "Zautomatyzowane selekcjonowanie eutanazji",
-    "Best Use Case": "Najlepszy przypadek użycia",
-    "CatBoost consistently outperformed baseline models at separating adoptions from other outcomes, offering the highest precision-recall area under the curve (PR-AUC) for this imbalanced task.": "CatBoost konsekwentnie przewyższał modele bazowe w oddzielaniu adopcji od innych wyników, oferując najwyższe pole pod krzywą precision-recall (PR-AUC) dla tego niezbalansowanego zadania.",
-    "Chapter": "Rozdział",
-    "Data only reflects intake time": "Dane odzwierciedlają tylko moment przyjęcia",
-    "Days": "Dni",
-    "Exists": "Istnieje",
-    "For predicting the exact length of stay, CatBoost provided the lowest average error. However, length-of-stay is highly skewed and right-censored.": "W przewidywaniu dokładnej długości pobytu CatBoost zapewnił najniższy średni błąd. Jednak długość pobytu jest bardzo skośna i prawostronnie cenzurowana.",
-    "Higher is better. Evaluated on out-of-time test set.": "Więcej znaczy lepiej. Oceniane na wyodrębnionym w czasie zbiorze testowym.",
-    "Importance Impact": "Wpływ ważności",
-    "Lower is better. Mean absolute error on test set.": "Mniej znaczy lepiej. Średni błąd bezwzględny na zbiorze testowym.",
-    "Model output is unavailable. Check model artifacts and metadata.": "Wynik modelu jest niedostępny. Sprawdź artefakty i metadane modelu.",
-    "No classification artifacts found.": "Nie znaleziono artefaktów klasyfikacji.",
-    "No model is perfect. Here is exactly where the model struggles and the magnitude of its errors:": "Żaden model nie jest doskonały. Oto dokładnie, gdzie model ma trudności oraz wielkość jego błędów:",
-    "No regression artifacts found.": "Nie znaleziono artefaktów regresji.",
-    "Notes": "Notatki",
-    "Prediction failed.": "Predykcja nie powiodła się.",
-    "Primary Limitation": "Główne ograniczenie",
-    "Primary Metric (MAE)": "Główna metryka (MAE)",
-    "Primary Metric (PR-AUC)": "Główna metryka (PR-AUC)",
-    "Prioritizing visibility campaigns": "Priorytetyzacja kampanii widoczności",
-    "Read Thesis & Methodology Reports": "Przeczytaj raporty dyplomowe i metodologiczne",
-    "Refresh Data": "Odśwież dane",
-    "Required": "Wymagane",
-    "Riskiest Use Case": "Najbardziej ryzykowne użycie",
-    "Run `python scripts/generate_diagnostics.py` to see error slices.": "Uruchom `python scripts/generate_diagnostics.py`, aby zobaczyć przekroje błędów.",
-    "Run `python scripts/generate_evidence_pack.py` to see failure modes.": "Uruchom `python scripts/generate_evidence_pack.py`, aby zobaczyć tryby błędów.",
-    "Source Script": "Skrypt źródłowy",
-    "The machine learning pipeline evaluated logistic regression, random forests, histogram gradient boosting, and CatBoost models. Here is the final selection based on empirical validation data:": "Potok uczenia maszynowego ocenił modele regresji logistycznej, lasów losowych, histogram gradient boosting i CatBoost. Oto ostateczny wybór oparty na empirycznych danych walidacyjnych:",
-    "The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:": "Średni błąd bezwzględny (MAE) modelu regresji różni się drastycznie w zależności od podgrupy:",
-    "This dashboard translates raw shelter data into concrete evidence. Below are the finalized findings across the primary thesis hypotheses.": "Ten dashboard przekłada surowe dane ze schroniska na konkretne dowody. Poniżej znajdują się ostateczne ustalenia dotyczące głównych hipotez pracy.",
-    "Uses the combined classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.": "Używa połączonego klasyfikatora i regresora, gdy istnieją artefakty modeli zaawansowanych. To predykcja demonstracyjna, nie przyczynowa reguła decyzyjna.",
-    "View Full Executive Summary Report": "Wyświetl pełny raport podsumowujący",
-    "When the model misclassifies an outcome, these are the most common failure modes:": "Gdy model błędnie klasyfikuje wynik, są to najczęstsze tryby błędów:",
-    "While machine learning successfully ranks animals by placement difficulty, **these predictions are associative, not causal.**": "Chociaż uczenie maszynowe skutecznie uszeregowuje zwierzęta według trudności umieszczenia, **te predykcje są powiązane, a nie przyczynowe.**",
-    "While puppies and kittens ('baby') often leave the shelter within 6-7 days, 'adult' animals face similar wait times. 'Senior' animals exhibit shorter median days to any outcome (e.g. 4.2 days), reflecting alternative outcome pathways. Age remains a critical predictive feature.": "Chociaż szczenięta i kocięta ('młode') często opuszczają schronisko w ciągu 6-7 dni, 'dorosłe' zwierzęta mają podobny czas oczekiwania. 'Seniorzy' wykazują krótszą medianę dni do jakiegokolwiek wyniku (np. 4,2 dnia), odzwierciedlając alternatywne ścieżki wyników. Wiek pozostaje kluczową cechą predykcyjną.",
-    "⚠️ Interpretation limits": "⚠️ Ograniczenia interpretacji",
-    "🎓 Thesis Conclusions": "🎓 Wnioski z pracy",
-    "This explanation shows model feature contributions, not real-world causes of this animal's outcome. Feature families like breed or coat color represent associations in the training set, not proof of direct impact.": "To wyjaśnienie pokazuje wkład cech modelu, a nie rzeczywiste przyczyny wyniku tego zwierzęcia. Rodziny cech takie jak rasa czy kolor sierści reprezentują powiązania w zbiorze treningowym, a nie dowód na bezpośredni wpływ.",
-}
+PL = {   'AAC Adoption Thesis Demo': 'Wizualizacja wyników pracy magisterskiej: '
+                                'analiza predykcyjna adopcji w AAC',
+    'Artifact-driven dashboard for model results, hypothesis signals, and model sensitivity checks.': 'Interaktywny '
+                                                                                                      'system '
+                                                                                                      'wizualizacji '
+                                                                                                      'modeli '
+                                                                                                      'klasyfikacyjnych, '
+                                                                                                      'weryfikacji '
+                                                                                                      'hipotez '
+                                                                                                      'oraz '
+                                                                                                      'analizy '
+                                                                                                      'wrażliwości.',
+    'Language': 'Język',
+    'Executive Overview': 'Przegląd analityczny',
+    'Story Mode': 'Analiza ścieżek (Story Mode)',
+    'Animal Stories': 'Analiza przypadków (Case Studies)',
+    'Model Quality': 'Ewaluacja predykcyjna modelu',
+    'Trust & Limits': 'Analiza wiarygodności i ograniczeń',
+    'Interpretability': 'Interpretowalność (XAI)',
+    'Risk Explorer': 'Moduł ewaluacji ryzyka',
+    'Hypothesis Lab': 'Weryfikacja hipotez badawczych',
+    'Campaign Finder': 'Identyfikacja celów interwencji promocyjnych',
+    'Adoption Timeline': 'Analiza przeżycia (Oś czasu adopcji)',
+    'Artifacts': 'Zestawienie artefaktów badawczych',
+    'Context Data': 'Zmienne środowiskowe i kontekstowe',
+    'Run the training and analysis pipeline to populate model comparison outputs.': 'Uruchom '
+                                                                                    'potok '
+                                                                                    'trenowania '
+                                                                                    'i '
+                                                                                    'analizy '
+                                                                                    '(pipeline), '
+                                                                                    'aby '
+                                                                                    'wygenerować '
+                                                                                    'wyniki '
+                                                                                    'porównawcze '
+                                                                                    'modeli.',
+    'Missing figure': 'Brakujący artefakt graficzny',
+    'Data-to-Decision Story': 'Transformacja danych w sygnały decyzyjne',
+    'How raw shelter records become thesis evidence and practical shelter-facing signals.': 'Proces '
+                                                                                            'transformacji '
+                                                                                            'surowych '
+                                                                                            'danych '
+                                                                                            'schroniskowych '
+                                                                                            'w '
+                                                                                            'empiryczny '
+                                                                                            'materiał '
+                                                                                            'badawczy '
+                                                                                            'oraz '
+                                                                                            'analityczne '
+                                                                                            'sygnały '
+                                                                                            'decyzyjne.',
+    'Approach Comparison': 'Analiza porównawcza podejść analitycznych',
+    'Analytical layer': 'Warstwa analityczna',
+    'Story weight': 'Waga przypadku',
+    'Probability Trust': 'Kalibracja i wiarygodność predykcji',
+    'When model says 70% adoption chance, does reality agree?': 'Weryfikacja '
+                                                                'stopnia '
+                                                                'zgodności '
+                                                                'prognozowanego '
+                                                                'prawdopodobieństwa '
+                                                                'adopcji z '
+                                                                'rzeczywistą '
+                                                                'częstością '
+                                                                'zdarzeń.',
+    'Calibration curve': 'Krzywa kalibracyjna (Reliability Diagram)',
+    'Long-stay Risk': 'Estymacja ryzyka wydłużonego pobytu',
+    'Which animals look adoptable but may wait longer?': 'Identyfikacja kohort '
+                                                         'o wysokim '
+                                                         'prawdopodobieństwie '
+                                                         'adopcji przy '
+                                                         'jednoczesnym '
+                                                         'podwyższonym ryzyku '
+                                                         'wydłużonego czasu '
+                                                         'oczekiwania.',
+    'Model Failure Modes': 'Charakterystyka błędów modelu (Failure Modes)',
+    'Where do false negatives and large LOS errors cluster?': 'Identyfikacja '
+                                                              'klastrów '
+                                                              'fałszywie '
+                                                              'negatywnych '
+                                                              'predykcji oraz '
+                                                              'wariancji w '
+                                                              'estymacji czasu '
+                                                              'pobytu.',
+    'Which cohorts may deserve targeted visibility?': 'Identyfikacja '
+                                                      'subpopulacji '
+                                                      'wymagających '
+                                                      'ukierunkowanych działań '
+                                                      'promocyjnych.',
+    'Similar Cases': 'Analiza historycznych przypadków referencyjnych',
+    'What happened historically to animals like this one?': 'Analiza rozkładu '
+                                                            'wyników dla '
+                                                            'historycznych '
+                                                            'wektorów o '
+                                                            'wysokim stopniu '
+                                                            'prawdopodobieństwa/podobieństwa.',
+    'Real-life Shelter Questions': 'Zastosowanie operacyjne w warunkach '
+                                   'schroniskowych',
+    'Animal Journey Cards': 'Karty analizy ścieżki pobytu',
+    'Run `python scripts/generate_animal_research.py --data data/processed/modeling_dataset.csv` to populate animal stories.': 'Uruchom '
+                                                                                                                               '`python '
+                                                                                                                               'scripts/generate_animal_research.py '
+                                                                                                                               '--data '
+                                                                                                                               'data/processed/modeling_dataset.csv`, '
+                                                                                                                               'aby '
+                                                                                                                               'wygenerować '
+                                                                                                                               'analizę '
+                                                                                                                               'przypadków '
+                                                                                                                               'zwierząt.',
+    'Animal profile': 'Profil analizowanego obiektu',
+    'Similar records': 'Zbieżne wektory (N)',
+    'Adoption rate': 'Odsetek pozytywnych adopcji (%)',
+    'Median days to outcome': 'Mediana czasu do rozstrzygnięcia (dni)',
+    'Visibility need': 'Ewaluacja potrzeby ekspozycji',
+    'Profile': 'Charakterystyka obiektu',
+    'has recorded name': 'zarejestrowane imię',
+    'no recorded name': 'brak zarejestrowanego imienia',
+    'Transfer rate': 'Odsetek transferów zewnętrznych (%)',
+    'Return-to-owner rate': 'Odsetek powrotów do pierwotnego właściciela (%)',
+    'Euthanasia rate': 'Wskaźnik eutanazji (%)',
+    'Model View for This Journey': 'Wynik predykcji dla zadanego wektora',
+    'Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` to add representative CatBoost predictions to journey cards.': 'Uruchom '
+                                                                                                                                                      '`python '
+                                                                                                                                                      'scripts/train_advanced.py '
+                                                                                                                                                      '--data '
+                                                                                                                                                      'data/processed/modeling_dataset.csv`, '
+                                                                                                                                                      'aby '
+                                                                                                                                                      'włączyć '
+                                                                                                                                                      'ewaluację '
+                                                                                                                                                      'modelem '
+                                                                                                                                                      'CatBoost '
+                                                                                                                                                      'do '
+                                                                                                                                                      'widoku '
+                                                                                                                                                      'profili.',
+    'Predicted adoption chance': 'Estymowane prawdopodobieństwo adopcji',
+    'Predicted wait': 'Estymowany czas oczekiwania',
+    'Predicted Time to Any Outcome': 'Estymowany czas do rozstrzygnięcia',
+    'Model visibility label': 'Klasyfikacja zapotrzebowania na ekspozycję',
+    'Length-of-stay bucket': 'Kategoryzacja estymowanej długości pobytu',
+    'Representative model record': 'Referencyjny wektor cech w modelu',
+    'high visibility need': 'wysoki priorytet ekspozycji',
+    'medium visibility need': 'umiarkowany priorytet ekspozycji',
+    'standard visibility': 'standardowy priorytet ekspozycji',
+    'low': 'niska',
+    'medium': 'umiarkowana',
+    'high': 'wysoka',
+    'Similar Historical Cases': 'Historyczne profile referencyjne',
+    'No similar historical cases found for this representative card.': 'Brak '
+                                                                       'historycznych '
+                                                                       'obserwacji '
+                                                                       'o '
+                                                                       'wystarczającym '
+                                                                       'stopniu '
+                                                                       'zbieżności '
+                                                                       'cech '
+                                                                       'dla '
+                                                                       'analizowanego '
+                                                                       'wektora.',
+    'Top SHAP Reasons': 'Analiza istotności cech lokalnych (SHAP)',
+    'Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv --include-shap` to populate SHAP reasons.': 'Uruchom '
+                                                                                                                                        '`python '
+                                                                                                                                        'scripts/generate_diagnostics.py '
+                                                                                                                                        '--data '
+                                                                                                                                        'data/processed/modeling_dataset.csv '
+                                                                                                                                        '--include-shap`, '
+                                                                                                                                        'aby '
+                                                                                                                                        'wygenerować '
+                                                                                                                                        'wektory '
+                                                                                                                                        'wartości '
+                                                                                                                                        'SHAP.',
+    'Model-wide SHAP signals mapped onto this animal profile; associations, not causes.': 'Globalne '
+                                                                                          'wartości '
+                                                                                          'dyskryminacyjne '
+                                                                                          '(SHAP) '
+                                                                                          'aproksymowane '
+                                                                                          'dla '
+                                                                                          'analizowanego '
+                                                                                          'wektora; '
+                                                                                          'wskazują '
+                                                                                          'korelacje, '
+                                                                                          'bez '
+                                                                                          'implikacji '
+                                                                                          'kauzalnych.',
+    'Local CatBoost SHAP values for the representative journey record; associations, not causes.': 'Lokalne '
+                                                                                                   'miary '
+                                                                                                   'SHAP '
+                                                                                                   '(CatBoost) '
+                                                                                                   'dla '
+                                                                                                   'analizowanego '
+                                                                                                   'wektora; '
+                                                                                                   'determinują '
+                                                                                                   'asocjacje '
+                                                                                                   'bez '
+                                                                                                   'domniemania '
+                                                                                                   'związków '
+                                                                                                   'przyczynowo-skutkowych.',
+    'Key Animal Contrasts': 'Kluczowe dysproporcje statystyczne',
+    'Contrast': 'Rozbieżność (Contrast)',
+    'Animal group': 'Kategoria podmiotu',
+    'Largest animal archetypes': 'Dominujące klastry fenotypowe',
+    'Animal profiles needing visibility or support': 'Profile wymagające '
+                                                     'podwyższonej ekspozycji '
+                                                     'lub specjalistycznego '
+                                                     'wsparcia',
+    'Vulnerable Profiles': 'Kohorty o podwyższonym poziomie ryzyka '
+                           '(Vulnerable)',
+    'Health and Behavior Support Profiles': 'Profile specyficznych interwencji '
+                                            'medycznych i behawioralnych',
+    'Classification Table': 'Macierz wyników klasyfikacyjnych',
+    'Regression Table': 'Macierz błędów regresyjnych',
+    'Probability Trust Meter': 'Analiza wiarygodności (Calibration / Trust)',
+    'Run `python scripts/generate_diagnostics.py --data data/processed/modeling_dataset.csv` to populate calibration diagnostics.': 'Uruchom '
+                                                                                                                                    '`python '
+                                                                                                                                    'scripts/generate_diagnostics.py '
+                                                                                                                                    '--data '
+                                                                                                                                    'data/processed/modeling_dataset.csv`, '
+                                                                                                                                    'aby '
+                                                                                                                                    'wyliczyć '
+                                                                                                                                    'metryki '
+                                                                                                                                    'kalibracyjne.',
+    'Mean predicted probability': 'Średnie estymowane prawdopodobieństwo',
+    'Observed adoption rate': 'Empiryczny odsetek adopcji',
+    'Reliability Figures': 'Wizualizacja charakterystyk niezawodności',
+    'Advanced model ROC curve': 'Krzywa ROC (Receiver Operating '
+                                'Characteristic) modelu docelowego',
+    'Advanced model precision-recall curve': 'Krzywa PR (Precision-Recall) '
+                                             'modelu docelowego',
+    'Probability calibration': 'Krzywa kalibracji prawdopodobieństw '
+                               '(Reliability Curve)',
+    'Regression predicted vs actual': 'Analiza wariancji: przewidywania '
+                                      'regresora a wartości empiryczne',
+    'Model Evidence Pack': 'Rozszerzone dossier ewaluacji modelu',
+    'Run `python scripts/generate_evidence_pack.py --data data/processed/modeling_dataset.csv` to populate trust and limits artifacts.': 'Uruchom '
+                                                                                                                                         '`python '
+                                                                                                                                         'scripts/generate_evidence_pack.py '
+                                                                                                                                         '--data '
+                                                                                                                                         'data/processed/modeling_dataset.csv`, '
+                                                                                                                                         'aby '
+                                                                                                                                         'wygenerować '
+                                                                                                                                         'estymatory '
+                                                                                                                                         'zaufania '
+                                                                                                                                         'analitycznego.',
+    'Metric Confidence Intervals': 'Przedziały ufności dla metryk '
+                                   'ewaluacyjnych',
+    'Metric': 'Metryka',
+    'Bootstrap interval': 'Estymator przedziałowy (Bootstrap CI)',
+    'Cohort Reliability Limits': 'Analiza pogorszenia parametrów predykcyjnych '
+                                 'w subpopulacjach',
+    'Calibration gap': 'Błąd kalibracji (Calibration Gap)',
+    'Cohort value': 'Kwantyfikacja dla subpopulacji',
+    'Subgroup Explorer': 'Dekonstrukcja metryk w subpopulacjach',
+    'Reliability subgroup': 'Rozpatrywana podgrupa demograficzna',
+    'Where the Model Struggles': 'Obszary ograniczonej zdolności predykcyjnej',
+    'Subgroup Metric Intervals': 'Analiza przedziałowa metryk podgrup',
+    'Time-to-Adoption Milestones': 'Punkty krytyczne czasu przebywania w '
+                                   'schronisku',
+    'Milestone subgroup': 'Podgrupa ewaluowana (Survival Analysis)',
+    'Adopted animals (%)': 'Skumulowany odsetek adopcji (%)',
+    'Milestone': 'Kwantyl czasowy',
+    'Value': 'Miara empiryczna',
+    'Records': 'Liczba obserwacji (N)',
+    'Adoptions': 'Zrealizowane adopcje',
+    'Adopted by day': 'Rozstrzygnięte do (dzień)',
+    'Animal Journey Evidence Examples': 'Empiryczna weryfikacja predykcji na '
+                                        'tle przypadków historycznych',
+    'SHAP Global Explanations': 'Globalna analiza struktury ważności cech '
+                                '(SHAP)',
+    'SHAP values describe factors associated with model predictions, not causal effects.': 'Miary '
+                                                                                           'SHAP '
+                                                                                           'kwantyfikują '
+                                                                                           'relacyjną '
+                                                                                           'istotność '
+                                                                                           'predyktorów; '
+                                                                                           'nie '
+                                                                                           'uprawniają '
+                                                                                           'one '
+                                                                                           'do '
+                                                                                           'konkluzji '
+                                                                                           'o '
+                                                                                           'mechanizmach '
+                                                                                           'przyczynowo-skutkowych.',
+    'Classification SHAP summary': 'Struktura ważności predyktorów: model '
+                                   'klasyfikacyjny',
+    'Regression SHAP summary': 'Struktura ważności predyktorów: model '
+                               'regresyjny',
+    'Feature Family Scores': 'Znaczenie predykcyjne zagregowanych klas cech',
+    'Sum mean absolute SHAP': 'Zsumowana bezwzględna wartość aproksymacji SHAP',
+    'Feature family': 'Kategoria predyktorów',
+    'Run diagnostics with `--include-shap` to populate interpretation artifacts.': 'Zainicjuj '
+                                                                                   'system '
+                                                                                   'z '
+                                                                                   'parametrem '
+                                                                                   '`--include-shap` '
+                                                                                   'dla '
+                                                                                   'pełnej '
+                                                                                   'dekompozycji '
+                                                                                   'XAI.',
+    'Risk Threshold Simulator': 'Analiza wrażliwości na przesunięcie progu '
+                                'klasyfikacyjnego (Decision Threshold '
+                                'Simulator)',
+    'Run diagnostics to populate threshold tradeoffs.': 'Uruchom rutyny '
+                                                        'diagnostyczne w celu '
+                                                        'wygenerowania punktów '
+                                                        'kompromisu '
+                                                        '(trade-off) dla '
+                                                        'progu.',
+    'Adoption probability threshold': 'Próg prawdopodobieństwa dyskryminacji '
+                                      'pozytywnej',
+    'Precision': 'Precyzja predykcji (Precision)',
+    'Recall': 'Czułość predykcji (Recall)',
+    'F1': 'Metryka harmonijna (F1 Score)',
+    'Flagged share': 'Frakcja obserwacji zakwalifikowanych ponad próg',
+    'Threshold': 'Próg decyzyjny',
+    'Metric value': 'Kwantyfikacja metryki',
+    'Placement Risk Quadrant': 'Macierz identyfikacji przypadków o '
+                               'podwyższonym ryzyku przedłużonego pobytu',
+    'Predicted adoption probability': 'Estymowane prawdopodobieństwo sukcesu '
+                                      'adopcyjnego',
+    'Predicted days to outcome': 'Estymowany czas przetrzymywania do '
+                                 'rozstrzygnięcia',
+    'Error Slice Explorer': 'Dekompozycja strukturalna błędu estymatora',
+    'H1: Intake vs Appearance': 'H1: Zmienne kontekstowe vs predyktory '
+                                'fenotypowe',
+    'H3: Age and Length of Stay': 'H3: Dystrybucja czasu pobytu w funkcji '
+                                  'wieku',
+    'H5: COVID-period Dynamics': 'H5: Oscylacje wolumenu zjawiska w okresie '
+                                 'pandemii COVID-19',
+    'Campaign Candidate Finder': 'Moduł selekcji kohortowej dla '
+                                 'ukierunkowanych interwencji promocyjnych',
+    'Exploratory cohort finder for groups that may benefit from targeted visibility. This is not causal recommendation logic.': 'Eksploracyjne '
+                                                                                                                                'narzędzie '
+                                                                                                                                'identyfikacji '
+                                                                                                                                'podgrup '
+                                                                                                                                'o '
+                                                                                                                                'zaniżonym '
+                                                                                                                                'profilu '
+                                                                                                                                'adopcyjnym. '
+                                                                                                                                'Wyselekcjonowane '
+                                                                                                                                'podmioty '
+                                                                                                                                'pełnią '
+                                                                                                                                'rolę '
+                                                                                                                                'propozycji '
+                                                                                                                                'decyzyjnej '
+                                                                                                                                'bez '
+                                                                                                                                'domniemania '
+                                                                                                                                'deterministycznej '
+                                                                                                                                'sprawczości '
+                                                                                                                                'kampanii.',
+    'Run diagnostics to populate campaign cohorts.': 'Dokonaj ewaluacji '
+                                                     'diagnostycznej, aby '
+                                                     'wypełnić macierz '
+                                                     'pre-wytypowanych grup '
+                                                     'promocyjnych.',
+    'All': 'Populacja całkowita',
+    'No records match this cohort.': 'Nie zidentyfikowano wektorów '
+                                     'spełniających warunki definicji wybranej '
+                                     'kohorty.',
+    'Cohort size': 'Liczebność (N) podgrupy',
+    'Observed adoption': 'Wskaźnik adopcji - obserwacje empiryczne',
+    'Mean predicted adoption': 'Wartość oczekiwana estymowanego '
+                               'prawdopodobieństwa',
+    'Median predicted days': 'Mediana prognozowanego czasu przetrzymywania '
+                             '(dni)',
+    'Campaign framing: this cohort may be useful for targeted visibility when predicted adoption probability is low or predicted days to outcome are high. Treat this as a prioritization signal, not proof of intervention impact.': 'Założenia '
+                                                                                                                                                                                                                                      'operacyjne: '
+                                                                                                                                                                                                                                      'wyszczególniona '
+                                                                                                                                                                                                                                      'kohorta '
+                                                                                                                                                                                                                                      'kwalifikuje '
+                                                                                                                                                                                                                                      'się '
+                                                                                                                                                                                                                                      'do '
+                                                                                                                                                                                                                                      'objęcia '
+                                                                                                                                                                                                                                      'zintensyfikowanym '
+                                                                                                                                                                                                                                      'pakietem '
+                                                                                                                                                                                                                                      'ekspozycji, '
+                                                                                                                                                                                                                                      'ze '
+                                                                                                                                                                                                                                      'względu '
+                                                                                                                                                                                                                                      'na '
+                                                                                                                                                                                                                                      'deficyt '
+                                                                                                                                                                                                                                      'przewidywanego '
+                                                                                                                                                                                                                                      'prawdopodobieństwa '
+                                                                                                                                                                                                                                      'i/lub '
+                                                                                                                                                                                                                                      'znacząco '
+                                                                                                                                                                                                                                      'wydłużony '
+                                                                                                                                                                                                                                      'prognozowany '
+                                                                                                                                                                                                                                      'czas '
+                                                                                                                                                                                                                                      'pobytu. '
+                                                                                                                                                                                                                                      'Wynik '
+                                                                                                                                                                                                                                      'ma '
+                                                                                                                                                                                                                                      'charakter '
+                                                                                                                                                                                                                                      'wspierający, '
+                                                                                                                                                                                                                                      'a '
+                                                                                                                                                                                                                                      'nie '
+                                                                                                                                                                                                                                      'kauzalnie '
+                                                                                                                                                                                                                                      'gwarantujący '
+                                                                                                                                                                                                                                      'zwiększoną '
+                                                                                                                                                                                                                                      'odnajdywalność '
+                                                                                                                                                                                                                                      '(findability).',
+    'Animal Type': 'Gatunek',
+    'Age Group': 'Kategoria ontogenetyczna (Wiek)',
+    'Intake Type': 'Charakterystyka trybu przyjęcia',
+    'Covid Period': 'Dychotomia dla reżimu COVID-19',
+    'Uses the combined CatBoost classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.': 'Wykorzystuje '
+                                                                                                                                                 'agregację '
+                                                                                                                                                 'estymatorów '
+                                                                                                                                                 '(klasyfikator '
+                                                                                                                                                 'i '
+                                                                                                                                                 'regresor '
+                                                                                                                                                 'algorytmu '
+                                                                                                                                                 'CatBoost). '
+                                                                                                                                                 'Mechanizm '
+                                                                                                                                                 'predykcji '
+                                                                                                                                                 'odgrywa '
+                                                                                                                                                 'rolę '
+                                                                                                                                                 'demonstracyjną '
+                                                                                                                                                 'i '
+                                                                                                                                                 'nie '
+                                                                                                                                                 'powinien '
+                                                                                                                                                 'być '
+                                                                                                                                                 'traktowany '
+                                                                                                                                                 'jako '
+                                                                                                                                                 'autonomiczna '
+                                                                                                                                                 'funkcja '
+                                                                                                                                                 'rozstrzygająca.',
+    'Animal type': 'Gatunek',
+    'Intake type': 'Klasyfikacja formalna trybu przyjęcia',
+    'Intake condition': 'Stan kondycyjno-zdrowotny przy inkorporacji',
+    'Sex upon intake': 'Status reprodukcyjny zwierzęcia w chwili inkorporacji',
+    'Has name': 'Identyfikator nadany (Imię)',
+    'Age in years': 'Zmienna ciągła wieku (lata)',
+    'Breed': 'Taksonomia rasy',
+    'Color': 'Klasyfikacja fenotypowa umaszczenia',
+    'Intake date': 'Temporalny znacznik przyjęcia',
+    'Run prediction': 'Zainicjuj predykcję heurystyczną',
+    'Run `python scripts/train_advanced.py --data data/processed/modeling_dataset.csv` first.': 'Czynność '
+                                                                                                'uzależniona '
+                                                                                                'od '
+                                                                                                'wykonania '
+                                                                                                'komendy '
+                                                                                                'bazowej: '
+                                                                                                '`python '
+                                                                                                'scripts/train_advanced.py '
+                                                                                                '--data '
+                                                                                                'data/processed/modeling_dataset.csv`.',
+    'Timeline group': 'Agregacja temporalna',
+    'Run diagnostics to generate adoption timeline milestones.': 'Przetwórz '
+                                                                 'zadania '
+                                                                 'diagnostyczne '
+                                                                 'by '
+                                                                 'zdefiniować '
+                                                                 'dystrybuantę '
+                                                                 '(tzw. '
+                                                                 'kamienie '
+                                                                 'milowe) '
+                                                                 'adopcji.',
+    'Share adopted (%)': 'Poziom stopnia adopcji (%)',
+    'Adoption timeline milestones': 'Wyznaczniki temporalne czasu do '
+                                    'zwolnienia schroniskowego',
+    'Generated Artifacts': 'Repozytorium wygenerowanych rezultatów '
+                           'analitycznych',
+    'Core commands:': 'Dyspozycje krytyczne (Core Commands):',
+    'Reports directory:': 'Lokalizacja wyników tekstowych (Reports):',
+    'Models directory:': 'Lokalizacja sieci oraz artefaktów modeli (Models):',
+    'External Context Feature Test': 'Test predykcyjności skompresowanych '
+                                     'zmiennych środowiskowych',
+    'Run the commands below to populate `context_model_comparison.csv`.': 'Użyj '
+                                                                          'zaprezentowanych '
+                                                                          'komend '
+                                                                          'dla '
+                                                                          'zaludnienia '
+                                                                          'pliku '
+                                                                          '`context_model_comparison.csv`.',
+    'Context features use intake-date weather and prior-window 311/intake-volume counts only.': 'Wymiar '
+                                                                                                'zmiennych '
+                                                                                                'kontekstowych '
+                                                                                                'redukuje '
+                                                                                                'się '
+                                                                                                'do '
+                                                                                                'logarytmicznie '
+                                                                                                'przetworzonych '
+                                                                                                'wektorów '
+                                                                                                'wolumenowych, '
+                                                                                                'raportów '
+                                                                                                'interwencyjnych '
+                                                                                                '(z '
+                                                                                                'systemu '
+                                                                                                '311) '
+                                                                                                'oraz '
+                                                                                                'profili '
+                                                                                                'atmosferycznych '
+                                                                                                'w '
+                                                                                                'momentach '
+                                                                                                'krańcowych '
+                                                                                                'inkorporacji.',
+    'Context minus base metric delta': 'Zmienność różniczkowa z zastosowaniem '
+                                       'kontroli kontekstowych a podejściem '
+                                       'zero-komponentowym (Base)',
+    'Model': 'Paradygmat optymalizacyjny',
+    'Effect': 'Wariancja wyniku',
+    'Task': 'Zadana architektura (Task)',
+    'improved': 'wzmocnienie predykcyjności',
+    'worsened': 'degradacja jakości estymatora',
+    'Dog': 'Pies',
+    'Cat': 'Kot',
+    'Stray': 'Obiekt porzucony/bezpański (Stray)',
+    'Owner Surrender': 'Przekazanie na własność od dotychczasowego prawnego '
+                       'opiekuna',
+    'Public Assist': 'Pozyskanie w asyście służb państwowych',
+    'Abandoned': 'Obiekt zarejestrowany jako porzucony',
+    'Euthanasia Request': 'Protokół przyjęcia eutanazyjnego (Request)',
+    'Normal': 'Normatywny (Normalny)',
+    'Injured': 'Wybitnie urazowy (Ranny)',
+    'Sick': 'Wybitnie chorobowy (Chory)',
+    'Nursing': 'Status laktacyjny (Karmiący/a)',
+    'Neonatal': 'Przedwcześnie odłączony/Noworodek (Neonatalny)',
+    'Aged': 'Wybitnie podeszły wiek (Geriatryczny)',
+    'Medical': 'O podwyższonych kryteriach asysty medycznej',
+    'Behavior': 'O specyficznych ograniczeniach behawioralnych',
+    'Other': 'Kategoria marginalizowana (Inna)',
+    'Intact Male': 'Samiec niezdezintegrowany reprodukcyjnie',
+    'Intact Female': 'Samica niezdezintegrowana reprodukcyjnie',
+    'Neutered Male': 'Samiec pozbawiony zdolności reprodukcyjnych (Kastrat)',
+    'Spayed Female': 'Samica pozbawiona zdolności reprodukcyjnych '
+                     '(Wysterylizowana)',
+    'Unknown': 'Kwantyfikator nierozpoznany (Unknown)',
+    'unknown health': 'Aspekt zdrowotny nieoznaczony',
+    'unknown behavior signal': 'Atrybut behawioralny niezakwalifikowany',
+    '📖 Thesis Guide': 'Struktura manuskryptu oraz mapowanie referencji',
+    'Model Sensitivity Demo': 'Moduł empirycznej ewaluacji podatności na '
+                              'wejście (Sensitivity Analysis)',
+    'Filter by Required for Thesis': 'Filtruj względem zbioru rezultatów '
+                                     'obligatoryjnych',
+    'Select Report to View': 'Dekompozycja jednostkowego sprawozdania '
+                             'ewaluacyjnego',
+    'Viewing Report:': 'Aktualna wizualizacja pliku:',
+    'Report file not found on disk.': 'Zgłoszono brak fizycznego pliku '
+                                      'artefaktu analitycznego.',
+    'Target Definitions & Outcome Mappings': 'Aksjomatyczne definicje '
+                                             'wskaźników celu a macierze '
+                                             'alokacji rezultatów',
+    'External Causal Validity & Generalisation Limits': 'Wiarygodność w sensie '
+                                                        'zewnętrznym a '
+                                                        'restrykcje '
+                                                        'generalizacji '
+                                                        '(Ograniczenia '
+                                                        'wnioskowania '
+                                                        'przyczynowo-skutkowego)',
+    'Breed and Coat Colour Feature Engineering Justification': 'Prakseologiczne '
+                                                               'uzasadnienie '
+                                                               'konstrukcji '
+                                                               'wyestrahowanych '
+                                                               'atrybutów '
+                                                               'morfologicznych '
+                                                               '(rasa, maść)',
+    'Machine Learning vs. Descriptive Non-ML Baselines': 'Dystynkcja rozwiązań '
+                                                         'Machine Learning '
+                                                         '(ML) na tle '
+                                                         'algorytmów bez '
+                                                         'modelu ukrytego '
+                                                         '(Baseline)',
+    'H1 — Intake Profile & Causal Context': 'H1 — Walidacja profilu '
+                                            'okoliczności początkowych przy '
+                                            'przyjęciu',
+    'H2 — Seasonality & Intake Dynamics': 'H2 — Rozpoznanie fluktuacji w '
+                                          'wymiarze sezonowym i strukturalnym '
+                                          'wolumenu',
+    'H3 — Age and Time-to-Outcome Timing': 'H3 — Kryterium ontogenetyczne a '
+                                           'modelowanie estymaty czasu '
+                                           'deinkorporacji (Time-to-Outcome)',
+    'H4 — Coat Colour (Black/Dark Animal Syndrome Check)': 'H4 — Test '
+                                                           'obciążenia '
+                                                           'zjawiskiem tzw. '
+                                                           "'Black/Dark Animal "
+                                                           "Syndrome'",
+    'H5 — COVID-Period Population Shift and Volume Impact': 'H5 — Wpływ '
+                                                            'wstrząsu '
+                                                            'pandemicznego na '
+                                                            'strukturę '
+                                                            'agregatów '
+                                                            'ewidencji',
+    'H1 - Intake Profile & Causal Context': 'H1 - Profil okoliczności '
+                                            'początkowych przy przyjęciu',
+    'H2 - Seasonality & Intake Dynamics': 'H2 - Fluktuacje w wymiarze '
+                                          'sezonowym i strukturalnym',
+    'H3 - Age and Time-to-Outcome Timing': 'H3 - Modelowanie estymaty czasu '
+                                           'deinkorporacji',
+    'H4 - Coat Colour (Black/Dark Animal Syndrome Check)': 'H4 - Test '
+                                                           "'Black/Dark Animal "
+                                                           "Syndrome'",
+    'H5 - COVID-Period Population Shift and Volume Impact': 'H5 - Wpływ szoku '
+                                                            'pandemicznego',
+    'Hypothesis Evidence Matrix Summary': 'Wielowymiarowa macierz pokrycia '
+                                          'weryfikacyjnego badanych hipotez',
+    'Data Leakage Audit & Control Log': 'Ścisły dziennik ochrony spójności '
+                                        'sekwencyjnej (Data Leakage Log)',
+    'Propensity Score Matching Validation Examples': 'Dokumentacja estymatora '
+                                                     'równoważności '
+                                                     'prawdopodobieństw '
+                                                     '(Propensity Score '
+                                                     'Matching)',
+    'Narrative Model Evidence & Key Findings Pack': 'Podstawowy wyciąg '
+                                                    'sprawozdawczo-deskryptywny',
+    'Subgroup Reliability & Underrepresented Cohorts': 'Rejestr parametrów '
+                                                       'stabilności '
+                                                       'subpopulacji '
+                                                       'zjawiskowych i słabo '
+                                                       'wyeksponowanych',
+    'Final Model Architecture Selection': 'Argumentacja procesu selekcyjnego '
+                                          'docelowej struktury algorytmicznej',
+    'Optimal Classification Threshold & Utility Analysis': 'Matematyczna '
+                                                           'wycena poziomu '
+                                                           'kompromisu '
+                                                           '(Optimal Decision '
+                                                           'Boundary)',
+    'Model Probability Calibration Interpretation': 'Przełożenie fizyczne '
+                                                    'skategoryzowanych '
+                                                    'rozkładów wiarygodności '
+                                                    'modelu',
+    'Operational Risk & Model Reliability Red Flags': 'Metryki zagrożenia '
+                                                      'stabilności wykonawczej '
+                                                      'z odnotowaniem tzw. Red '
+                                                      'Flags',
+    'Data Pipeline Audit & Attrition Logging': 'Log procesów potoku '
+                                               'analitycznego włączając '
+                                               'odsetek utraty informacji na '
+                                               'stadiach konwersji (Attrition '
+                                               'Logging)',
+    'Reproducibility Snapshot & Environment Info': 'Wektor ewaluacji '
+                                                   'stabilności i spójności '
+                                                   'konfiguracyjnej ekosystemu',
+    'quick placement likely': 'przewidywana bezzwłoczna relokacja docelowa',
+    'needs visibility': 'konieczność amplifikacji ekspozycji (Promocja)',
+    'long-stay risk': 'obciążony znacznym stopniem ryzyka zamrożenia stanu',
+    'outcome support priority': 'sygnalizowany tryb wsparcia pozaobszarowego '
+                                '(Priorytet decyzyjny)',
+    'Classification PR-AUC': 'Obszar pod krzywą PR (Precision-Recall AUC) na '
+                             'modelu klasyfikującym',
+    'Classification ROC-AUC': 'Obszar pod krzywą ROC (Receiver Operating '
+                              'Characteristic) dla klasyfikacji',
+    'Classification F1': 'Wartość harmoniczna błędu uśrednionego (F1-score)',
+    'Regression MAE': 'Średni moduł błędu absolutnego (MAE) dla regresji',
+    'Regression RMSE': 'Pierwiastek błędu średniokwadratowego (RMSE)',
+    'Predicted adoption chance (calibrated)': 'Zrekalibrowana estymata '
+                                              'prawdopodobieństwa sukcesu '
+                                              'adopcyjnego',
+    'Predicted adoption probability (calibrated)': 'Ujednolicone kalibracyjnie '
+                                                   'prawdopodobieństwo '
+                                                   'dyskryminacji',
+    '**Adoption Rates by Intake Type**': '**Ewaluacja stopnia sprawności '
+                                         'procesu adopcyjnego w warunkach '
+                                         'klasyfikacji startowej**',
+    '**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes.': '**Postulat '
+                                                                                                                                                                                                                  'dedukcyjny:** '
+                                                                                                                                                                                                                  'Znaczący '
+                                                                                                                                                                                                                  'spadek '
+                                                                                                                                                                                                                  'współczynników '
+                                                                                                                                                                                                                  'weryfikujących '
+                                                                                                                                                                                                                  'pozytywne '
+                                                                                                                                                                                                                  'rezultaty '
+                                                                                                                                                                                                                  'adopcyjne '
+                                                                                                                                                                                                                  'ujawniono '
+                                                                                                                                                                                                                  'w '
+                                                                                                                                                                                                                  'odniesieniu '
+                                                                                                                                                                                                                  'do '
+                                                                                                                                                                                                                  'podzbioru '
+                                                                                                                                                                                                                  'osobników '
+                                                                                                                                                                                                                  'starzejących '
+                                                                                                                                                                                                                  'się. '
+                                                                                                                                                                                                                  'Parametr '
+                                                                                                                                                                                                                  'dystrybucji '
+                                                                                                                                                                                                                  'czasowej '
+                                                                                                                                                                                                                  'charakteryzuje '
+                                                                                                                                                                                                                  'się '
+                                                                                                                                                                                                                  'tu '
+                                                                                                                                                                                                                  'podwyższonym '
+                                                                                                                                                                                                                  'wskaźnikiem '
+                                                                                                                                                                                                                  'skomplikowania, '
+                                                                                                                                                                                                                  'jako '
+                                                                                                                                                                                                                  'następstwo '
+                                                                                                                                                                                                                  'zwiększonego '
+                                                                                                                                                                                                                  'tempa '
+                                                                                                                                                                                                                  'deinkorporacji '
+                                                                                                                                                                                                                  'z '
+                                                                                                                                                                                                                  'zastosowaniem '
+                                                                                                                                                                                                                  'rozwiązań '
+                                                                                                                                                                                                                  'nieadopcyjnych, '
+                                                                                                                                                                                                                  'takich '
+                                                                                                                                                                                                                  'jak '
+                                                                                                                                                                                                                  'eutanazja '
+                                                                                                                                                                                                                  'lub '
+                                                                                                                                                                                                                  'specjalistyczna '
+                                                                                                                                                                                                                  'opieka '
+                                                                                                                                                                                                                  'terminalna.',
+    '**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition).': '**Postulat '
+                                                                                                                                                                                                                 'dedukcyjny:** '
+                                                                                                                                                                                                                 'Elementarne '
+                                                                                                                                                                                                                 'parametry '
+                                                                                                                                                                                                                 'predykcji '
+                                                                                                                                                                                                                 'fenotypowej '
+                                                                                                                                                                                                                 '(tj. '
+                                                                                                                                                                                                                 'kategoryzacja '
+                                                                                                                                                                                                                 'rasy '
+                                                                                                                                                                                                                 'i '
+                                                                                                                                                                                                                 'umaszczenie) '
+                                                                                                                                                                                                                 'deklasują '
+                                                                                                                                                                                                                 'czynniki '
+                                                                                                                                                                                                                 'związane '
+                                                                                                                                                                                                                 'stricte '
+                                                                                                                                                                                                                 'z '
+                                                                                                                                                                                                                 'tłem '
+                                                                                                                                                                                                                 'incydentu '
+                                                                                                                                                                                                                 'prowadzącego '
+                                                                                                                                                                                                                 'do '
+                                                                                                                                                                                                                 'przyjęcia '
+                                                                                                                                                                                                                 'schroniskowego '
+                                                                                                                                                                                                                 '(tzw. '
+                                                                                                                                                                                                                 'kody '
+                                                                                                                                                                                                                 'klasyfikacyjne '
+                                                                                                                                                                                                                 'zdarzeń). '
+                                                                                                                                                                                                                 'W '
+                                                                                                                                                                                                                 'połączeniu '
+                                                                                                                                                                                                                 'z '
+                                                                                                                                                                                                                 'wiekiem, '
+                                                                                                                                                                                                                 'dominują '
+                                                                                                                                                                                                                 'jako '
+                                                                                                                                                                                                                 'wiodący '
+                                                                                                                                                                                                                 'predyktor '
+                                                                                                                                                                                                                 'rezultatu '
+                                                                                                                                                                                                                 'wyjściowego.',
+    '**Finding:** The COVID-19 pandemic period was associated with a marked increase in adoption rates and a reduction in total volume. These period shifts must be accounted for to prevent model drift.': '**Postulat '
+                                                                                                                                                                                                            'dedukcyjny:** '
+                                                                                                                                                                                                            'Wyznaczony '
+                                                                                                                                                                                                            'kwantyl '
+                                                                                                                                                                                                            'temporalny '
+                                                                                                                                                                                                            'dla '
+                                                                                                                                                                                                            'zaistnienia '
+                                                                                                                                                                                                            'pandemii '
+                                                                                                                                                                                                            'COVID-19, '
+                                                                                                                                                                                                            'wskazał '
+                                                                                                                                                                                                            'wyraźny '
+                                                                                                                                                                                                            'wzrost '
+                                                                                                                                                                                                            'absorpcji '
+                                                                                                                                                                                                            'zjawisk '
+                                                                                                                                                                                                            'adopcyjnych, '
+                                                                                                                                                                                                            'pomimo '
+                                                                                                                                                                                                            'regresji '
+                                                                                                                                                                                                            'całkowitego '
+                                                                                                                                                                                                            'wolumenu '
+                                                                                                                                                                                                            'zarejestrowanych '
+                                                                                                                                                                                                            'inkorporacji. '
+                                                                                                                                                                                                            'Te '
+                                                                                                                                                                                                            'dewiacje '
+                                                                                                                                                                                                            'strukturalne '
+                                                                                                                                                                                                            'populacji '
+                                                                                                                                                                                                            'wymagają '
+                                                                                                                                                                                                            'starannej '
+                                                                                                                                                                                                            'mitygacji '
+                                                                                                                                                                                                            'w '
+                                                                                                                                                                                                            'estymatorze '
+                                                                                                                                                                                                            'w '
+                                                                                                                                                                                                            'trosce '
+                                                                                                                                                                                                            'o '
+                                                                                                                                                                                                            'rygor '
+                                                                                                                                                                                                            'uniknięcia '
+                                                                                                                                                                                                            'zjawiska '
+                                                                                                                                                                                                            'concept '
+                                                                                                                                                                                                            'drift '
+                                                                                                                                                                                                            '(odchylenia '
+                                                                                                                                                                                                            'pojęciowego '
+                                                                                                                                                                                                            'modelu).',
+    '**Global SHAP Feature Importance (Classification)**': '**Wyodrębnienie '
+                                                           'kluczowej '
+                                                           'hierarchii wpływów '
+                                                           'parametrów według '
+                                                           'dystrybucji w '
+                                                           'algorytmach SHAP '
+                                                           '(klasyfikator)**',
+    '**Median Days to Outcome by Age**': '**Wartości mediany dla czasu '
+                                         'ekspozycji wyznaczane wymiarem '
+                                         'kategorii wiekowej (Age)**',
+    '**Volume and Outcomes Across Periods**': '**Przekrojowa miara natężenia '
+                                              'operacji wejściowych i '
+                                              'deinkorporacji rozpatrywana na '
+                                              'płaszczyznach historycznych**',
+    'All generated thesis deliverables, target definitions, and validation reports are listed below.': 'Dokument '
+                                                                                                       'stanowi '
+                                                                                                       'skondensowany '
+                                                                                                       'indeks '
+                                                                                                       'referencji '
+                                                                                                       'powołujących '
+                                                                                                       'się '
+                                                                                                       'na '
+                                                                                                       'wszystkie '
+                                                                                                       'dedykowane '
+                                                                                                       'zasoby '
+                                                                                                       'badawcze '
+                                                                                                       '(dossier) '
+                                                                                                       'wytworzone '
+                                                                                                       'przez '
+                                                                                                       'pipeline '
+                                                                                                       'analityczny '
+                                                                                                       'włącznie '
+                                                                                                       'z '
+                                                                                                       'parametrami '
+                                                                                                       'walidacyjnymi '
+                                                                                                       'i '
+                                                                                                       'konkluzjami '
+                                                                                                       'testów '
+                                                                                                       'empirycznych.',
+    'Artifact Manifest': 'Inwentarz Artefaktów Bazy',
+    'Artifact Path': 'Wyznaczona domena i ścieżka dostępu',
+    'Artifact Type': 'Rodzaj zarejestrowanego zasobu',
+    'Automated euthanasia triaging': 'Skryptowa automatyzacja decyzji '
+                                     'eutanazyjnych (Triage)',
+    'Best Use Case': 'Wektor racjonalnej użyteczności (Best Practice)',
+    'CatBoost consistently outperformed baseline models at separating adoptions from other outcomes, offering the highest precision-recall area under the curve (PR-AUC) for this imbalanced task.': 'Zaimplementowana '
+                                                                                                                                                                                                     'metoda '
+                                                                                                                                                                                                     'klasyfikacji '
+                                                                                                                                                                                                     'CatBoost '
+                                                                                                                                                                                                     'konsekwentnie '
+                                                                                                                                                                                                     'neutralizowała '
+                                                                                                                                                                                                     'asymetryczną '
+                                                                                                                                                                                                     'skuteczność '
+                                                                                                                                                                                                     'modeli '
+                                                                                                                                                                                                     'wyjściowych, '
+                                                                                                                                                                                                     'dyskryminując '
+                                                                                                                                                                                                     'w '
+                                                                                                                                                                                                     'sposób '
+                                                                                                                                                                                                     'najwłaściwszy '
+                                                                                                                                                                                                     'procesy '
+                                                                                                                                                                                                     'adopcyjne '
+                                                                                                                                                                                                     'i '
+                                                                                                                                                                                                     'generując '
+                                                                                                                                                                                                     'bezkonkurencyjne '
+                                                                                                                                                                                                     'pole '
+                                                                                                                                                                                                     'dla '
+                                                                                                                                                                                                     'ewaluacji '
+                                                                                                                                                                                                     'metodą '
+                                                                                                                                                                                                     'PR-AUC '
+                                                                                                                                                                                                     'na '
+                                                                                                                                                                                                     'mocno '
+                                                                                                                                                                                                     'niezbilansowanym '
+                                                                                                                                                                                                     'zbiorze '
+                                                                                                                                                                                                     'docelowym.',
+    'Chapter': 'Pozycja Rozdziału',
+    'Data only reflects intake time': 'Parametryzacją wejściową objęto '
+                                      'wyłącznie stany zarejestrowane '
+                                      'adekwatnie z logiem czasowym początku '
+                                      "obserwacji. Model ewaluacyjnie 'nie "
+                                      "zna' późniejszych uwarunkowań "
+                                      'adaptacyjnych osobnika w schronisku.',
+    'Days': 'Okres kwantyfikowany w domenie jednostek dziennych',
+    'Exists': 'Rozpoznany fizycznie',
+    'For predicting the exact length of stay, CatBoost provided the lowest average error. However, length-of-stay is highly skewed and right-censored.': 'Dla '
+                                                                                                                                                         'optymalizacji '
+                                                                                                                                                         'i '
+                                                                                                                                                         'predykcji '
+                                                                                                                                                         'surowej '
+                                                                                                                                                         'zmiennej '
+                                                                                                                                                         'ciągłej '
+                                                                                                                                                         'reprezentującej '
+                                                                                                                                                         'wymiar '
+                                                                                                                                                         'czasowy '
+                                                                                                                                                         'retencji, '
+                                                                                                                                                         'podejście '
+                                                                                                                                                         'estymacyjne '
+                                                                                                                                                         'na '
+                                                                                                                                                         'rdzeniu '
+                                                                                                                                                         'CatBoost '
+                                                                                                                                                         'wygenerowało '
+                                                                                                                                                         'najniższy '
+                                                                                                                                                         'współczynnik '
+                                                                                                                                                         'MAE. '
+                                                                                                                                                         'Koniecznym '
+                                                                                                                                                         'jest '
+                                                                                                                                                         'zaobsersem, '
+                                                                                                                                                         'że '
+                                                                                                                                                         'w '
+                                                                                                                                                         'ujęciu '
+                                                                                                                                                         'holistycznym '
+                                                                                                                                                         'zmienna '
+                                                                                                                                                         'ta '
+                                                                                                                                                         'ma '
+                                                                                                                                                         'mocno '
+                                                                                                                                                         'prawostronną '
+                                                                                                                                                         'deformację '
+                                                                                                                                                         'i '
+                                                                                                                                                         'ulega '
+                                                                                                                                                         'procesowi '
+                                                                                                                                                         'cenzurowania '
+                                                                                                                                                         'z '
+                                                                                                                                                         'tejże '
+                                                                                                                                                         'strony.',
+    'Higher is better. Evaluated on out-of-time test set.': 'Stymulacja '
+                                                            'optymalizacyjna '
+                                                            'przez '
+                                                            'maksymalizację. '
+                                                            'Badanie i '
+                                                            'ostateczna '
+                                                            'walidacja '
+                                                            'dokonana na '
+                                                            'chronologicznym '
+                                                            'kwantylu '
+                                                            'walidacyjnym '
+                                                            '(Out-of-time test '
+                                                            'set).',
+    'Importance Impact': 'Absolutny mnożnik korelacji i wpływu (Impact '
+                         'Magnitude)',
+    'Lower is better. Mean absolute error on test set.': 'Stymulacja '
+                                                         'optymalizacyjna '
+                                                         'przez minimalizację '
+                                                         'dysonansu (Mean '
+                                                         'Absolute Error). '
+                                                         'Badania zatwierdzone '
+                                                         'na kwantylu '
+                                                         'walidacyjnym w '
+                                                         'warunkach odciętej '
+                                                         'ewidencji.',
+    'Model output is unavailable. Check model artifacts and metadata.': 'Wyjście '
+                                                                        'predykcyjne '
+                                                                        'dla '
+                                                                        'zadanych '
+                                                                        'zapytań '
+                                                                        'uległo '
+                                                                        'zatrzymaniu '
+                                                                        'brakiem '
+                                                                        'danych. '
+                                                                        'Zbadaj '
+                                                                        'wektory '
+                                                                        'artefaktów '
+                                                                        'predyktora '
+                                                                        'oraz '
+                                                                        'jego '
+                                                                        'metadane.',
+    'No classification artifacts found.': 'Dysk nie identyfikuje wyników '
+                                          'estymacji dla problemu '
+                                          'klasyfikacji.',
+    'No model is perfect. Here is exactly where the model struggles and the magnitude of its errors:': 'Ułomność '
+                                                                                                       'strukturalna '
+                                                                                                       'każdego '
+                                                                                                       'systemu '
+                                                                                                       'analitycznego '
+                                                                                                       'wymusza '
+                                                                                                       'obnażenie '
+                                                                                                       'sektorów '
+                                                                                                       'usterkowości. '
+                                                                                                       'Oto '
+                                                                                                       'dokładne '
+                                                                                                       'zobrazowanie '
+                                                                                                       'grup, '
+                                                                                                       'w '
+                                                                                                       'których '
+                                                                                                       'estymator '
+                                                                                                       'wykazuje '
+                                                                                                       'wysoki '
+                                                                                                       'stopień '
+                                                                                                       'deficytu '
+                                                                                                       'precyzji '
+                                                                                                       'wraz '
+                                                                                                       'ze '
+                                                                                                       'skalowaniem '
+                                                                                                       'rozmiaru '
+                                                                                                       'dewiacji:',
+    'No regression artifacts found.': 'Dysk nie identyfikuje logów błędów ani '
+                                      'metryk ewaluacyjnych modelu w trybie '
+                                      'ciągłym (Regresji).',
+    'Notes': 'Obserwacje konkludujące',
+    'Prediction failed.': 'Proces propagacji dla wektora zapytań wejściowych '
+                          'zawiódł na warstwie błędu krytycznego.',
+    'Primary Limitation': 'Podstawowy element dymisji obiektywności '
+                          '(Limitation Limit)',
+    'Primary Metric (MAE)': 'Docelowy Wskaźnik Weryfikacji Optymalizacyjnej '
+                            '(MAE - Błąd Bezwzględny Zmiennej Ciągłej)',
+    'Primary Metric (PR-AUC)': 'Docelowy Wskaźnik Weryfikacji Optymalizacyjnej '
+                               '(PR-AUC - Czułość vs Precyzja względem '
+                               'Prawdopodobieństwa Klasyfikacyjnego)',
+    'Prioritizing visibility campaigns': 'Mechanizm asocjacyjno-heurystyczny '
+                                         'dla dyskryminacji celów kampanii '
+                                         'podbijających odnajdywalność '
+                                         'społecznościową (Visibility '
+                                         'Profiling)',
+    'Read Thesis & Methodology Reports': 'Odszukaj odnośnik do manuskryptu '
+                                         'wraz z argumentacjami '
+                                         'metodologicznymi i aparatami użytych '
+                                         'pojęć.',
+    'Refresh Data': 'Resynchronizuj Bufory Pamięci Stanu (Refresh)',
+    'Required': 'Wyróżnik Krytyczności dla Wektorów Raportów Dyplomowych',
+    'Riskiest Use Case': 'Błędy poznawcze w implementacjach wysokiego szczebla '
+                         'krytycznego',
+    'Run `python scripts/generate_diagnostics.py` to see error slices.': 'Wykonaj '
+                                                                         'skryptowy '
+                                                                         'mechanizm '
+                                                                         '`python '
+                                                                         'scripts/generate_diagnostics.py` '
+                                                                         'by '
+                                                                         'zainicjować '
+                                                                         'agregacje '
+                                                                         'w '
+                                                                         'rozbiciu '
+                                                                         'na '
+                                                                         'rzuty '
+                                                                         'błędu '
+                                                                         'predykcji.',
+    'Run `python scripts/generate_evidence_pack.py` to see failure modes.': 'Ewaluuj '
+                                                                            'błędy '
+                                                                            'z '
+                                                                            'dekompozycją '
+                                                                            'wykonując '
+                                                                            'polecenie '
+                                                                            '`python '
+                                                                            'scripts/generate_evidence_pack.py` '
+                                                                            'w '
+                                                                            'konsoli '
+                                                                            'uruchomieniowej.',
+    'Source Script': 'Mechanizm Wytwórczy (Źródłowy Kontroler Rutynowy)',
+    'The machine learning pipeline evaluated logistic regression, random forests, histogram gradient boosting, and CatBoost models. Here is the final selection based on empirical validation data:': 'Architektura '
+                                                                                                                                                                                                      'badawcza '
+                                                                                                                                                                                                      'systemu '
+                                                                                                                                                                                                      'przeegzaminowała '
+                                                                                                                                                                                                      'estymatory '
+                                                                                                                                                                                                      'Regresji '
+                                                                                                                                                                                                      'Logistycznej, '
+                                                                                                                                                                                                      'Lasów '
+                                                                                                                                                                                                      'Losowych, '
+                                                                                                                                                                                                      'estymacje '
+                                                                                                                                                                                                      'zoptymalizowane '
+                                                                                                                                                                                                      'Histogramami '
+                                                                                                                                                                                                      'Wzmacniania '
+                                                                                                                                                                                                      'Gradientowego '
+                                                                                                                                                                                                      'po '
+                                                                                                                                                                                                      'implementacje '
+                                                                                                                                                                                                      'wyższych '
+                                                                                                                                                                                                      'rzędów '
+                                                                                                                                                                                                      'optymalizacyjnych '
+                                                                                                                                                                                                      'drzew '
+                                                                                                                                                                                                      'kategorycznych, '
+                                                                                                                                                                                                      'jakimi '
+                                                                                                                                                                                                      'są '
+                                                                                                                                                                                                      'mechanizmy '
+                                                                                                                                                                                                      'rzędu '
+                                                                                                                                                                                                      'CatBoost. '
+                                                                                                                                                                                                      'Ustalenia '
+                                                                                                                                                                                                      'zaprezentowane '
+                                                                                                                                                                                                      'poniżej, '
+                                                                                                                                                                                                      'dokonane '
+                                                                                                                                                                                                      'są '
+                                                                                                                                                                                                      'wyłącznie '
+                                                                                                                                                                                                      'wehikułem '
+                                                                                                                                                                                                      'wyodrębnionych '
+                                                                                                                                                                                                      'procesów '
+                                                                                                                                                                                                      'podzbiorów '
+                                                                                                                                                                                                      'obarczonych '
+                                                                                                                                                                                                      'atrybutem '
+                                                                                                                                                                                                      'prawdy '
+                                                                                                                                                                                                      'empirycznej '
+                                                                                                                                                                                                      'z '
+                                                                                                                                                                                                      'okresu '
+                                                                                                                                                                                                      'zamkniętego:',
+    "The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:": 'Miara '
+                                                                                        'uśrednionego '
+                                                                                        'błędu '
+                                                                                        'w '
+                                                                                        'trybie '
+                                                                                        'estymacji '
+                                                                                        'długości '
+                                                                                        'oczekiwania '
+                                                                                        'ma '
+                                                                                        'tendencję '
+                                                                                        'do '
+                                                                                        'drastycznej '
+                                                                                        'wariacji '
+                                                                                        'zależnie '
+                                                                                        'od '
+                                                                                        'identyfikacji '
+                                                                                        'kohorty:',
+    'This dashboard translates raw shelter data into concrete evidence. Below are the finalized findings across the primary thesis hypotheses.': 'Platforma '
+                                                                                                                                                 'udostępniona '
+                                                                                                                                                 'w '
+                                                                                                                                                 'tej '
+                                                                                                                                                 'przestrzeni '
+                                                                                                                                                 'pełni '
+                                                                                                                                                 'funkcję '
+                                                                                                                                                 'agregatora '
+                                                                                                                                                 'wnioskującego '
+                                                                                                                                                 'z '
+                                                                                                                                                 'wymiaru '
+                                                                                                                                                 'surowych '
+                                                                                                                                                 'danych '
+                                                                                                                                                 'ewidencyjnych '
+                                                                                                                                                 'po '
+                                                                                                                                                 'postulat '
+                                                                                                                                                 'dowodowy '
+                                                                                                                                                 'w '
+                                                                                                                                                 'ujęciu '
+                                                                                                                                                 'akademickim. '
+                                                                                                                                                 'Bezpośrednio '
+                                                                                                                                                 'pod '
+                                                                                                                                                 'komunikatem '
+                                                                                                                                                 'osadzono '
+                                                                                                                                                 'ostateczne '
+                                                                                                                                                 'ramy '
+                                                                                                                                                 'dowodowe '
+                                                                                                                                                 'odnoszące '
+                                                                                                                                                 'się '
+                                                                                                                                                 'do '
+                                                                                                                                                 'priorytetowych '
+                                                                                                                                                 'postulatów '
+                                                                                                                                                 'hipotez '
+                                                                                                                                                 'badawczych '
+                                                                                                                                                 'sformułowanych '
+                                                                                                                                                 'w '
+                                                                                                                                                 'obrębie '
+                                                                                                                                                 'dysertacji:',
+    'Uses the combined classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule.': 'Rutyna '
+                                                                                                                                        'wymusza '
+                                                                                                                                        'pobranie '
+                                                                                                                                        'zasobów '
+                                                                                                                                        'z '
+                                                                                                                                        'potoku '
+                                                                                                                                        'wytworzonego '
+                                                                                                                                        'predyktora '
+                                                                                                                                        '(skonsolidowany '
+                                                                                                                                        'algorytm '
+                                                                                                                                        'klasyfikująco-regresyjny). '
+                                                                                                                                        'Narzędzie '
+                                                                                                                                        'to '
+                                                                                                                                        'stanowi '
+                                                                                                                                        'symulację '
+                                                                                                                                        'estymacyjną '
+                                                                                                                                        'oraz '
+                                                                                                                                        'weryfikację '
+                                                                                                                                        'na '
+                                                                                                                                        'żądanie '
+                                                                                                                                        'i '
+                                                                                                                                        'w '
+                                                                                                                                        'żadnym '
+                                                                                                                                        'ze '
+                                                                                                                                        'swoich '
+                                                                                                                                        'obiektywnych '
+                                                                                                                                        'wskazań '
+                                                                                                                                        'nie '
+                                                                                                                                        'uprawnia '
+                                                                                                                                        'do '
+                                                                                                                                        'stanowienia '
+                                                                                                                                        'niezależnej '
+                                                                                                                                        'i '
+                                                                                                                                        'odciętej '
+                                                                                                                                        'reguły '
+                                                                                                                                        'przyzwolenia '
+                                                                                                                                        'na '
+                                                                                                                                        'określoną '
+                                                                                                                                        'decyzję '
+                                                                                                                                        'fizyczną '
+                                                                                                                                        'względem '
+                                                                                                                                        'zjawiska.',
+    'View Full Executive Summary Report': 'Rozwiń dekompozycję całościowego '
+                                          'ustępstwa wykonawczego dla '
+                                          'streszczenia dysertacji',
+    'When the model misclassifies an outcome, these are the most common failure modes:': 'Dezintegracja '
+                                                                                         'struktury '
+                                                                                         'błędu '
+                                                                                         'i '
+                                                                                         'odchyleń '
+                                                                                         'predyktora. '
+                                                                                         'Pod '
+                                                                                         'spodem '
+                                                                                         'osadzono '
+                                                                                         'klasyfikatory '
+                                                                                         'najczęstszych '
+                                                                                         'dysonansów '
+                                                                                         'i '
+                                                                                         'omyłek '
+                                                                                         'estymatora '
+                                                                                         'w '
+                                                                                         'stosunku '
+                                                                                         'do '
+                                                                                         'obserwowalnej '
+                                                                                         'w '
+                                                                                         'przyszłości '
+                                                                                         'materii '
+                                                                                         'zdarzeniowej:',
+    'While machine learning successfully ranks animals by placement difficulty, **these predictions are associative, not causal.**': 'Konstrukty '
+                                                                                                                                     'probabilistyczne '
+                                                                                                                                     'poddawane '
+                                                                                                                                     'treningowi '
+                                                                                                                                     'na '
+                                                                                                                                     'surowych '
+                                                                                                                                     'danych '
+                                                                                                                                     'statystycznych '
+                                                                                                                                     'potwierdzają '
+                                                                                                                                     'się '
+                                                                                                                                     'w '
+                                                                                                                                     'budowaniu '
+                                                                                                                                     'wektorów '
+                                                                                                                                     'rangujących, '
+                                                                                                                                     'w '
+                                                                                                                                     'aspekcie '
+                                                                                                                                     'priorytetyzacji '
+                                                                                                                                     'obciążeń '
+                                                                                                                                     'adopcyjnych '
+                                                                                                                                     'na '
+                                                                                                                                     'zbiorach '
+                                                                                                                                     'podmiotów. '
+                                                                                                                                     'Pomimo '
+                                                                                                                                     'tych '
+                                                                                                                                     'możliwości '
+                                                                                                                                     '**prezentowane '
+                                                                                                                                     'ujęcia '
+                                                                                                                                     'estymacyjne '
+                                                                                                                                     'w '
+                                                                                                                                     'całości '
+                                                                                                                                     'obarczone '
+                                                                                                                                     'są '
+                                                                                                                                     'asocjacją '
+                                                                                                                                     'cech, '
+                                                                                                                                     'całkowicie '
+                                                                                                                                     'wykluczając '
+                                                                                                                                     'bezpośrednie '
+                                                                                                                                     'domniemania '
+                                                                                                                                     'kauzalne '
+                                                                                                                                     'pomiędzy '
+                                                                                                                                     'atrybutem '
+                                                                                                                                     'podmiotu '
+                                                                                                                                     'a '
+                                                                                                                                     'generowaną '
+                                                                                                                                     'w '
+                                                                                                                                     'czasie '
+                                                                                                                                     'przyszłym '
+                                                                                                                                     'reakcją '
+                                                                                                                                     'środowiska.**',
+    "While puppies and kittens ('baby') often leave the shelter within 6-7 days, 'adult' animals face similar wait times. 'Senior' animals exhibit shorter median days to any outcome (e.g. 4.2 days), reflecting alternative outcome pathways. Age remains a critical predictive feature.": 'Pomimo '
+                                                                                                                                                                                                                                                                                             'ewidentnego '
+                                                                                                                                                                                                                                                                                             'odchylenia '
+                                                                                                                                                                                                                                                                                             'obserwowalnego '
+                                                                                                                                                                                                                                                                                             'czasu '
+                                                                                                                                                                                                                                                                                             'opuszczenia '
+                                                                                                                                                                                                                                                                                             'stanowisk '
+                                                                                                                                                                                                                                                                                             'ewidencji '
+                                                                                                                                                                                                                                                                                             'przez '
+                                                                                                                                                                                                                                                                                             'grupę '
+                                                                                                                                                                                                                                                                                             'noworodkową '
+                                                                                                                                                                                                                                                                                             'rzędu '
+                                                                                                                                                                                                                                                                                             'do '
+                                                                                                                                                                                                                                                                                             '7 '
+                                                                                                                                                                                                                                                                                             'jednostek '
+                                                                                                                                                                                                                                                                                             '(Dni), '
+                                                                                                                                                                                                                                                                                             'badana '
+                                                                                                                                                                                                                                                                                             'waga '
+                                                                                                                                                                                                                                                                                             "'wielkości "
+                                                                                                                                                                                                                                                                                             "dorosłych' "
+                                                                                                                                                                                                                                                                                             'generuje '
+                                                                                                                                                                                                                                                                                             'wariancję '
+                                                                                                                                                                                                                                                                                             'czasową '
+                                                                                                                                                                                                                                                                                             'bardzo '
+                                                                                                                                                                                                                                                                                             'zbliżoną '
+                                                                                                                                                                                                                                                                                             'do '
+                                                                                                                                                                                                                                                                                             'tych '
+                                                                                                                                                                                                                                                                                             'pierwszych '
+                                                                                                                                                                                                                                                                                             'grup '
+                                                                                                                                                                                                                                                                                             'wiekowych. '
+                                                                                                                                                                                                                                                                                             'Najciekawsze '
+                                                                                                                                                                                                                                                                                             'odchylenia '
+                                                                                                                                                                                                                                                                                             'struktury '
+                                                                                                                                                                                                                                                                                             'modelu '
+                                                                                                                                                                                                                                                                                             'leżą '
+                                                                                                                                                                                                                                                                                             'w '
+                                                                                                                                                                                                                                                                                             'rzędzie '
+                                                                                                                                                                                                                                                                                             'kwantyli '
+                                                                                                                                                                                                                                                                                             'odzwierciedlonych '
+                                                                                                                                                                                                                                                                                             'wartością '
+                                                                                                                                                                                                                                                                                             'skróconą '
+                                                                                                                                                                                                                                                                                             'dla '
+                                                                                                                                                                                                                                                                                             'osobnika '
+                                                                                                                                                                                                                                                                                             'powyżej '
+                                                                                                                                                                                                                                                                                             'tzw. '
+                                                                                                                                                                                                                                                                                             'wieku '
+                                                                                                                                                                                                                                                                                             'geriatrycznego '
+                                                                                                                                                                                                                                                                                             "'Senior'. "
+                                                                                                                                                                                                                                                                                             'Czas '
+                                                                                                                                                                                                                                                                                             'opuszczenia '
+                                                                                                                                                                                                                                                                                             'murów '
+                                                                                                                                                                                                                                                                                             'instytucji '
+                                                                                                                                                                                                                                                                                             'bywa '
+                                                                                                                                                                                                                                                                                             'tu '
+                                                                                                                                                                                                                                                                                             'niższy '
+                                                                                                                                                                                                                                                                                             'od '
+                                                                                                                                                                                                                                                                                             'standardowego '
+                                                                                                                                                                                                                                                                                             '(ok. '
+                                                                                                                                                                                                                                                                                             '4 '
+                                                                                                                                                                                                                                                                                             'dni). '
+                                                                                                                                                                                                                                                                                             'Dyskrepancja '
+                                                                                                                                                                                                                                                                                             'jest '
+                                                                                                                                                                                                                                                                                             'powodowana '
+                                                                                                                                                                                                                                                                                             'ucieczką '
+                                                                                                                                                                                                                                                                                             'tych '
+                                                                                                                                                                                                                                                                                             'podmiotów '
+                                                                                                                                                                                                                                                                                             'od '
+                                                                                                                                                                                                                                                                                             'założeń '
+                                                                                                                                                                                                                                                                                             'procesu '
+                                                                                                                                                                                                                                                                                             'klasycznej '
+                                                                                                                                                                                                                                                                                             'opieki '
+                                                                                                                                                                                                                                                                                             'docelowej, '
+                                                                                                                                                                                                                                                                                             'co '
+                                                                                                                                                                                                                                                                                             'często '
+                                                                                                                                                                                                                                                                                             'zamyka '
+                                                                                                                                                                                                                                                                                             'te '
+                                                                                                                                                                                                                                                                                             'trajektorie '
+                                                                                                                                                                                                                                                                                             'wynikiem '
+                                                                                                                                                                                                                                                                                             "'eutanazji' "
+                                                                                                                                                                                                                                                                                             'czy '
+                                                                                                                                                                                                                                                                                             'przymusu '
+                                                                                                                                                                                                                                                                                             'objęcia '
+                                                                                                                                                                                                                                                                                             'reżimową '
+                                                                                                                                                                                                                                                                                             'farmakoterapią '
+                                                                                                                                                                                                                                                                                             'poza '
+                                                                                                                                                                                                                                                                                             'ośrodkiem '
+                                                                                                                                                                                                                                                                                             'schroniskowym. '
+                                                                                                                                                                                                                                                                                             'Kryterium '
+                                                                                                                                                                                                                                                                                             'ontogenetyczne '
+                                                                                                                                                                                                                                                                                             'jest '
+                                                                                                                                                                                                                                                                                             'tym '
+                                                                                                                                                                                                                                                                                             'samym '
+                                                                                                                                                                                                                                                                                             'uznane '
+                                                                                                                                                                                                                                                                                             'za '
+                                                                                                                                                                                                                                                                                             'fundamentalną '
+                                                                                                                                                                                                                                                                                             'właściwość '
+                                                                                                                                                                                                                                                                                             'decyzyjno-różniczkową '
+                                                                                                                                                                                                                                                                                             'we '
+                                                                                                                                                                                                                                                                                             'wszystkich '
+                                                                                                                                                                                                                                                                                             'architekturach '
+                                                                                                                                                                                                                                                                                             'docelowych '
+                                                                                                                                                                                                                                                                                             'budowanych '
+                                                                                                                                                                                                                                                                                             'modeli.',
+    '⚠️ Interpretation limits': '⚠️ Restrykcje poznawcze logiki asocjacyjnej '
+                                'dla wymiarów interpretacyjnych',
+    '🎓 Thesis Conclusions': '🎓 Zbiór finalnych dedukcji oraz implikacji',
+    "This explanation shows model feature contributions, not real-world causes of this animal's outcome. Feature families like breed or coat color represent associations in the training set, not proof of direct impact.": 'Zobrazowana '
+                                                                                                                                                                                                                             'mapa '
+                                                                                                                                                                                                                             'sił '
+                                                                                                                                                                                                                             'napędowych '
+                                                                                                                                                                                                                             'dekomponuje '
+                                                                                                                                                                                                                             'składowe '
+                                                                                                                                                                                                                             'macierzy '
+                                                                                                                                                                                                                             'i '
+                                                                                                                                                                                                                             'ich '
+                                                                                                                                                                                                                             'nacisk '
+                                                                                                                                                                                                                             'punktowy '
+                                                                                                                                                                                                                             'we '
+                                                                                                                                                                                                                             'wnętrzu '
+                                                                                                                                                                                                                             'architektury. '
+                                                                                                                                                                                                                             'Nie '
+                                                                                                                                                                                                                             'należy '
+                                                                                                                                                                                                                             'ich '
+                                                                                                                                                                                                                             'absolutnie '
+                                                                                                                                                                                                                             'powiązywać '
+                                                                                                                                                                                                                             'lub '
+                                                                                                                                                                                                                             'dokonywać '
+                                                                                                                                                                                                                             'uproszczeń '
+                                                                                                                                                                                                                             'redukując '
+                                                                                                                                                                                                                             'w '
+                                                                                                                                                                                                                             'naturalne '
+                                                                                                                                                                                                                             'związki '
+                                                                                                                                                                                                                             'przyczynowo-skutkowe '
+                                                                                                                                                                                                                             'charakteryzujące '
+                                                                                                                                                                                                                             'otaczający '
+                                                                                                                                                                                                                             'świat '
+                                                                                                                                                                                                                             'empiryczny '
+                                                                                                                                                                                                                             'i '
+                                                                                                                                                                                                                             'reakcję '
+                                                                                                                                                                                                                             'ludzi '
+                                                                                                                                                                                                                             'w '
+                                                                                                                                                                                                                             'fizycznym '
+                                                                                                                                                                                                                             'ośrodku '
+                                                                                                                                                                                                                             'adopcyjnym. '
+                                                                                                                                                                                                                             'Oś '
+                                                                                                                                                                                                                             'wektora '
+                                                                                                                                                                                                                             'cech '
+                                                                                                                                                                                                                             'taka '
+                                                                                                                                                                                                                             'jak '
+                                                                                                                                                                                                                             'przynależność '
+                                                                                                                                                                                                                             'formalno-taksonomiczna '
+                                                                                                                                                                                                                             'bądź '
+                                                                                                                                                                                                                             'estetyka '
+                                                                                                                                                                                                                             'umaszczenia '
+                                                                                                                                                                                                                             'odzwierciedla '
+                                                                                                                                                                                                                             'tu '
+                                                                                                                                                                                                                             'twardo '
+                                                                                                                                                                                                                             'korelacyjną '
+                                                                                                                                                                                                                             'statystykę '
+                                                                                                                                                                                                                             'macierzy '
+                                                                                                                                                                                                                             'zbiorów '
+                                                                                                                                                                                                                             'historycznych '
+                                                                                                                                                                                                                             '(Dane '
+                                                                                                                                                                                                                             'uczące '
+                                                                                                                                                                                                                             'modelu) '
+                                                                                                                                                                                                                             'w '
+                                                                                                                                                                                                                             'izolacji '
+                                                                                                                                                                                                                             'do '
+                                                                                                                                                                                                                             'postulatów '
+                                                                                                                                                                                                                             'by '
+                                                                                                                                                                                                                             'stanowiły '
+                                                                                                                                                                                                                             'one '
+                                                                                                                                                                                                                             'obiektywne '
+                                                                                                                                                                                                                             'oddziaływanie '
+                                                                                                                                                                                                                             'bezpośrednie '
+                                                                                                                                                                                                                             '(Impact).'}
 
 
 def t(text: str) -> str:
@@ -555,7 +1669,7 @@ with tabs[0]:
         clf_best = best_rows[best_rows["task"] == "classification"]
         reg_best = best_rows[best_rows["task"] == "regression"]
         
-        col1, col2 = st.columns(2)
+        col1, col2 = st.columns(2, gap="large")
         with col1:
             st.markdown("### 🎯 Classification (Adoption Chance)")
             if not clf_best.empty:
@@ -576,11 +1690,11 @@ with tabs[0]:
             else:
                 st.warning(t("No regression artifacts found."))
                 
-    st.markdown("---")
+    st.divider()
     st.markdown("## 📉 Where the Model is Wrong (Error Analysis)")
     st.write(t("No model is perfect. Here is exactly where the model struggles and the magnitude of its errors:"))
     
-    err_col1, err_col2 = st.columns(2)
+    err_col1, err_col2 = st.columns(2, gap="large")
     with err_col1:
         st.markdown("#### ⚖️ Classification Errors")
         st.write(t("When the model misclassifies an outcome, these are the most common failure modes:"))
@@ -593,11 +1707,13 @@ with tabs[0]:
         st.markdown("#### ⏱️ Regression Magnitude Errors")
         st.write(t("The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:"))
         if not diagnostics["regression_slices"].empty:
-            st.dataframe(diagnostics["regression_slices"][["cohort", "mae", "records"]].head(5), width='stretch', hide_index=True)
+            _rs = diagnostics["regression_slices"]
+            _cols = [c for c in ["cohort", "subgroup", "group", "mae", "mae_days", "records", "n"] if c in _rs.columns]
+            st.dataframe(_rs[_cols].head(5), use_container_width=True, hide_index=True)
         else:
             st.info(t("Run `python scripts/generate_diagnostics.py` to see error slices."))
     
-    st.markdown("---")
+    st.divider()
     with st.expander(t("View Full Executive Summary Report")):
         st.markdown(load_summary(SUMMARY_DIR))
 
@@ -624,7 +1740,7 @@ with tabs[1]:
     st.dataframe(approaches, width='stretch', hide_index=True)
 
     st.subheader(t("Real-life Shelter Questions"))
-    card_columns = st.columns(5)
+    card_columns = st.columns(5, gap="large")
     for column, card in zip(card_columns, story_cards()):
         column.metric(t(card["title"]), t(card["artifact"]))
         column.caption(t(card["question"]))
@@ -640,7 +1756,7 @@ with tabs[2]:
         selected = archetypes[archetypes["profile_label"].eq(selected_label)].iloc[0]
         profile_record = build_profile_prediction_record(selected)
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3, col4 = st.columns(4, gap="large")
         col1.metric(t("Similar records"), f"{int(selected['records']):,}")
         col2.metric(t("Adoption rate"), f"{selected['adoption_rate_pct']:.1f}%")
         col3.metric(t("Median days to outcome"), f"{selected['median_days_to_outcome']:.1f} days")
@@ -654,7 +1770,7 @@ with tabs[2]:
             f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
             f"{t('has recorded name') if selected['is_named'] == True else t('no recorded name')}"
         )
-        mix_cols = st.columns(3)
+        mix_cols = st.columns(3, gap="large")
         mix_cols[0].metric(t("Transfer rate"), f"{selected.get('transfer_rate_pct', 0):.1f}%")
         mix_cols[1].metric(t("Return-to-owner rate"), f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
         mix_cols[2].metric(t("Euthanasia rate"), f"{selected.get('euthanasia_rate_pct', 0):.1f}%")
@@ -677,7 +1793,7 @@ with tabs[2]:
                 predicted_days = profile_prediction.predicted_days_to_outcome
                 wait_bucket = profile_prediction.los_bucket
     
-                model_cols = st.columns(4)
+                model_cols = st.columns(4, gap="large")
                 prob_label = t("Predicted adoption chance (calibrated)") if profile_prediction.is_calibrated else t("Predicted adoption chance")
                 model_cols[0].metric(prob_label, f"{predicted_probability * 100:.1f}%")
                 model_cols[1].metric(t("Predicted days to outcome"), f"{predicted_days:.1f} days")
@@ -734,7 +1850,7 @@ with tabs[2]:
             width='stretch',
         )
         st.dataframe(contrast_view, width='stretch', hide_index=True)
-    left_animal, right_animal = st.columns(2)
+    left_animal, right_animal = st.columns(2, gap="large")
     with left_animal:
         figure(FIGURES_DIR / "animal_archetypes_top.png", "Largest animal archetypes")
     with right_animal:
@@ -745,7 +1861,7 @@ with tabs[2]:
     st.dataframe(tables["health_behavior_profiles"], width='stretch', hide_index=True)
 
 with tabs[3]:
-    left, right = st.columns(2)
+    left, right = st.columns(2, gap="large")
     with left:
         figure(FIGURES_DIR / "model_comparison_classification_pr_auc.png", "Classification PR-AUC")
         figure(FIGURES_DIR / "model_comparison_classification_roc_auc.png", "Classification ROC-AUC")
@@ -776,7 +1892,7 @@ with tabs[3]:
             width='stretch',
         )
     st.subheader(t("Reliability Figures"))
-    left_diag, right_diag = st.columns(2)
+    left_diag, right_diag = st.columns(2, gap="large")
     with left_diag:
         figure(FIGURES_DIR / "diagnostic_roc_curve.png", "Advanced model ROC curve")
         figure(FIGURES_DIR / "diagnostic_precision_recall_curve.png", "Advanced model precision-recall curve")
@@ -786,7 +1902,7 @@ with tabs[3]:
 
 with tabs[4]:
     render_trust_and_limits(tables)
-    st.markdown("---")
+    st.divider()
     st.subheader(t("Model Evidence Pack"))
     evidence = tables["model_evidence_pack"]
     intervals = tables["metric_confidence_intervals"]
@@ -897,7 +2013,7 @@ with tabs[5]:
     st.subheader(t("SHAP Global Explanations"))
     st.caption(t("SHAP values describe factors associated with model predictions, not causal effects."))
     st.info(SHAP_DISCLAIMER)
-    left_shap, right_shap = st.columns(2)
+    left_shap, right_shap = st.columns(2, gap="large")
     with left_shap:
         figure(FIGURES_DIR / "shap_summary_classification.png", "Classification SHAP summary")
         st.dataframe(tables["shap_classification"].head(20), width='stretch', hide_index=True)
@@ -931,7 +2047,7 @@ with tabs[6]:
         selected = thresholds.iloc[(thresholds["threshold"] - selected_threshold).abs().argsort()[:1]]
         if not selected.empty:
             row = selected.iloc[0]
-            cols = st.columns(4)
+            cols = st.columns(4, gap="large")
             cols[0].metric(t("Precision"), f"{row['precision']:.3f}")
             cols[1].metric(t("Recall"), f"{row['recall']:.3f}")
             cols[2].metric(t("F1"), f"{row['f1']:.3f}")
@@ -982,7 +2098,7 @@ with tabs[6]:
     st.dataframe(diagnostics["regression_slices"].head(20), width='stretch', hide_index=True)
 
 with tabs[7]:
-    h1_left, h1_right = st.columns(2)
+    h1_left, h1_right = st.columns(2, gap="large")
     with h1_left:
         figure(FIGURES_DIR / "h1_intake_type_adoption_rate.png", "H1 adoption rate by intake type")
         figure(FIGURES_DIR / "h3_age_group_adoption_rate.png", "H3 adoption rate by age group")
@@ -1007,7 +2123,7 @@ with tabs[8]:
         st.info(t("Run diagnostics to populate campaign cohorts."))
     else:
         filters = {}
-        cols = st.columns(4)
+        cols = st.columns(4, gap="large")
         for col, field in zip(cols, ["animal_type", "age_group", "intake_type", "covid_period"]):
             options = ["All"] + sorted(predictions[field].dropna().astype(str).unique().tolist())
             filters[field] = col.selectbox(t(field.replace("_", " ").title()), options, format_func=t)
@@ -1019,7 +2135,7 @@ with tabs[8]:
             if cohort.empty:
                 st.warning(t("No records match this cohort."))
             else:
-                cols = st.columns(4)
+                cols = st.columns(4, gap="large")
                 cols[0].metric(t("Cohort size"), f"{len(cohort):,}")
                 cols[1].metric(t("Observed adoption"), f"{cohort['classification_target'].mean() * 100:.1f}%")
                 cols[2].metric(t("Mean predicted adoption"), f"{cohort['predicted_adoption_probability'].mean() * 100:.1f}%")
@@ -1037,7 +2153,7 @@ with tabs[9]:
     st.warning(CAUSAL_WARNING)
     st.caption(t("Uses the combined classifier and regressor when advanced artifacts exist. This is a demo prediction, not a causal decision rule."))
 
-    left, right = st.columns(2)
+    left, right = st.columns(2, gap="large")
     with left:
         animal_type = st.selectbox(t("Animal type"), ["Dog", "Cat"], format_func=t, key="pred_animal_type")
         intake_type = st.selectbox(
@@ -1098,7 +2214,7 @@ with tabs[9]:
             days = prediction.predicted_days_to_outcome
             wait_bucket = prediction.los_bucket
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3 = st.columns(3, gap="large")
             prob_label = t("Predicted adoption probability (calibrated)") if prediction.is_calibrated else t("Predicted adoption probability")
             col1.metric(prob_label, f"{probability_pct:.1f}%")
             col2.metric(t("Predicted days to outcome"), f"{days:.1f} days")
@@ -1198,7 +2314,7 @@ with tabs[11]:
         if report_file.exists():
             try:
                 content = report_file.read_text(encoding="utf-8")
-                st.markdown("---")
+                st.divider()
                 st.markdown(f"#### {t('Viewing Report:')} `{selected_report_path}`")
                 st.markdown(content)
             except Exception as e:
@@ -1206,7 +2322,7 @@ with tabs[11]:
         else:
             st.warning(t("Report file not found on disk."))
 
-    st.markdown("---")
+    st.divider()
     st.write(t("Core commands:"))
     st.code(
         "\n".join(
@@ -1281,7 +2397,7 @@ with tabs[13]:
     
     st.markdown("### 📌 H1: Appearance vs. Intake Context")
     st.info(t("**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition)."))
-    h1_col1, h1_col2 = st.columns(2)
+    h1_col1, h1_col2 = st.columns(2, gap="large")
     with h1_col1:
         if not tables["shap_family_classification"].empty:
             st.write(t("**Global SHAP Feature Importance (Classification)**"))
@@ -1303,7 +2419,7 @@ with tabs[13]:
 
     st.markdown("### 📌 H3: Age Penalties")
     st.warning(t("**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes."))
-    h3_col1, h3_col2 = st.columns(2)
+    h3_col1, h3_col2 = st.columns(2, gap="large")
     with h3_col1:
         if not tables["h3"].empty:
             st.write(t("**Median Days to Outcome by Age**"))
@@ -1324,10 +2440,10 @@ with tabs[13]:
         st.write(t("**Volume and Outcomes Across Periods**"))
         st.dataframe(tables["h5"][["covid_period", "records", "adoption_rate_pct", "median_days_to_outcome"]], width='stretch', hide_index=True)
 
-    st.markdown("---")
+    st.divider()
     st.markdown("### 🎯 Shelter Actionability & Limits")
     st.write(t("While machine learning successfully ranks animals by placement difficulty, **these predictions are associative, not causal.**"))
-    cols = st.columns(3)
+    cols = st.columns(3, gap="large")
     cols[0].metric(t("Best Use Case"), t("Prioritizing visibility campaigns"))
     cols[1].metric(t("Riskiest Use Case"), t("Automated euthanasia triaging"))
     cols[2].metric(t("Primary Limitation"), t("Data only reflects intake time"))

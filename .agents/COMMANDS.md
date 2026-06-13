@@ -2,7 +2,17 @@
 
 Run commands from the repository root with the project environment active.
 
-## Setup
+## Docker Setup (Recommended)
+
+The easiest way to run tests and pipelines without environment drift is via the Docker Compose wrapper script. It mounts local directories so artifacts persist natively.
+
+```powershell
+.\docker.ps1 test
+.\docker.ps1 quick
+.\docker.ps1 dashboard
+```
+
+## Local Setup
 
 ```powershell
 python -m pip install -e ".[dev]"
@@ -20,14 +30,12 @@ python scripts/calibrate_classifiers.py --help
 python scripts/evaluate_backtesting.py --help
 ```
 
-Known broken as of 2026-06-08:
-
 ```powershell
 python scripts/compare_recency.py --help
 ```
 
-It raises an argparse conflict because `--quick` is registered twice. Use this as
-a defect reproduction, not a healthy smoke check.
+This is a healthy CLI smoke check. The former duplicate `--quick` registration
+is fixed.
 
 ## Stale-File Proof
 
@@ -59,7 +67,7 @@ contain concurrent or historical agent state.
 ```powershell
 python scripts/run_full_pipeline.py --skip-download --skip-shap
 python scripts/run_full_pipeline.py --steps 2,10,14,16
-python scripts/generate_artifact_manifest.py
+python scripts/generate_artifact_manifest.py --run-id <canonical-run-id>
 ```
 
 Use `--quick` for development only. It skips expensive work and step 18 tests, so
@@ -73,10 +81,8 @@ python -m pytest -q
 powershell -ExecutionPolicy Bypass -File scripts/validate_final_acceptance.ps1 -Long
 ```
 
-The long acceptance command can be expensive and requires local raw/processed data.
-It currently reaches the broken recency CLI help check and fails. Do not report
-acceptance success until that defect is fixed. Report skipped commands and missing
-prerequisites explicitly.
+The long acceptance command can be expensive and requires local raw/processed
+data. Verified 2026-06-13: receipts valid; 268 passed, 3 expected skips.
 
 Full pytest currently contains artifact-dependent skips. A green unit run alone
 does not prove regenerated-artifact acceptance; run pipeline/manifest checks too.

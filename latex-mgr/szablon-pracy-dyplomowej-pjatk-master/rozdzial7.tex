@@ -1,0 +1,160 @@
+\setcounter{chapter}{6}
+\chapter{Aplikacja demonstracyjna i sposób prezentacji wyników}
+\label{chap:aplikacja-demonstracyjna-prezentacja-wynikow}
+
+\providecommand{\ChapterSevenFigure}[3]{%
+\begin{figure}[htbp]
+\centering
+\IfFileExists{#1}{%
+    \includegraphics[width=0.92\textwidth]{#1}%
+}{%
+    \fbox{%
+        \begin{minipage}[c][0.25\textheight][c]{0.86\textwidth}
+        \centering
+        \small Brak pliku graficznego w repozytorium:\\[4pt]
+        {\scriptsize\texttt{\detokenize{#1}}}
+        \end{minipage}%
+    }%
+}%
+\caption{#2}
+\label{#3}
+\end{figure}%
+}
+
+Zbudowanie skutecznego algorytmu analitycznego działającego w środowisku konsolowym, opisanym w poprzednich rozdziałach, rozwiązuje problem z perspektywy \emph{data science}, ale nie tworzy jeszcze narzędzia wygodnego dla pracowników schroniska. Aby ograniczyć barierę wejścia i pokazać praktyczną użyteczność opracowanych modeli, stworzono interaktywną aplikację demonstracyjną (dashboard).
+
+W niniejszym rozdziale przedstawiono cele, architekturę oraz przykładowe scenariusze użycia tego narzędzia wizualnego, które stanowi końcowy element praktycznej części pracy.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.92\textwidth]{../reports/figures/streamlit_ui_tab0_full.png}
+\caption{Widok startowy aplikacji demonstracyjnej (\emph{Executive Overview}) z widocznym selektorem języka interfejsu (Polish\,/\,English) w panelu bocznym oraz zestawieniem wyników selekcji modelu. Aplikacja dostępna jest lokalnie pod adresem \texttt{localhost:8501} po uruchomieniu \texttt{docker-compose up dashboard}.}
+\label{fig:streamlit-ui-overview}
+\end{figure}
+
+\section{Cel i środowisko aplikacji}
+\label{sec:cel-srodowisko-aplikacji}
+
+Głównym celem aplikacji jest umożliwienie personelowi Austin Animal Center (AAC) korzystania z wyników modelu predykcyjnego bez konieczności posiadania wiedzy programistycznej lub analitycznej.
+
+Kluczowym założeniem projektowym, zgodnym z opisaną w rozdziale 6 architekturą \emph{Artifact-First}, jest pasywność aplikacji w kontekście uczenia maszynowego. Wybór biblioteki Streamlit~\cite{Streamlit2023} podyktowany był natywnym wsparciem dla języka Python, możliwością błyskawicznego prototypowania (ang. \emph{rapid prototyping}) oraz czytelnym interfejsem użytkownika (UI). Streamlit pozwala na bezproblemową integrację wizualizacji danych. Aplikacja wspiera dwujęzyczność --- użytkownik może przełączać interfejs między językiem polskim a angielskim za pomocą selektora widocznego w panelu bocznym, co czyni ją dostępną zarówno dla krajowego personelu, jak i anglojęzycznych wolontariuszy. Dodatkowo aplikacja została zaprojektowana z uwzględnieniem obsługi przypadków brzegowych -- w sytuacji brakujących danych wprowadzanych przez użytkownika lub pojawienia się bardzo rzadkich ras, system stosuje bezpieczne wartości domyślne, co zapobiega awarii podczas generowania predykcji. Aplikacja nie trenuje modeli interaktywnie. Zamiast tego pobiera wcześniej zatwierdzone i zamrożone po weryfikacji testowej artefakty ze współdzielonego wolumenu Dockera dostępnego dla kontenera jako katalog \texttt{models/}.
+
+Poniższy fragment kodu pokazuje lekkość warstwy konsumpcyjnej. Interfejs wczytuje wcześniej wytrenowany model i przechodzi w stan gotowości operacyjnej:
+
+\begin{lstlisting}[language=Python,caption={Mechanizm buforowania wczytywania modelu zapobiegający degradacji wydajności},label={lst:dashboard-load-model}]
+import streamlit as st
+import joblib
+
+@st.cache_resource
+def load_model():
+    # Model laduje sie tylko raz po starcie kontenera "dashboard"
+    return joblib.load('models/adoption_model.joblib')
+
+model = load_model()
+\end{lstlisting}
+
+Dzięki temu system, działający jako izolowany kontener \texttt{dashboard}, ogranicza ryzyko uszkodzeń wynikających z wprowadzania błędnych danych przez operatora. Czas oczekiwania na prognozę pozostaje krótki, ponieważ aplikacja korzysta z gotowego modelu, a nie uruchamia procesu trenowania.
+
+\section{Główne moduły funkcjonalne (widoki)}
+\label{sec:glowne-moduly-funkcjonalne-widoki}
+
+Interfejs użytkownika podzielono na logiczne sekcje odpowiadające najczęstszym operacjom w schronisku.
+
+\subsection{Single Animal Predictor (symulator pojedynczego przyjęcia)}
+\label{subsec:single-animal-predictor}
+
+Jest to główny moduł operacyjny przeznaczony dla personelu pracującego przy tak zwanej ,,bramie'' (\emph{intake}), czyli na etapie przyjęcia zwierzęcia do ośrodka. Umożliwia on manualne wprowadzenie cech zwierzęcia znanych w momencie przyjęcia.
+
+Użytkownik definiuje z rozwijanych list między innymi:
+
+\begin{itemize}
+    \item gatunek, płeć oraz wiek w miesiącach lub latach,
+    \item typ i okoliczności przyjęcia, na przykład zrzeczenie właścicielskie, znalezienie na ulicy lub uratowanie z wypadku,
+    \item cechy wyglądu, w tym rasę dominującą oraz umaszczenie.
+\end{itemize}
+
+Po zatwierdzeniu formularza wbudowany w aplikację skrypt mapuje wartości z interfejsu na odpowiedni, stabelaryzowany wektor wejściowy i przekazuje go do wiodącego modelu klasyfikacyjnego. Pracownik otrzymuje następnie czytelny wynik:
+
+\begin{enumerate}
+    \item \textbf{Ocena ryzyka długiego pobytu} -- aplikacja klasyfikuje przypadek, używając wcześniej ustalonego progu decyzyjnego.
+    \item \textbf{Kwantyfikacja} -- prezentowane jest bazowe prawdopodobieństwo adopcji w procentach.
+\end{enumerate}
+
+\ChapterSevenFigure{../reports/figures/streamlit_ui_tab9_full.png}{Główny interfejs aplikacji demonstracyjnej (Single Animal Predictor) wspomagający ocenę nowo przyjmowanego zwierzęcia.}{fig:streamlit-ui-main}
+
+\subsection{Wyjaśnialność decyzji (Interactive SHAP)}
+\label{subsec:wyjasnialnosc-decyzji-interactive-shap}
+
+Wartość prawdopodobieństwa jest użyteczną informacją, jednak personel weterynaryjny potrzebuje również zrozumienia powodów stojących za oceną algorytmu, czyli tak zwanej \emph{explainability}. Dlatego dla predykcji pojedynczego zwierzęcia aplikacja może prezentować lokalne wyjaśnienie SHAP, na przykład w postaci wykresu typu \emph{force plot} lub \emph{waterfall plot}.
+
+W perspektywie globalnej, czyli dla całego zbioru, wartości te układają się w interpretowalne wzorce, co prezentuje poniższy wykres.
+
+\ChapterSevenFigure{../reports/figures/streamlit_ui_tab5_full.png}{Przykładowy widok panelu objaśniającego (Interactive SHAP), umożliwiający zrozumienie, które cechy wpłynęły na prognozę algorytmu.}{fig:streamlit-ui-shap}
+
+Pracownik na ekranie aplikacji widzi analogiczny wykres, ale ograniczony do jednego zwierzęcia. Może sprawdzić, które konkretne atrybuty, na przykład podeszły wiek psa, ciemne umaszczenie czy trudna sytuacja znalezienia, obniżyły wynik, a które, na przykład przynależność do bardziej pożądanego typu rasy, działały na jego korzyść. Jest to istotny element budowania zaufania między człowiekiem a algorytmem i ograniczania ryzyka odrzucenia systemu z powodu postrzegania go jako ,,czarnej skrzynki'' (\emph{black-box})~\cite{Adadi2018}.
+
+\subsection{Laboratorium hipotez (Hypothesis Lab)}
+\label{subsec:laboratorium-hipotez}
+
+Zakładka \emph{Hypothesis Lab} stanowi bezpośrednie przedłużenie analitycznej części pracy w przestrzeni interfejsu użytkownika. Prezentuje ona wyniki weryfikacji hipotez H1--H5 w formie skondensowanych kart wizualnych z kluczowymi statystykami i wykresami. Dzięki temu kierownik schroniska, bez konieczności sięgania po pełny raport analityczny, może zweryfikować na przykład, czy sezonowy wzorzec adopcyjności (H2) jest zgodny z bieżącymi obserwacjami operacyjnymi.
+
+% TODO: replace with clean screenshot once streamlit_ui_tab7_full.png is captured
+\ChapterSevenFigure{../reports/figures/streamlit_ui_tab7_full.png}{Zakładka \emph{Hypothesis Lab} umożliwiająca przeglądanie wyników weryfikacji hipotez badawczych H1--H5 w formie interaktywnych kart analitycznych.}{fig:streamlit-ui-hypothesis}
+
+\subsection{Przegląd historycznych grup zwierząt i analiza warunkowa}
+\label{subsec:przeglad-historycznych-grup-zwierzat}
+
+Dla stanowisk kierowniczych aplikacja udostępnia widok umożliwiający przeglądanie historycznych grup zwierząt z populacji AAC oraz dokonywanie analizy warunkowej (ang. \emph{what-if analysis}). Pozwala to na nakładanie filtrów i obserwację zmian krzywych adopcyjności oraz median długości pobytu w czasie, z podziałem na kluczowe archetypy, takie jak szczenięta, dorosłe psy określonych ras czy koty. Aplikacja może wskazać obszary wymagające uwagi, na przykład nagromadzenie starszych kotów w określonym kwartale roku, bez konieczności generowania zapytań SQL przez analityka.
+
+Dzięki wizualizacji profilowych kontrastów adopcyjności (np. porównaniu młodych psów ras małych ze starszymi psami ras dużych), personel schroniska może błyskawicznie ocenić, jak zmiana wybranych parametrów wpływa na przewidywany czas pobytu. Pozwala to na trafniejsze identyfikowanie grup najwyższego ryzyka, co w ujęciu syntetycznym prezentuje poniższy wykres.
+
+\ChapterSevenFigure{../reports/figures/streamlit_ui_tab6_full.png}{Panel analityczny udostępniający przegląd historycznych grup zwierząt i pozwalający na przeprowadzanie analiz warunkowych przez kierownictwo schroniska.}{fig:streamlit-ui-historical}
+
+\section{Scenariusze użycia w pracy schroniska (triaging)}
+\label{sec:scenariusze-uzycia-triaging}
+
+Największą wartością dodaną aplikacji z punktu widzenia operacyjnego nie jest precyzyjna predykcja konkretnej daty, lecz możliwość zastosowania selekcji priorytetowej, czyli tak zwanego \emph{triagingu}.
+
+W tradycyjnym środowisku każdy przyjmowany pies otrzymuje standardową opiekę. Czasem dopiero po kilku miesiącach personel zauważa, że dane zwierzę źle znosi pobyt w schronisku i zaczyna funkcjonować jak długoterminowy ,,rezydent''. W scenariuszu wspartym aplikacją:
+
+\begin{enumerate}
+    \item zwierzę jest wprowadzane do bazy,
+    \item aplikacja flaguje je jako przypadek wysokiego ryzyka długiego pobytu, na przykład ze względu na bardzo niskie prawdopodobieństwo adopcji lub długi estymowany czas pobytu,
+    \item pracownik już pierwszego dnia widzi ten alert i może uruchomić procedury zaradcze, na przykład przekazanie zwierzęcia do tymczasowego domu zastępczego (\emph{foster}), rozpoczęcie intensywniejszej promocji w lokalnych mediach społecznościowych lub szybką interwencję behawiorysty.
+\end{enumerate}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    box/.style={draw, rectangle, rounded corners, minimum width=3cm, minimum height=1cm, align=center, fill=gray!10},
+    arrow/.style={->, thick}
+]
+
+\node[box] (start) at (0, 0) {Nowe przyjęcie};
+\node[box] (input) at (0, -1.5) {Wprowadzenie\\danych};
+\node[box, draw=blue, fill=blue!5] (risk) at (0, -3.2) {Ryzyko długiego\\pobytu?};
+\node[box, fill=green!10] (low) at (4.5, -3.2) {Niskie\\(Standardowa procedura)};
+\node[box, fill=red!10] (high) at (0, -5.2) {Wysokie\\(Priorytetowe działania)};
+
+\draw[arrow] (start) -- (input);
+\draw[arrow] (input) -- (risk);
+\draw[arrow] (risk) -- node[above] {Nie} (low);
+\draw[arrow] (risk) -- node[right] {Tak} (high);
+
+\end{tikzpicture}
+\caption{Schemat procesu selekcji priorytetowej (triaging) w schronisku z wykorzystaniem systemu predykcyjnego.}
+\label{fig:triaging-workflow}
+\end{figure}
+
+\section{Ograniczenia aplikacji i kierunki dalszego rozwoju}
+\label{sec:ograniczenia-aplikacji}
+
+Ograniczenia aplikacji wynikają bezpośrednio z ograniczeń modelu predykcyjnego opisanych w rozdziale~5. Należy wskazać następujące zastrzeżenia:
+
+\begin{itemize}
+    \item \textbf{Brak uogólnienia poza populację AAC.} Predykcje dla zwierząt spoza zakresu danych treningowych należy traktować jako ekstrapolowane, a nie interpolowane.
+
+    \item \textbf{Pasywność wobec danych rzeczywistych.} Aplikacja nie pobiera danych operacyjnych w czasie rzeczywistym. Wyświetlane statystyki odzwierciedlają stan artefaktów z ostatniego uruchomienia potoku \texttt{pipeline-full}.
+
+    \item \textbf{Brak formalnej ewaluacji użyteczności.} Niniejsza wersja stanowi demonstrację koncepcyjną i nie była poddana testom użytkowników zgodnym z metodyką HCI~\cite{Mosqueira2023}.
+\end{itemize}

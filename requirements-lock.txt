@@ -1,4 +1,4 @@
--e git+https://github.com/magda2307/austin-analysis.git@5efce00531451d91896140f61ef8fa446d11b529#egg=aac_adoption
+-e git+https://github.com/magda2307/austin-analysis.git@0bb4ce58f686901578fd247c054e3fd8a5207650#egg=aac_adoption
 alembic==1.18.4
 altair==6.1.0
 annotated-doc==0.0.4
@@ -61,11 +61,13 @@ pandas==2.3.3
 pathspec==1.1.1
 pillow==12.2.0
 platformdirs==4.10.0
+playwright==1.60.0
 plotly==6.7.0
 pluggy==1.6.0
 protobuf==7.35.0
 pyarrow==24.0.0
 pydeck==0.9.2
+pyee==13.0.1
 Pygments==2.20.0
 pyparsing==3.3.2
 pytest==9.0.3

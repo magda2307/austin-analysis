@@ -912,7 +912,30 @@ Acceptance-facing artifact contracts currently enforced by tests include:
 - local explanation artifact presence and non-causal limitation text;
 - manifest entries for `local_explanation_examples.csv` and `local_explanation_examples.md`.
 
-## Run Full Pipeline
+## Run with Docker (Recommended)
+
+To avoid local dependency and environment issues, the entire project is containerized. You can run all pipeline, testing, and dashboard commands inside an isolated Docker container using the included PowerShell helper script (requires [Docker Desktop](https://www.docker.com/products/docker-desktop/)):
+
+```powershell
+# Boot up the Streamlit dashboard on port 8501
+.\docker.ps1 dashboard
+
+# Boot up the Jupyter Notebook server on port 8888
+.\docker.ps1 jupyter
+
+# Run the full data and training pipeline
+.\docker.ps1 pipeline
+
+# Run the quick pipeline (skips slow steps)
+.\docker.ps1 quick
+
+# Run the full pytest suite
+.\docker.ps1 test
+```
+
+*Note: The container automatically mounts your local `data/`, `models/`, `reports/`, and `logs/` directories, so all generated artifacts and models persist on your host machine exactly as if you ran them natively.*
+
+## Run Full Pipeline Locally
 
 For a full local refresh, use one of the orchestration scripts:
 

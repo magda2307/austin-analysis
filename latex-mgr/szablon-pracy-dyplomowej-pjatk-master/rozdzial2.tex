@@ -1,0 +1,83 @@
+\chapter{Podstawy teoretyczne i przegląd literatury}
+\label{chap:podstawy-teoretyczne}
+
+\section{Problem bezdomności zwierząt i filozofia No-Kill}
+
+Zjawisko bezdomności zwierząt to poważny problem społeczny i ekologiczny na całym świecie. Szacuje się, że globalna populacja bezdomnych psów i kotów liczona jest w setkach milionów \cite{FourPaws2023}. Szczególnie dotkliwie problem ten występuje w Stanach Zjednoczonych, gdzie każdego roku do schronisk trafia ponad 6 milionów porzuconych lub bezdomnych zwierząt domowych. Historycznie wysoki odsetek z nich był poddawany eutanazji z braku miejsc i możliwości adopcji – jeszcze kilkanaście lat temu uśmiercano miliony psów i kotów rocznie, co stanowiło znaczną część wszystkich przyjmowanych zwierząt \cite{Bradley2021}.
+
+W ostatnich latach, dzięki upowszechnieniu sterylizacji, licznym kampaniom adopcyjnym oraz zmianie podejścia do zarządzania schroniskami, sytuacja zaczęła się stopniowo poprawiać. Obecnie do amerykańskich schronisk wchodzi rocznie ok. 6,3 mln zwierząt, a liczba eutanazji znacząco spadła w porównaniu do dekady ubiegłej \cite{SAC2024}. Trend ten odzwierciedla globalny zwrot w kierunku bardziej humanitarnego traktowania bezdomnych zwierząt, którego centralnym elementem jest filozofia \emph{No-Kill}.
+
+Filozofia \emph{No-Kill} zakłada rezygnację z rutynowej eutanazji zwierząt w schronisku \textit{wyłącznie z powodu braku miejsc} – wszystkie zdrowe lub rokujące na wyleczenie zwierzęta powinny pozostać przy życiu i oczekiwać na adopcję tak długo, jak będzie to konieczne. W praktyce za schronisko \emph{no-kill} uznaje się placówkę osiągającą co najmniej 90\% tzw. współczynnika ocalenia (ang. \emph{save rate}), czyli odsetka zwierząt opuszczających schronisko żywych \cite{Austin2010}. Takie podejście wymaga wdrożenia szeregu strategii zwiększających liczbę udanych adopcji oraz zmniejszających napływ nowych zwierząt do systemu (m.in. programy sterylizacji, rozbudowa wolontariatu).
+
+Przykładem skutecznej realizacji idei No-Kill jest miasto Austin w Teksasie. W 2010~r. władze Austin przyjęły kompleksowy plan działań, którego celem było osiągnięcie statusu no-kill, a już w kolejnym roku miejskie schronisko Austin Animal Center przekroczyło próg 90\% uratowanych zwierząt \cite{Austin2010}. Od tego czasu Austin utrzymuje reputację największego miasta \emph{No-Kill} w USA. Sukces ten zainspirował wiele innych społeczności – w ostatnich latach odsetek amerykańskich schronisk deklarujących status no-kill znacząco wzrósł \cite{SAC2024}. Należy jednak podkreślić, że status ten nie oznacza całkowitego wyeliminowania eutanazji: nadal uśmiercane są zwierzęta poważnie chore lub niebezpieczne, lecz nie dopuszcza się uśpienia zdrowego zwierzęcia z powodów ekonomicznych.
+
+Dane gromadzone w schroniskach stanowią cenne źródło informacji do oceny efektywności adopcji. Większość schronisk prowadzi szczegółową ewidencję przyjęć (ang. \emph{intake}) i opuszczeń (ang. \emph{outcome}) zwierząt, co pozwala śledzić m.in. czas pobytu (\emph{length of stay}), stan zdrowia, rasę czy wiek. Analiza takich danych umożliwia wyliczenie kluczowych mierników operacyjnych i zastosowanie zaawansowanych metod analitycznych w celu \textbf{predykcji} wyników adopcji. Przykładowo, badania wskazują, że cechy takie jak wiek czy wielkość zwierzęcia istotnie wpływają na tempo jego adopcji – szczenięta znajdują domy szybciej niż psy starsze, a zwierzęta o umaszczeniu odbiegającym od preferowanego mogą oczekiwać na adopcję dłużej \cite{Bradley2021}. Zjawisko to, często określane mianem \textit{Black Dog Syndrome} (syndrom czarnego psa), sugeruje, że psy o ciemnym umaszczeniu są rzadziej wybierane przez adoptujących \cite{Gunter2016, Cain2020, svoboda2015}. Ponadto istotne znaczenie w procesie adopcji odgrywają interakcje między zwierzęciem a potencjalnym opiekunem w schronisku \cite{Protopopova2012}.
+
+\section{Predykcyjne modelowanie adopcji}
+
+Wyzwania związane z poprawą wskaźników adopcji przyczyniły się do rosnącego zainteresowania metodami predykcyjnymi. Modelowanie to polega na wykorzystaniu metod statystycznych oraz algorytmów uczenia maszynowego do przewidywania, czy i kiedy dane zwierzę zostanie adoptowane. Modele uczą się na danych historycznych w celu uchwycenia zależności między cechami zwierzęcia a wynikiem adopcyjnym \cite{Sazara2022}.
+
+Do najprostszych metod predykcji należą modele statystyczne, w tym regresja logistyczna. W modelu tym prawdopodobieństwo adopcji $P(y=1|X)$ dla wektora cech $X$ modelowane jest za pomocą funkcji logistycznej:
+\begin{equation}
+P(y=1|X) = \frac{1}{1 + e^{-(\beta_0 + \beta_1 x_1 + \dots + \beta_n x_n)}}
+\end{equation}
+gdzie $\beta_0$ to wyraz wolny, $\beta_1, \ldots, \beta_n$ to współczynniki regresji odpowiadające poszczególnym cechom, zaś $x_1, \ldots, x_n$ to wartości cech opisujących dane zwierzę.
+
+Choć regresja cechuje się wysoką interpretowalnością, ma ograniczoną zdolność chwytania nieliniowych zależności. Dlatego coraz częściej sięga się po metody o większej mocy predykcyjnej, takie jak zespoły drzew decyzyjnych, które w przeciwieństwie do modeli głębokiego uczenia (ang. \textit{Deep Learning}) wykazują wyższą skuteczność na typowych danych tabelarycznych \cite{Grinsztajn2022}.
+
+Lasy losowe (\textit{Random Forests}), zaproponowane przez Breimana \cite{Breiman2001}, łączą przewidywania wielu niezależnie trenowanych drzew decyzyjnych, co zmniejsza wariancję modelu i zapobiega przeuczeniu. Alternatywnym, potężnym podejściem są algorytmy z rodziny \textit{gradient boosting} \cite{Friedman2001}, które iteracyjnie budują drzewa, gdzie każde kolejne drzewo stara się zminimalizować funkcję straty $\mathcal{L}$ z poprzednich iteracji. W przypadku binarnej klasyfikacji często stosowaną funkcją straty jest \textit{log-loss}:
+\begin{equation}
+\mathcal{L}(y, \hat{p}) = - \frac{1}{N} \sum_{i=1}^{N} \left[ y_i \log(\hat{p}_i) + (1 - y_i) \log(1 - \hat{p}_i) \right]
+\end{equation}
+gdzie $N$ to liczba próbek treningowych, $y_i \in \{0, 1\}$ to rzeczywista etykieta klasy (1~-- adoptowane), a $\hat{p}_i$ to prognozowane prawdopodobieństwo adopcji dla $i$-tej próbki.
+
+
+Najbardziej rozpowszechnionymi algorytmami tego typu są XGBoost \cite{Chen2016} oraz LightGBM \cite{Ke2017}. W ostatnich latach popularność zyskał również CatBoost – biblioteka zoptymalizowana do przetwarzania cech kategorycznych bez konieczności obszernego kodowania zmiennych (ang. \textit{categorical encoding}), np. \textit{one-hot encodingu} \cite{Prokhorenkova2018}. W kontekście danych schroniskowych, które obfitują w atrybuty kategoryczne (rasa, umaszczenie, typ przyjęcia), optymalne metody kodowania zmiennych oraz radzenie sobie z często występującym problemem niezbilansowanych klas (ang. \textit{class imbalance}) \cite{He2009} odgrywają kluczową rolę w trenowaniu modeli. Badania z wykorzystaniem danych schroniskowych, m.in. praca Sazary i in. (2022), wykazały, że zaawansowane modele klasyfikacyjne potrafią z dużą dokładnością przewidywać szybkość adopcji, identyfikując wiek i rasę jako kluczowe predyktory sukcesu \cite{Sazara2022}.
+
+Ocenę jakości modeli klasyfikacyjnych przeprowadza się z użyciem krzywej ROC (ang. \emph{Receiver Operating Characteristic}), która dla różnych progów decyzyjnych modelu ilustruje zależność między czułością (ang. \emph{True Positive Rate}, TPR) a odsetkiem fałszywych alarmów (ang. \emph{False Positive Rate}, FPR = 1 -- swoistość). Pole pod tą krzywą, czyli metryka AUC (ang. \emph{Area Under the Curve}), pozwala ocenić zdolność modelu do rozróżniania klas \cite{Fawcett2006}. Do weryfikacji trafności probabilistycznych predykcji stosuje się także wskaźnik Briera (ang. \emph{Brier Score}) \cite{Brier1950}. Do modelowania czasu do zdarzenia (np. długości pobytu w schronisku) stosuje się analizę przeżycia, wykorzystując takie narzędzia jak estymator Kaplana-Meiera \cite{Kaplan1958} i model proporcjonalnego hazardu Coxa \cite{Cox1972}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.82\textwidth]{../reports/figures/km_adoption_by_animal_type.png}
+  \caption{Krzywe Kaplana-Meiera szacujące prawdopodobieństwo pozostania w schronisku bez adopcji, w podziale na gatunek zwierzęcia (dane Austin Animal Center, 2013--2025). Spadek krzywej odpowiada momentom adopcji; krzywe ucinane są przez obserwacje ocenzurowane.}
+  \label{fig:km-animal-type-ch2}
+\end{figure}
+
+Istotnym elementem projektowania modeli jest także ocena \textbf{istotności cech} oraz interpretowalność. Złożone modele zespołowe działają często jak „czarne skrzynki”. Metoda SHAP (\textit{Shapley Additive Explanations}) \cite{Lundberg2017} pozwala na alokację kontrybucji każdej cechy do ostatecznej predykcji modelu, w oparciu o wartości Shapleya z teorii gier:
+\begin{equation}
+\phi_i(v) = \sum_{S \subseteq N \setminus \{i\}} \frac{|S|! (|N| - |S| - 1)!}{|N|!} (v(S \cup \{i\}) - v(S))
+\end{equation}
+gdzie $\phi_i$ to wartość Shapleya dla cechy $i$, $N$ to zbiór wszystkich cech, a $v(S)$ to przewidywanie modelu dla podzbioru cech $S$. Metoda ta pozwala określić, w jaki sposób konkretna cecha (np. czarne umaszczenie) wpływa na obniżenie lub podwyższenie prawdopodobieństwa adopcji dla danego zwierzęcia.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{../reports/figures/shap_summary_classification.png}
+  \caption{Podsumowanie wartości SHAP dla modelu klasyfikacji adopcji (CatBoost). Każdy punkt reprezentuje jedną obserwację; kolor koduje wartość cechy (czerwony~-- wysoka, niebieski~-- niska). Cechy posortowane malejąco według średniej bezwzględnej wartości SHAP.}
+  \label{fig:shap-summary-ch2}
+\end{figure}
+
+Przegląd najistotniejszych prac badawczych wykorzystujących uczenie maszynowe do analizy danych schroniskowych zestawiono w Tabeli \ref{tab:related_works}.
+
+\begin{table}[htbp]
+\centering
+\caption{Zestawienie wybranych prac dotyczących modelowania adopcji zwierząt}
+\label{tab:related_works}
+\begin{tabular}{|p{3.5cm}|p{3.5cm}|p{7cm}|}
+\hline
+\textbf{Publikacja} & \textbf{Zastosowane algorytmy} & \textbf{Kluczowe wnioski} \\ \hline
+Bradley i Rajendran (2021) \cite{Bradley2021} & Regresja logistyczna, Analiza przeżycia & Wiek i wielkość psa silnie wpływają na czas do adopcji. Optymalna alokacja zasobów schroniska. \\ \hline
+Sazara i Gao (2022) \cite{Sazara2022} & CatBoost, XGBoost & Drzewa wzmacniane gradientowo osiągają wysoką precyzję, użyto SHAP do interpretacji. \\ \hline
+Cain i in. (2020) \cite{Cain2020} & Lasy losowe, SVM & Umaszczenie (np. Black Dog Syndrome) oraz rasa wpływają na preferencje adoptujących. \\ \hline
+Hawes i in. (2022) \cite{Hawes2022} & LightGBM, Random Forest & Algorytmy ensemble są skuteczne w przewidywaniu ryzyka przedłużonego pobytu w schronisku. \\ \hline
+\end{tabular}
+\end{table}
+
+\section{Reprodukowalność i inżynieria danych (MLOps)}
+
+Wraz z rozwojem projektów z zakresu sztucznej inteligencji pojawiła się potrzeba wypracowania praktyk zapewniających reprodukowalność badań. Odpowiedzią na te wyzwania jest podejście MLOps (\textit{Machine Learning Operations}), które integruje proces projektowania modeli z ich wdrażaniem, testowaniem i utrzymaniem \cite{Sculley2015}. W kontekście badań opartych na uczeniu maszynowym, infrastruktura MLOps pozwala na standaryzację całego cyklu życia modelu.
+
+Jednym z filarów MLOps jest zagwarantowanie spójnego środowiska uruchomieniowego. Służy do tego konteneryzacja, najczęściej realizowana z użyciem technologii Docker. Zapewnia ona, że kod trenujący model, wraz ze wszystkimi zależnościami, będzie działał identycznie niezależnie od środowiska (np. u lokalnego dewelopera czy na serwerze obliczeniowym), co jest kluczowe dla reprodukowalności badań naukowych \cite{Merkel2014}. 
+
+Kolejnym ważnym elementem jest wersjonowanie danych i eksperymentów. W przeciwieństwie do kodu, który skutecznie podlega kontroli wersji w systemie Git, duże zbiory danych i binarne pliki modeli wymagają innych narzędzi. W niniejszej pracy wykorzystano narzędzie DVC (\textit{Data Version Control}), które umożliwia śledzenie zmian w zbiorach danych, budowanie powtarzalnych potoków (\emph{pipelines}) transformacji i uczenia modelu oraz gwarantuje pełną historię eksperymentów \cite{Kuprieiev2024}. Do szczegółowego śledzenia metryk (np. dokładności na zbiorze walidacyjnym) i hiperparametrów podczas procesu uczenia wykorzystuje się systemy do \emph{experiment tracking} (np. MLflow czy Weights \& Biases).
+
+Cały proces podlega automatyzacji za pomocą praktyk CI/CD (\textit{Continuous Integration} i \textit{Continuous Deployment}). CI/CD pozwala na automatyczne sprawdzanie jakości kodu (ang. \textit{linting}), uruchamianie testów jednostkowych, a także weryfikację poprawności trenowanych modeli przy każdej zmianie w repozytorium. Tego rodzaju automatyzacja minimalizuje ryzyko wprowadzenia błędów i zapewnia stałą jakość dostarczanych rozwiązań. Ostatnim etapem jest prezentacja wyników, zrealizowana w tej pracy za pomocą biblioteki Streamlit, pozwalającej na tworzenie interaktywnych wizualizacji danych i udostępnianie wyników interesariuszom w postaci aplikacji webowej \cite{Streamlit2023}.

@@ -69,6 +69,26 @@
         "last_turn_id": "019ebd95-8753-7560-b05f-2aa3ceaf4bf7",
         "last_thread_id": null
       }
+    },
+    "019ebe1e-7553-7ea3-b9dc-d28f3f519fc0": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|nie. w obecnie używanych publicznych danych aac **nie mamy dostępu do swobodnych notatek weterynaryjnych ani komentarzy personelu**. - `intakes.csv`: 12 pól, m.in. `intake condition`, rasa, kolor i lokalizacja. - `outcomes.csv`: 12 pól, m.in. `outcome type` i `outcome subtype`. - nowszy zbiór shelterbuddy od **5 maja 2025 r.** również nie udostępnia notatek tekstowych; zawiera tylko pola strukturalne. zbiór outcomes ma dodatkowo `euthanasia_reason`. dlatego zdanie w pracy jest zbyt stanowcze. bezpieczniej napisać: > potencjalnym kierunkiem rozwoju jest pozyskanie, za zgodą aac i po odpowiedniej anonimizacji, nieustrukturyzowanych notatek weterynaryjnych lub behawioralnych. dane te nie są dostępne w publicznych zbiorach wykorzystanych w niniejszej pracy. obecne sygnały zdrowotne i behawioralne pochodzą wyłącznie z kategorii takich jak `intake_condition` oraz `outcome_subtype`, a nie z nlp. źródła: [historyczne intakes aac](https://data.austintexas.gov/d/wter-evkm), [aktualne intakes shelterbuddy](https://data.austintexas.gov/d/pyqf-r2dc), [aktualne outcomes](https://data.austintexas.gov/d/gsvs-ypi7).",
+        "first_seen_at": "2026-06-12T23:16:45.248Z",
+        "last_seen_at": "2026-06-12T23:16:45.248Z",
+        "repeat_count": 1,
+        "last_turn_id": "019ebe1e-96b5-7340-b996-78b2ac726f17",
+        "last_thread_id": null
+      }
+    },
+    "019ebd00-1542-77c2-b8a8-6c258ec30b28": {
+      "ordinary_no_progress_guard": {
+        "fingerprint": "ordinary|project closeout complete. - canonical run: `20260613t001946z-0bb4ce5` - 20/20 pipeline steps passed - 48 receipt-backed thesis artifacts - final acceptance: **269 passed, 3 expected skips** - cavecrew review: no issues - commit: `0c7aabd` uncommitted files belong to concurrent dashboard, packaging, and thesis-export work; left untouched. caveman stats unavailable because hook-only integration did not fire here. ::git-commit{cwd=\"c:\\users\\paula\\documents\\mgr pjatk\"}",
+        "first_seen_at": "2026-06-13T01:58:30.156Z",
+        "last_seen_at": "2026-06-13T01:58:30.156Z",
+        "repeat_count": 1,
+        "last_turn_id": "019ebd00-f396-7e20-b1b4-bf8833a6e9f5",
+        "last_thread_id": null
+      }
     }
   }
 }

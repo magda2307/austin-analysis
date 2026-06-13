@@ -756,24 +756,27 @@ def local_shap_explanations(
     except ImportError:
         return pd.DataFrame()
 
-    if model_name is None:
-        selection = load_table(PROJECT_ROOT / "reports/tables", "final_model_selection")
-        if not selection.empty and "selected" in selection.columns:
-            rows = selection[(selection["selected"] == True) & (selection["task"] == task) & (selection["animal_subset"] == subset)]
-            if not rows.empty:
-                model_name = rows.iloc[0]["model_name"]
-                models_dir = _infer_models_dir(model_name)
-
-    model = load_model(models_dir, task, subset, model_name)
-    feature_columns = model_feature_columns(record, models_dir, task, subset, model_name)
-    
-    if model_name and "catboost" not in model_name:
-        model_record = record[feature_columns]
-    else:
-        model_record = prepare_catboost_frame(record, feature_columns)
-
     try:
+        if model_name is None:
+            selection = load_table(PROJECT_ROOT / "reports/tables", "final_model_selection")
+            if not selection.empty and "selected" in selection.columns:
+                rows = selection[(selection["selected"] == True) & (selection["task"] == task) & (selection["animal_subset"] == subset)]
+                if not rows.empty:
+                    model_name = rows.iloc[0]["model_name"]
+                    models_dir = _infer_models_dir(model_name)
+
+        model = load_model(models_dir, task, subset, model_name)
+        feature_columns = model_feature_columns(record, models_dir, task, subset, model_name)
+        
+        if model_name and "catboost" not in model_name:
+            model_record = record[feature_columns]
+        else:
+            model_record = prepare_catboost_frame(record, feature_columns)
+
         explainer = shap.TreeExplainer(model)
+        shap_values = explainer.shap_values(model_record)
+    except Exception:
+        return pd.DataFrame()
         shap_values = explainer.shap_values(model_record)
     except Exception:
         return pd.DataFrame()

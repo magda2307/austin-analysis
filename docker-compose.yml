@@ -1,0 +1,42 @@
+
+
+x-common-volumes: &common-volumes
+  volumes:
+    - ./data:/app/data
+    - ./models:/app/models
+    - ./reports:/app/reports
+    - ./logs:/app/logs
+
+services:
+  # The default Streamlit dashboard
+  dashboard:
+    build: .
+    ports:
+      - "8501:8501"
+    <<: *common-volumes
+
+  # Runs the canonical data/training pipeline
+  pipeline-full:
+    build: .
+    <<: *common-volumes
+    command: python scripts/run_full_pipeline.py
+
+  # Runs the quick development pipeline
+  pipeline-quick:
+    build: .
+    <<: *common-volumes
+    command: python scripts/run_full_pipeline.py --quick
+
+  # Runs the pytest suite
+  test:
+    build: .
+    <<: *common-volumes
+    command: python -m pytest tests/ -v
+
+  # Jupyter Notebook environment
+  jupyter:
+    build: .
+    ports:
+      - "8888:8888"
+    <<: *common-volumes
+    command: jupyter notebook --ip 0.0.0.0 --port 8888 --no-browser --allow-root
