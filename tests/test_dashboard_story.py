@@ -1,3 +1,4 @@
+import ast
 from pathlib import Path
 
 from aac_adoption.dashboard.story import approach_comparison_rows, decision_sankey, story_cards, workflow_dot
@@ -23,6 +24,46 @@ def test_streamlit_report_allowlist_is_thesis_only():
     assert "data/processed/" not in block
     assert "models/" not in block
     assert "What-if" not in block
+
+
+def _polish_dashboard_copy() -> dict[str, str]:
+    source_path = Path(__file__).resolve().parents[1] / "streamlit_app.py"
+    module = ast.parse(source_path.read_text(encoding="utf-8"))
+    for node in module.body:
+        if not isinstance(node, ast.Assign):
+            continue
+        if any(isinstance(target, ast.Name) and target.id == "PL" for target in node.targets):
+            return ast.literal_eval(node.value)
+    raise AssertionError("streamlit_app.py must define the PL translation dictionary")
+
+
+def test_polish_dashboard_copy_avoids_unnecessary_academic_jargon():
+    copy = " ".join(_polish_dashboard_copy().values()).casefold()
+    forbidden_fragments = (
+        "kohort",
+        "inkorpor",
+        "deinkorpor",
+        "kwantyl temporal",
+        "wektor zapytań",
+        "kauzal",
+        "paradygmat optymalizacyjny",
+        "dyskrepanc",
+        "dychotomia dla reżimu",
+    )
+    assert not [fragment for fragment in forbidden_fragments if fragment in copy]
+
+
+def test_polish_dashboard_copy_preserves_key_methodological_meaning():
+    copy = _polish_dashboard_copy()
+    assert copy["Predicted days to outcome"] == "Przewidywana liczba dni do dowolnego wyniku"
+    assert copy["Cohort size"] == "Liczba zwierząt w grupie"
+    finding = copy[
+        "**Finding:** Older animals face significant penalties in adoption likelihood. "
+        "Wait times to any outcome are complex, as seniors may leave the shelter faster "
+        "due to higher rates of non-adoption outcomes."
+    ]
+    assert "nieadopcyjnych wyników" in finding
+    assert "eutanazj" not in finding.casefold()
 
 
 def test_model_sensitivity_checks_prediction_result_before_rendering():

@@ -27,7 +27,7 @@ W niniejszym rozdziale przedstawiono cele, architekturę oraz przykładowe scena
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.92\textwidth]{../reports/figures/streamlit_ui_tab0_full.png}
+\includegraphics[width=0.92\textwidth]{reports/figures/streamlit_ui_tab0_full.png}
 \caption{Widok startowy aplikacji demonstracyjnej (\emph{Executive Overview}) z widocznym selektorem języka interfejsu (Polish\,/\,English) w panelu bocznym oraz zestawieniem wyników selekcji modelu. Aplikacja dostępna jest lokalnie pod adresem \texttt{localhost:8501} po uruchomieniu \texttt{docker-compose up dashboard}.}
 \label{fig:streamlit-ui-overview}
 \end{figure}
@@ -80,7 +80,7 @@ Po zatwierdzeniu formularza wbudowany w aplikację skrypt mapuje wartości z int
     \item \textbf{Kwantyfikacja} -- prezentowane jest bazowe prawdopodobieństwo adopcji w procentach.
 \end{enumerate}
 
-\ChapterSevenFigure{../reports/figures/streamlit_ui_tab9_full.png}{Główny interfejs aplikacji demonstracyjnej (Model Sensitivity Demo) wspomagający ocenę nowo przyjmowanego zwierzęcia, pełniący rolę symulatora manualnego wprowadzania parametrów.}{fig:streamlit-ui-main}
+\ChapterSevenFigure{reports/figures/streamlit_ui_tab9_full.png}{Główny interfejs aplikacji demonstracyjnej (Model Sensitivity Demo) wspomagający ocenę nowo przyjmowanego zwierzęcia, pełniący rolę symulatora manualnego wprowadzania parametrów.}{fig:streamlit-ui-main}
 
 \subsection{Wyjaśnialność decyzji (Interactive SHAP)}
 \label{subsec:wyjasnialnosc-decyzji-interactive-shap}
@@ -89,7 +89,7 @@ Wartość prawdopodobieństwa jest użyteczną informacją, jednak personel wete
 
 W perspektywie globalnej, czyli dla całego zbioru, wartości te układają się w interpretowalne wzorce, co prezentuje poniższy wykres.
 
-\ChapterSevenFigure{../reports/figures/streamlit_ui_tab5_full.png}{Globalna analiza struktury ważności cech na podstawie rozkładu wartości Shapley'a (SHAP), pozwalająca na ocenę relacyjnej istotności predyktorów bez domniemania związków przyczynowo-skutkowych.}{fig:streamlit-ui-shap}
+\ChapterSevenFigure{reports/figures/streamlit_ui_tab5_full.png}{Globalna analiza struktury ważności cech na podstawie rozkładu wartości Shapley'a (SHAP), pozwalająca na ocenę relacyjnej istotności predyktorów bez domniemania związków przyczynowo-skutkowych.}{fig:streamlit-ui-shap}
 
 Pracownik na ekranie aplikacji widzi analogiczny wykres, ale ograniczony do jednego zwierzęcia. Może sprawdzić, które konkretne atrybuty, na przykład podeszły wiek psa, ciemne umaszczenie czy trudna sytuacja znalezienia, obniżyły wynik, a które, na przykład przynależność do bardziej pożądanego typu rasy, działały na jego korzyść. Jest to istotny element budowania zaufania między człowiekiem a algorytmem i ograniczania ryzyka odrzucenia systemu z powodu postrzegania go jako ,,czarnej skrzynki'' (\emph{black-box})~\cite{Adadi2018}.
 
@@ -98,7 +98,7 @@ Pracownik na ekranie aplikacji widzi analogiczny wykres, ale ograniczony do jedn
 
 Zakładka \emph{Hypothesis Lab} stanowi bezpośrednie przedłużenie analitycznej części pracy w przestrzeni interfejsu użytkownika. Prezentuje ona wyniki weryfikacji hipotez H1--H5 w formie skondensowanych kart wizualnych z kluczowymi statystykami i wykresami. Dzięki temu kierownik schroniska, bez konieczności sięgania po pełny raport analityczny, może zweryfikować na przykład, czy sezonowy wzorzec adopcyjności (H2) jest zgodny z bieżącymi obserwacjami operacyjnymi.
 
-\ChapterSevenFigure{../reports/figures/streamlit_ui_tab7_full.png}{Widok panelu \emph{Hypothesis Lab} umożliwiający eksplorację wyników weryfikacji hipotez badawczych H1--H5 w ujęciu syntetycznych kart analitycznych.}{fig:streamlit-ui-hypothesis}
+\ChapterSevenFigure{reports/figures/streamlit_ui_tab7_full.png}{Widok panelu \emph{Hypothesis Lab} umożliwiający eksplorację wyników weryfikacji hipotez badawczych H1--H5 w ujęciu syntetycznych kart analitycznych.}{fig:streamlit-ui-hypothesis}
 
 \subsection{Przegląd historycznych grup zwierząt i analiza warunkowa}
 \label{subsec:przeglad-historycznych-grup-zwierzat}
@@ -107,9 +107,9 @@ Dla stanowisk kierowniczych aplikacja udostępnia widok umożliwiający przeglą
 
 Dzięki wizualizacji profilowych kontrastów adopcyjności (np. porównaniu młodych psów ras małych ze starszymi psami ras dużych), personel schroniska może błyskawicznie ocenić, jak zmiana wybranych parametrów wpływa na przewidywany czas pobytu. Pozwala to na trafniejsze identyfikowanie grup najwyższego ryzyka, co w ujęciu syntetycznym prezentuje poniższy wykres.
 
-\ChapterSevenFigure{../reports/figures/streamlit_ui_tab2_full.png}{Karty analizy ścieżki pobytu (Animal Stories) wizualizujące historyczne archetypy zwierząt oraz ich kontrasty profilowe.}{fig:streamlit-ui-historical-archetypes}
+\ChapterSevenFigure{reports/figures/streamlit_ui_tab2_full.png}{Karty analizy ścieżki pobytu (Animal Stories) wizualizujące historyczne archetypy zwierząt oraz ich kontrasty profilowe.}{fig:streamlit-ui-historical-archetypes}
 
-\ChapterSevenFigure{../reports/figures/streamlit_ui_tab8_full.png}{Moduł \emph{Campaign Candidate Finder} udostępniający zaawansowane możliwości filtrowania i przeprowadzania analiz warunkowych przez kierownictwo schroniska.}{fig:streamlit-ui-historical-campaign}
+\ChapterSevenFigure{reports/figures/streamlit_ui_tab8_full.png}{Moduł \emph{Campaign Candidate Finder} udostępniający zaawansowane możliwości filtrowania i przeprowadzania analiz warunkowych przez kierownictwo schroniska.}{fig:streamlit-ui-historical-campaign}
 
 \section{Scenariusze użycia w pracy schroniska (triaging)}
 \label{sec:scenariusze-uzycia-triaging}

@@ -38,12 +38,12 @@ W toku prowadzonych eksperymentów zweryfikowano trzy kluczowe pytania badawcze 
     Eksperymenty pokazały jednoznaczną przewagę zaawansowanych algorytmów drzewiastych nad metodami bazowymi. Na podstawie okresu selekcyjnego 2023 dla klasyfikacji wybrano \emph{CatBoost}; na teście model uzyskał PR-AUC 0,885 oraz ROC-AUC 0,841. Dla regresji wybrano \emph{Random Forest}, który na teście osiągnął MAE 20,07~dnia. Potwierdza to, że drzewa decyzyjne z boostingiem gradientowym skutecznie wychwytują nieliniowe zależności pomiędzy atrybutami schroniskowymi.
     
     \item[RQ3: Jak zjawiska makrostrukturalne oraz różnice gatunkowe wpływają na wzorce?] \hfill \\
-    Zidentyfikowano wyraźne różnice w zdolności predykcyjnej dla poszczególnych gatunków: skuteczność modeli była wyższa dla kotów (PR-AUC na poziomie 0,899) niż dla psów (PR-AUC 0,857), co sugeruje, że psy bywają oceniane przez pryzmat bardziej złożonych preferencji i cech niewidocznych w systemie (np. behawioralnych). Dodatkowo wykazano, że okres pandemii COVID-19 w istotny sposób zmodyfikował przepływ zwierząt w schronisku, wydłużając czas ich pobytu i modyfikując dynamikę rotacji jako bardzo silna zmienna zakłócająca (confounder).
+    Zidentyfikowano wyraźne różnice w zdolności predykcyjnej dla poszczególnych gatunków: skuteczność modeli była wyższa dla kotów (PR-AUC na poziomie 0,902) niż dla psów (PR-AUC 0,858), co sugeruje, że psy bywają oceniane przez pryzmat bardziej złożonych preferencji i cech niewidocznych w systemie (np. behawioralnych). Dodatkowo wykazano, że okres pandemii COVID-19 w istotny sposób zmodyfikował przepływ zwierząt w schronisku, wydłużając czas ich pobytu i modyfikując dynamikę rotacji jako bardzo silna zmienna zakłócająca (confounder).
 \end{description}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.88\textwidth]{../reports/figures/shap_summary_classification.png}
+\includegraphics[width=0.88\textwidth]{reports/figures/shap_summary_classification.png}
 \caption{Globalny wykres wartości SHAP dla modelu klasyfikacyjnego, potwierdzający dominującą rolę zmiennej \texttt{has\_name}, wieku oraz typu przyjęcia w~kształtowaniu prawdopodobieństwa adopcji.}
 \label{fig:shap-ch8-rq1}
 \end{figure}
@@ -85,7 +85,7 @@ Obok perspektyw teoretycznych sformułowano wytyczne, z których personel placó
     \item \textbf{Obowiązkowe procedury namingowe.} Brak posiadanego przez zwierzę imienia wpływa wysoce niekorzystnie na współczynnik trafień predykcyjnych na adopcję. Jak najszybsze nadawanie i rejestrowanie przynajmniej roboczych imion w systemie pozwala szybciej ,,zhumanizować'' los zwierzęcia w percepcji adoptujących.
 \end{itemize}
 
-\ChapterEightFigure{../reports/figures/streamlit_ui_tab8_full.png}{Panel wspomagający uruchamianie ukierunkowanych kampanii adopcyjnych dla grup zwierząt o największym ryzyku długoterminowego pobytu.}{fig:vulnerable-profiles}
+\ChapterEightFigure{reports/figures/streamlit_ui_tab8_full.png}{Panel wspomagający uruchamianie ukierunkowanych kampanii adopcyjnych dla grup zwierząt o największym ryzyku długoterminowego pobytu.}{fig:vulnerable-profiles}
 
 Wdrożenie systemów uczenia maszynowego w sektorze ratownictwa zwierząt nie zastąpi specjalistycznej wiedzy ludzkiego personelu. Może jednak stanowić narzędzie wspierające zarządzanie ryzykiem i dystrybucję ograniczonych zasobów. Skierowanie większej uwagi behawioralnej i promocyjnej na zwierzęta zidentyfikowane przez model jako szczególnie narażone na długi pobyt może być praktycznym krokiem w stronę usprawnienia systemu współczesnej opieki nad bezdomnymi zwierzętami.
 
@@ -94,7 +94,7 @@ Wdrożenie systemów uczenia maszynowego w sektorze ratownictwa zwierząt nie za
 
 Przeprowadzona w niniejszej pracy analiza 162~355 epizodów schroniskowych wskazuje, że algorytmy uczenia maszynowego, w szczególności modele z rodziny \emph{Gradient Boosting}, mogą skutecznie modelować losy zwierząt wyłącznie na podstawie początkowego profilu wejściowego. W~klasyfikacji adopcji wybrany model \emph{CatBoost} osiągnął na teście PR-AUC 0,885 oraz ROC-AUC~=~0,841. W~zadaniu regresyjnym wybrany model \emph{Random Forest} uzyskał MAE 20,07~dnia i RMSE 35,82~dnia. Zidentyfikowano kluczowe determinanty ryzyka, wykazując jednoznacznie większe znaczenie wczesnych okoliczności przyjęcia (np. charakteru zrzeczenia się zwierzęcia) oraz jego wieku nad tradycyjnymi, wrodzonymi cechami fizycznymi.
 
-\ChapterEightFigure{../reports/figures/streamlit_ui_tab13_full.png}{%
+\ChapterEightFigure{reports/figures/streamlit_ui_tab13_full.png}{%
   Widok panelu \emph{Thesis Conclusions} z aplikacji demonstracyjnej.
   Zwięzłe podsumowanie kluczowych artefaktów wygenerowanych przez ostateczny
   potok uczenia maszynowego.}{%

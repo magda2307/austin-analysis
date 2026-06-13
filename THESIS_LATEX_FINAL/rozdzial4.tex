@@ -57,9 +57,9 @@ Dane mają charakter czasowy, dlatego zrezygnowano z klasycznej walidacji krzyż
 Zbiór 162 355 epizodów podzielono chronologicznie na trzy części:
 
 \begin{itemize}\itemsep2pt
-\item \textbf{Zbiór treningowy:} lata 2013--2021. Pula obejmująca 126 759 rekordów psów i kotów.
-\item \textbf{Zbiór walidacyjny:} lata 2022--2023. Obejmuje 21 811 epizodów. Przeznaczony do doboru parametrów modeli i wskaźników odcięcia.
-\item \textbf{Zbiór testowy:} lata 2024--2025. Obejmuje 13 820 epizodów. Służy wyłącznie do ostatecznej oceny najlepszych algorytmów na najnowszych danych.
+\item \textbf{Zbiór treningowy:} lata 2013--2021. Pula obejmująca 126 731 rekordów psów i kotów.
+\item \textbf{Zbiory walidacyjne:} rok 2022 obejmuje 11 153 epizody i służy do kalibracji oraz doboru progów, a rok 2023 obejmuje 10 654 epizody i służy do wyboru modeli. Łącznie oba zbiory obejmują 21 807 epizodów.
+\item \textbf{Zbiór testowy:} lata 2024--2025. Obejmuje 13 817 epizodów. Służy wyłącznie do jednorazowej oceny zamrożonych, wcześniej wybranych modeli na najnowszych danych.
 \end{itemize}
 
 \begin{figure}[htbp]
@@ -68,9 +68,9 @@ Zbiór 162 355 epizodów podzielono chronologicznie na trzy części:
     box/.style={draw, rectangle, minimum width=3.5cm, minimum height=1.2cm, align=center, fill=black!10},
     arrow/.style={thick, ->, >=stealth}
 ]
-\node[box] (train) at (0,0) {Zbiór treningowy\\2013--2021\\126\,759 rekordów};
-\node[box] (val) at (5.5,0) {Zbiór walidacyjny\\2022--2023\\21\,811 rekordów};
-\node[box] (test) at (11,0) {Zbiór testowy\\2024--2025\\13\,820 rekordów};
+\node[box] (train) at (0,0) {Zbiór treningowy\\2013--2021\\126\,731 rekordów};
+\node[box] (val) at (5.5,0) {Kalibracja i wybór\\2022--2023\\21\,807 rekordów};
+\node[box] (test) at (11,0) {Zbiór testowy\\2024--2025\\13\,817 rekordów};
 \draw[arrow] (train) -- (val);
 \draw[arrow] (val) -- (test);
 \end{tikzpicture}
@@ -220,14 +220,14 @@ gdzie $F$ to zbiór wszystkich cech, $S$ to podzbiór cech niezawierający cechy
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{../reports/figures/shap_summary_classification.png}
+\includegraphics[width=0.90\textwidth]{reports/figures/shap_summary_classification.png}
 \caption{Wykres SHAP Summary (beeswarm) dla klasyfikatora adopcji~\cite{Lundberg2017}. Każdy punkt odpowiada jednej obserwacji ze zbioru testowego. Kolor odzwierciedla wartość cechy (czerwony -- wysoka, niebieski -- niska), a pozycja pozioma -- wartość SHAP. Szczegółowa interpretacja wyników w rozdziale~5.}
 \label{fig:shap-summary-preview-ch4}
 \end{figure}
 
 \begin{figure}[htbp]
 \centering
-\includegraphics[width=0.90\textwidth]{../reports/figures/shap_feature_families_classification.png}
+\includegraphics[width=0.90\textwidth]{reports/figures/shap_feature_families_classification.png}
 \caption{Zagregowany wpływ Rodzin Cech na predykcje klasyfikatora (suma bezwzględnych wartości SHAP per Rodzina). Grupowanie cech pozwala ocenić relatywny wkład całych kategorii atrybutów.}
 \label{fig:shap-families-preview-ch4}
 \end{figure}
@@ -251,21 +251,25 @@ Algorytm \ref{alg:protokol} przedstawia uproszczony pseudokod procesu uczenia i 
 \KwOut{Wytrenowane modele $M$, metryki oceny $E$}
 \BlankLine
 $D_{train} \gets$ podzbiór $D$ (lata 2013--2021)\;
-$D_{val} \gets$ podzbiór $D$ (lata 2022--2023)\;
+$D_{cal} \gets$ podzbiór $D$ (rok 2022)\;
+$D_{sel} \gets$ podzbiór $D$ (rok 2023)\;
 $D_{test} \gets$ podzbiór $D$ (lata 2024--2025)\;
 \ForEach{zadanie $\in \{ \text{klasyfikacja}, \text{regresja} \}$}{
   \ForEach{algorytm $\in \{ \text{Dummy, Logistic/Ridge, RF, HistGB, CatBoost} \}$}{
     $M_{alg} \gets$ Inicjuj(algorytm, $\Theta_{alg}$, \texttt{random\_state}=42)\;
-    Trenuj $M_{alg}$ na $D_{train}$ używając \texttt{early\_stopping} na $D_{val}$\;
+    Trenuj $M_{alg}$ na $D_{train}$ używając \texttt{early\_stopping} na $D_{cal}$\;
     \If{zadanie == \text{klasyfikacja}}{
-      Optymalizuj próg odcięcia dla metryki F1 na $D_{val}$\;
+      Skalibruj prawdopodobieństwa i zoptymalizuj próg F1 na $D_{cal}$\;
     }
-    $\hat{y} \gets$ Prognozuj dla $D_{test}$ z modelem $M_{alg}$\;
-    $E_{alg} \gets$ Oblicz metryki ewaluacyjne($\hat{y}$, $D_{test}$)\;
-    Zapisz $M_{alg}$ (\texttt{.joblib}) oraz $E_{alg}$ (\texttt{.csv})\;
+    $\hat{y}_{sel} \gets$ Prognozuj dla $D_{sel}$ z modelem $M_{alg}$\;
+    $E_{alg}^{sel} \gets$ Oblicz metryki wyboru($\hat{y}_{sel}$, $D_{sel}$)\;
   }
+  $M^* \gets$ Wybierz najlepszy model na podstawie $E^{sel}$ i zamroź jego konfigurację\;
+  $\hat{y}_{test} \gets$ Prognozuj dla $D_{test}$ z modelem $M^*$\;
+  $E^{test} \gets$ Oblicz końcowe metryki($\hat{y}_{test}$, $D_{test}$)\;
+  Zapisz $M^*$ (\texttt{.joblib}) oraz $E^{test}$ (\texttt{.csv})\;
 }
-Wyprowadź globalne i lokalne wartości SHAP dla modeli CatBoost\;
+Wyprowadź globalne i lokalne wartości SHAP dla wybranych modeli\;
 \end{algorithm}
 
 \section{Ograniczenia}
