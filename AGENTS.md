@@ -16,6 +16,12 @@ Read `.agents/README.md`, then load one task packet:
   `docs/target_definitions.md`; use `rg -n "^##|^###"`.
 - Verification only: `.agents/COMMANDS.md`.
 
+For drafting, rewriting, proofreading, translating, or reviewing Polish thesis
+prose, always use the project-local `$polish-thesis-human-style` skill. Preserve
+every fact, number, date, qualification, citation, methodological distinction,
+and degree of certainty. If style conflicts with factual completeness or source
+fidelity, preserve the content and report the stylistic limitation.
+
 Never recursively search `agentsbatch*/` or load all of
 `THESIS_CONTEXT_FOR_LLM.md`, `README.md`, or historical agent state unless the
 user explicitly resumes that work. Use heading search and bounded reads.

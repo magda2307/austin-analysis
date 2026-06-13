@@ -12,7 +12,7 @@ If (-not (Test-Path $extractPath)) {
 }
 
 $tectonicExe = Join-Path $extractPath "tectonic.exe"
-$latexDir = Join-Path $baseDir "mgr_latex\szablon-pracy-dyplomowej-pjatk-master"
+$latexDir = Join-Path $baseDir "THESIS_LATEX_FINAL"
 
 # Copy reports/figures into the LaTeX directory so tectonic can find them if referenced
 $reportsDest = Join-Path $latexDir "reports\figures"

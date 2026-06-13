@@ -615,7 +615,7 @@ PL = {   'AAC Adoption Thesis Demo': 'Wizualizacja wyników pracy magisterskiej:
     'Unknown': 'Kwantyfikator nierozpoznany (Unknown)',
     'unknown health': 'Aspekt zdrowotny nieoznaczony',
     'unknown behavior signal': 'Atrybut behawioralny niezakwalifikowany',
-    '📖 Thesis Guide': 'Struktura manuskryptu oraz mapowanie referencji',
+    ' Thesis Guide': 'Struktura manuskryptu oraz mapowanie referencji',
     'Model Sensitivity Demo': 'Moduł empirycznej ewaluacji podatności na '
                               'wejście (Sensitivity Analysis)',
     'Filter by Required for Thesis': 'Filtruj względem zbioru rezultatów '
@@ -1421,9 +1421,9 @@ PL = {   'AAC Adoption Thesis Demo': 'Wizualizacja wyników pracy magisterskiej:
                                                                                                                                                                                                                                                                                              'docelowych '
                                                                                                                                                                                                                                                                                              'budowanych '
                                                                                                                                                                                                                                                                                              'modeli.',
-    '⚠️ Interpretation limits': '⚠️ Restrykcje poznawcze logiki asocjacyjnej '
+    ' Interpretation limits': ' Restrykcje poznawcze logiki asocjacyjnej '
                                 'dla wymiarów interpretacyjnych',
-    '🎓 Thesis Conclusions': '🎓 Zbiór finalnych dedukcji oraz implikacji',
+    ' Thesis Conclusions': ' Zbiór finalnych dedukcji oraz implikacji',
     "This explanation shows model feature contributions, not real-world causes of this animal's outcome. Feature families like breed or coat color represent associations in the training set, not proof of direct impact.": 'Zobrazowana '
                                                                                                                                                                                                                              'mapa '
                                                                                                                                                                                                                              'sił '
@@ -1655,12 +1655,12 @@ tabs = st.tabs(
         t("Adoption Timeline"),
         t("Artifacts"),
         t("Context Data"),
-        t("🎓 Thesis Conclusions"),
+        t(" Thesis Conclusions"),
     ]
 )
 
 with tabs[0]:
-    st.markdown("## 🏆 Best Model Selection")
+    st.markdown("##  Best Model Selection")
     st.write(t("The machine learning pipeline evaluated logistic regression, random forests, histogram gradient boosting, and CatBoost models. Here is the final selection based on empirical validation data:"))
     
     if best_rows.empty:
@@ -1671,7 +1671,7 @@ with tabs[0]:
         
         col1, col2 = st.columns(2, gap="large")
         with col1:
-            st.markdown("### 🎯 Classification (Adoption Chance)")
+            st.markdown("###  Classification (Adoption Chance)")
             if not clf_best.empty:
                 row = clf_best.iloc[0]
                 st.success(f"**Winner:** {row['model_name']}")
@@ -1681,7 +1681,7 @@ with tabs[0]:
                 st.warning(t("No classification artifacts found."))
                 
         with col2:
-            st.markdown("### ⏳ Regression (Wait Time)")
+            st.markdown("###  Regression (Wait Time)")
             if not reg_best.empty:
                 row = reg_best.iloc[0]
                 st.success(f"**Winner:** {row['model_name']}")
@@ -1691,12 +1691,12 @@ with tabs[0]:
                 st.warning(t("No regression artifacts found."))
                 
     st.divider()
-    st.markdown("## 📉 Where the Model is Wrong (Error Analysis)")
+    st.markdown("##  Where the Model is Wrong (Error Analysis)")
     st.write(t("No model is perfect. Here is exactly where the model struggles and the magnitude of its errors:"))
     
     err_col1, err_col2 = st.columns(2, gap="large")
     with err_col1:
-        st.markdown("#### ⚖️ Classification Errors")
+        st.markdown("####  Classification Errors")
         st.write(t("When the model misclassifies an outcome, these are the most common failure modes:"))
         if not tables["model_failure_modes"].empty:
             st.dataframe(tables["model_failure_modes"].head(5), width='stretch', hide_index=True)
@@ -1704,7 +1704,7 @@ with tabs[0]:
             st.info(t("Run `python scripts/generate_evidence_pack.py` to see failure modes."))
             
     with err_col2:
-        st.markdown("#### ⏱️ Regression Magnitude Errors")
+        st.markdown("####  Regression Magnitude Errors")
         st.write(t("The regression model's Mean Absolute Error (MAE) varies drastically by subgroup:"))
         if not diagnostics["regression_slices"].empty:
             _rs = diagnostics["regression_slices"]
@@ -1762,14 +1762,33 @@ with tabs[2]:
         col3.metric(t("Median days to outcome"), f"{selected['median_days_to_outcome']:.1f} days")
         col4.metric(t("Visibility need"), selected["visibility_need"])
 
-        st.write(
-            f"**{t('Profile')}:** {t(str(selected['animal_type']))} | {t(str(selected['age_group']))} | "
-            f"{t(str(selected['intake_type']))} / {t(str(selected['intake_condition']))} | "
-            f"{t(str(selected.get('health_profile', 'unknown health')))} | "
-            f"{t(str(selected.get('behavior_support_flag', 'unknown behavior signal')))} | "
-            f"{selected['simplified_breed_group']} / {selected['simplified_color_group']} | "
-            f"{t('has recorded name') if selected['is_named'] == True else t('no recorded name')}"
-        )
+        tags = [
+            t(str(selected.get('animal_type', ''))),
+            t(str(selected.get('age_group', ''))),
+            t(str(selected.get('intake_type', ''))),
+            t(str(selected.get('intake_condition', ''))),
+            t(str(selected.get('health_profile', 'unknown health'))),
+            t(str(selected.get('behavior_support_flag', 'unknown behavior signal'))),
+            str(selected.get('simplified_breed_group', '')),
+            str(selected.get('simplified_color_group', '')),
+            t('has recorded name') if selected.get('is_named') == True else t('no recorded name')
+        ]
+        
+        # Filter out empty or 'None' values to keep tags clean
+        clean_tags = [tag.strip() for tag in tags if tag and str(tag).strip().lower() not in ('none', 'nan', '')]
+
+        tags_html = "".join([
+            f"""<span style="display:inline-block; padding:0.4rem 0.8rem; margin:0.2rem; 
+            border-radius:1rem; background-color:var(--secondary-background-color); 
+            color:var(--text-color); font-size:0.85rem; font-weight:500; 
+            border: 1px solid var(--faded-text-40); box-shadow: 0 1px 2px rgba(0,0,0,0.05);">{tag}</span>"""
+            for tag in clean_tags
+        ])
+        
+        st.markdown(f"""<div style="margin: 1rem 0 1.5rem 0;">
+            <div style="font-weight: 600; margin-bottom: 0.5rem; font-size:1.05rem; color:var(--text-color);">{t('Profile')}:</div>
+            <div style="display:flex; flex-wrap:wrap; margin-left:-0.2rem;">{tags_html}</div>
+            </div>""", unsafe_allow_html=True)
         mix_cols = st.columns(3, gap="large")
         mix_cols[0].metric(t("Transfer rate"), f"{selected.get('transfer_rate_pct', 0):.1f}%")
         mix_cols[1].metric(t("Return-to-owner rate"), f"{selected.get('return_to_owner_rate_pct', 0):.1f}%")
@@ -1826,7 +1845,7 @@ with tabs[2]:
                 st.caption(t("Local CatBoost SHAP values for the representative journey record; associations, not causes."))
                 st.dataframe(shap_view, width='stretch', hide_index=True)
     
-            with st.expander(t("⚠️ Interpretation limits")):
+            with st.expander(t(" Interpretation limits")):
                 st.info(
                     t("This explanation shows model feature contributions, not real-world causes of this animal's outcome. "
                       "Feature families like breed or coat color represent associations in the training set, not proof of direct impact.")
@@ -2392,10 +2411,10 @@ with tabs[12]:
         )
 
 with tabs[13]:
-    st.subheader(t("🎓 Thesis Conclusions"))
+    st.subheader(t(" Thesis Conclusions"))
     st.write(t("This dashboard translates raw shelter data into concrete evidence. Below are the finalized findings across the primary thesis hypotheses."))
     
-    st.markdown("### 📌 H1: Appearance vs. Intake Context")
+    st.markdown("###  H1: Appearance vs. Intake Context")
     st.info(t("**Finding:** Physical appearance (Breed and Color) and Age are the strongest predictors of adoption, significantly outweighing the context of how an animal arrives (Intake Circumstances and Condition)."))
     h1_col1, h1_col2 = st.columns(2, gap="large")
     with h1_col1:
@@ -2417,7 +2436,7 @@ with tabs[13]:
             h1_view = h1_view.rename(columns={"value": "intake_type"})
             st.dataframe(h1_view[["intake_type", "records", "adoption_rate_pct"]].sort_values("adoption_rate_pct", ascending=False).head(5), width='stretch', hide_index=True)
 
-    st.markdown("### 📌 H3: Age Penalties")
+    st.markdown("###  H3: Age Penalties")
     st.warning(t("**Finding:** Older animals face significant penalties in adoption likelihood. Wait times to any outcome are complex, as seniors may leave the shelter faster due to higher rates of non-adoption outcomes."))
     h3_col1, h3_col2 = st.columns(2, gap="large")
     with h3_col1:
@@ -2434,14 +2453,14 @@ with tabs[13]:
     with h3_col2:
         st.write(t("While puppies and kittens ('baby') often leave the shelter within 6-7 days, 'adult' animals face similar wait times. 'Senior' animals exhibit shorter median days to any outcome (e.g. 4.2 days), reflecting alternative outcome pathways. Age remains a critical predictive feature."))
 
-    st.markdown("### 📌 H5: COVID-19 Period Dynamics")
+    st.markdown("###  H5: COVID-19 Period Dynamics")
     st.success(t("**Finding:** The COVID-19 pandemic period was associated with a marked increase in adoption rates and a reduction in total volume. These period shifts must be accounted for to prevent model drift."))
     if not tables["h5"].empty:
         st.write(t("**Volume and Outcomes Across Periods**"))
         st.dataframe(tables["h5"][["covid_period", "records", "adoption_rate_pct", "median_days_to_outcome"]], width='stretch', hide_index=True)
 
     st.divider()
-    st.markdown("### 🎯 Shelter Actionability & Limits")
+    st.markdown("###  Shelter Actionability & Limits")
     st.write(t("While machine learning successfully ranks animals by placement difficulty, **these predictions are associative, not causal.**"))
     cols = st.columns(3, gap="large")
     cols[0].metric(t("Best Use Case"), t("Prioritizing visibility campaigns"))

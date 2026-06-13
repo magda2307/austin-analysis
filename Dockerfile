@@ -23,6 +23,7 @@ COPY pyproject.toml .
 COPY src/ src/
 COPY scripts/ scripts/
 COPY tests/ tests/
+COPY docs/ docs/
 COPY streamlit_app.py .
 COPY assets/ assets/
 

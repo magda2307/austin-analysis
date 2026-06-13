@@ -1,0 +1,22 @@
+\chapter*{Streszczenie}
+
+Praca przedstawia reprodukowalny system uczenia maszynowego wspierający analizę adopcji zwierząt w Austin Animal Center. Zintegrowano rejestry przyjęć i wyników z lat 2013--2025, uzyskując 162~355 chronologicznie dopasowanych epizodów. Zdefiniowano dwa odrębne zadania: klasyfikację adopcji względem innych wyników oraz regresję liczby dni do dowolnego dopasowanego wyniku. Ewaluację przeprowadzono chronologicznie: trening na latach 2013--2021, kalibracja i wybór modeli na latach 2022--2023 oraz jednorazowy test na latach 2024--2025.
+
+Na podstawie wyników walidacyjnych wybrano CatBoost dla klasyfikacji oraz Random Forest dla regresji. Na zbiorze testowym model klasyfikacyjny osiągnął ROC-AUC 0,841, PR-AUC 0,885 i F1 0,817. Wybrany model regresyjny uzyskał MAE 20,07 dnia, RMSE 35,82 dnia i medianę błędu bezwzględnego 10,82 dnia. Interpretację predykcji oparto na wartościach SHAP, z zachowaniem rozróżnienia między zależnością predykcyjną a przyczynowością. Projekt obejmuje 20-krokowy potok, pokwitowania uruchomień, 48 wymaganych artefaktów, dashboard Streamlit i środowisko Docker Compose. Końcowa weryfikacja objęła 269 zaliczonych testów oraz 3 oczekiwane pominięcia.
+
+\vspace{20pt}
+\noindent Słowa kluczowe: adopcja zwierząt, uczenie maszynowe, Austin Animal Center, CatBoost, Random Forest, SHAP, MLOps
+
+\vspace{50pt}
+
+\begingroup
+\let\clearpage\relax
+\chapter*{Abstract}
+\endgroup
+
+This thesis presents a reproducible machine-learning system supporting animal-adoption analysis at Austin Animal Center. Intake and outcome records from 2013--2025 were integrated into 162,355 chronologically matched episodes. Two distinct tasks were defined: classification of adoption versus other outcomes and regression of days to any matched outcome. Evaluation followed a chronological design: training on 2013--2021, calibration and model selection on 2022--2023, and one-time final testing on 2024--2025.
+
+Validation evidence selected CatBoost for classification and Random Forest for regression. On the test set, the classification model achieved ROC-AUC 0.841, PR-AUC 0.885, and F1 0.817. The selected regression model achieved MAE 20.07 days, RMSE 35.82 days, and median absolute error 10.82 days. Predictions were interpreted with SHAP while explicitly separating predictive association from causality. The project includes a 20-step pipeline, run receipts, 48 required artifacts, a Streamlit dashboard, and a Docker Compose environment. Final verification recorded 269 passing tests and 3 expected skips.
+
+\vspace{20pt}
+\noindent Keywords: animal adoption, machine learning, Austin Animal Center, CatBoost, Random Forest, SHAP, MLOps

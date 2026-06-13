@@ -90,6 +90,7 @@ docs/                               thesis plans, methodology notes, target defi
 reports/                            generated tables, figures, summaries, diagnostics, artifact manifest
 models/                             generated model artifacts
 tests/                              regression tests for data, features, models, reports, audits, dashboard helpers
+THESIS_LATEX_FINAL/                 latex thesis source code and files
 ```
 
 Important local structure changes from recent multi-agent work:

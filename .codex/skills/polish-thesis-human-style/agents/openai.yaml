@@ -1,0 +1,4 @@
+interface:
+  display_name: "Polish Thesis Human Style"
+  short_description: "Revises Polish thesis prose without factual drift"
+  default_prompt: "Use $polish-thesis-human-style to revise this Polish thesis passage while preserving every fact, qualification, citation, and methodological distinction."

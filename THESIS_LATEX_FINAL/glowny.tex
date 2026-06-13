@@ -1,0 +1,152 @@
+\documentclass[12pt]{wipb}
+
+\let\mathdollar\relax
+\usepackage{fontspec}
+\setmainfont{Times New Roman}
+\usepackage[polish]{babel}
+\usepackage[table]{xcolor}
+\usepackage{graphicx}
+\usepackage[colorlinks,plainpages=false,pdfpagelabels,naturalnames=true]{hyperref}
+\usepackage[tableposition=top]{caption}
+\usepackage{listings}
+\usepackage{multirow}
+\usepackage[ruled,vlined]{algorithm2e}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta}
+\usepackage{amssymb}
+\usepackage{indentfirst}
+
+\usepackage{setspace}
+\usepackage{MnSymbol}
+\usepackage{xurl}
+\usepackage{epigraph}
+\usepackage{makecell}
+
+\definecolor{Gray}{gray}{0.68}
+\definecolor{LightGray}{gray}{0.93}
+\definecolor{LightGreen}{RGB}{149,222,149}
+\definecolor{LightRed}{RGB}{222,149,149}
+
+\newcommand{\college}[1]{}
+\newcommand{\degree}[1]{}
+\newcommand{\degreedate}[1]{}
+\title{Dane, które ratują życie: Analiza i wizualizacja czynników wpływających na adopcję psów i kotów w Austin Animal Center z wykorzystaniem metod uczenia maszynowego}
+\author{Magdalena Sokolowska}
+\college{Polsko-Japońska Akademia Technik Komputerowych}
+\newcommand{\submittedtext}{Praca dyplomowa magisterska}
+\degree{Informatyka, Data Science}
+\degreedate{Warszawa, styczeń \number\year~r.}
+
+\makeatletter
+\renewcommand{\maketitle}{%
+    \begin{titlepage}
+        \thispagestyle{empty}%
+        \begin{center}
+            \linespread{1.0}\selectfont
+            \vspace*{\stretch{2}}
+            {\includegraphics[width=45mm]{grafika/logopjatk.jpg}\par}
+            \vspace{\stretch{1}}
+            {\Large\textbf{Wydział Informatyki}\par}
+            \vspace{\stretch{1}}
+            {\Large\textbf{Katedra Systemów Inteligentnych i Data Science}\par}
+            {\large Data Science\par}
+            \vspace{\stretch{1}}
+            {\Large\textbf{\@author}\par}
+            {\Large S32924\par}
+            \vspace{\stretch{1}}
+            {\LARGE\textbf{\@title}\par}
+            \begin{flushright}
+                \vspace{\stretch{1}}
+                {\Large Praca dyplomowa magisterska\par}
+                \vspace{\stretch{1}}
+                {\Large Promotor: prof. dr hab. Grzegorz Wójcik\par}
+            \end{flushright}
+            \vspace{\stretch{2}}
+            {\Large Warszawa, styczeń \number\year~r.\par}
+        \end{center}
+    \end{titlepage}%
+}
+\makeatother
+
+\hypersetup{
+pdfauthor={Magdalena Sokolowska},
+pdftitle={Dane, które ratują życie: Analiza i wizualizacja czynników wpływających na adopcję psów i kotów w Austin Animal Center z wykorzystaniem metod uczenia maszynowego},
+pdfsubject={Life-Saving Data: Analyzing Factors Affecting Adoptions at the Austin Animal Center via Machine Learning and Visualization},
+pdfkeywords={adopcja zwierząt, Austin Animal Center, uczenie maszynowe, wizualizacja danych},
+pdfpagemode=UseNone,
+linkcolor=black,
+citecolor=black,
+urlcolor=black
+}
+
+\setlength{\epigraphwidth}{1\textwidth}
+\setlength{\parindent}{1cm}
+\linespread{1.5}
+\footskip=35pt
+\sloppy
+
+\hyphenpenalty=2000
+\clubpenalty=10000
+\widowpenalty=10000
+\brokenpenalty=10000
+\exhyphenpenalty=999999
+\righthyphenmin=4
+\tolerance=4500
+\pretolerance=250
+\hfuzz=1.5pt
+\hbadness=1450
+
+\lstset{
+ basicstyle=\footnotesize\ttfamily,
+ captionpos=b,
+ numbers=none,
+ frame=single,
+ lineskip={-1.5pt},
+ prebreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\rhookswarrow}},
+ postbreak=\raisebox{0ex}[0ex][0ex]{\ensuremath{\rcurvearrowse\space}},
+ breaklines=true,
+ breakatwhitespace=true
+}
+
+\renewcommand{\algorithmcfname}{Algorytm}
+\renewcommand{\lstlistingname}{Listing}
+
+\begin{document}
+
+\baselineskip=18pt plus1pt
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{2}
+
+\pagenumbering{Alph}
+\maketitle
+\pagestyle{empty}
+
+\input{abstract.tex}
+
+\pagenumbering{roman}
+\pagestyle{plain}
+\tableofcontents
+
+\pagenumbering{arabic}
+\pagestyle{plain}
+\input{rozdzial1.tex}
+\input{rozdzial2.tex}
+\input{rozdzial3.tex}
+\input{rozdzial4.tex}
+\input{rozdzial5.tex}
+\input{rozdzial6.tex}
+\input{rozdzial7.tex}
+\input{rozdzial8.tex}
+
+\addcontentsline{toc}{chapter}{Bibliografia}
+\bibliographystyle{unsrt}
+\bibliography{bibliografia}
+
+{
+    \let\oldnumberline\numberline%
+    \renewcommand{\numberline}{\figurename~\oldnumberline}%
+    \listoffigures
+}
+\addcontentsline{toc}{chapter}{Lista figur}
+
+\end{document}
