@@ -32,6 +32,7 @@ from aac_adoption.analysis.h1_feature_family import (
 from aac_adoption.analysis.h3_age_evidence import create_h3_age_evidence
 from aac_adoption.analysis.h5_covid_evidence import create_h5_covid_evidence
 from aac_adoption.analysis.model_selection import create_final_model_selection
+from aac_adoption.analysis.methodological_reports import create_methodological_reports
 from aac_adoption.analysis.threshold_analysis import create_threshold_analysis
 from aac_adoption.analysis.calibration_summary import create_calibration_summary
 from aac_adoption.analysis.reliability_red_flags import create_reliability_red_flags
@@ -68,11 +69,9 @@ def main() -> None:
     args = parse_args()
     for stale_output in [
         Path(args.tables_dir) / "h3_age_adoption_speed.csv",
-        Path(args.summary_dir) / "external_validity_limitations.md",
-        Path(args.summary_dir) / "breed_color_justification.md",
-        Path(args.summary_dir) / "descriptive_baseline_comparison.md",
     ]:
         stale_output.unlink(missing_ok=True)
+    create_methodological_reports(args.summary_dir)
     
     # 1. Run basic EDA and model comparison
     print("Running EDA and model comparison...")

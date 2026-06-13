@@ -1,7 +1,23 @@
 import pandas as pd
 
 from aac_adoption.analysis.hypothesis_tables import create_hypothesis_support_tables
+from aac_adoption.analysis.methodological_reports import create_methodological_reports
 from aac_adoption.analysis.model_comparison import create_context_model_comparison_table, create_model_comparison_tables
+
+
+def test_methodological_reports_are_generated(tmp_path):
+    create_methodological_reports(tmp_path)
+
+    external = (tmp_path / "external_validity_limitations.md").read_text(
+        encoding="utf-8"
+    )
+    breed = (tmp_path / "breed_color_justification.md").read_text(encoding="utf-8")
+    baseline = (tmp_path / "descriptive_baseline_comparison.md").read_text(
+        encoding="utf-8"
+    )
+    assert "No-Kill" in external and "generalize" in external
+    assert "sparsity" in breed and "granularity" in breed
+    assert "dummy" in baseline and "lift" in baseline
 
 
 def test_model_comparison_ranks_classification_and_regression(tmp_path):
