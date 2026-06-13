@@ -82,11 +82,11 @@
     },
     "019ebd00-1542-77c2-b8a8-6c258ec30b28": {
       "ordinary_no_progress_guard": {
-        "fingerprint": "ordinary|project closeout complete. - canonical run: `20260613t001946z-0bb4ce5` - 20/20 pipeline steps passed - 48 receipt-backed thesis artifacts - final acceptance: **269 passed, 3 expected skips** - cavecrew review: no issues - commit: `0c7aabd` uncommitted files belong to concurrent dashboard, packaging, and thesis-export work; left untouched. caveman stats unavailable because hook-only integration did not fire here. ::git-commit{cwd=\"c:\\users\\paula\\documents\\mgr pjatk\"}",
-        "first_seen_at": "2026-06-13T01:58:30.156Z",
-        "last_seen_at": "2026-06-13T01:58:30.156Z",
+        "fingerprint": "ordinary|committed all 524 files. commit: `1259169 chore: snapshot final project deliverables` worktree clean. branch ahead of origin by 21 commits. ::git-stage{cwd=\"c:\\users\\paula\\documents\\mgr pjatk\"} ::git-commit{cwd=\"c:\\users\\paula\\documents\\mgr pjatk\"}",
+        "first_seen_at": "2026-06-13T07:22:48.898Z",
+        "last_seen_at": "2026-06-13T07:22:48.898Z",
         "repeat_count": 1,
-        "last_turn_id": "019ebd00-f396-7e20-b1b4-bf8833a6e9f5",
+        "last_turn_id": "019ebfdb-a80f-71c2-b4ce-2025809e53a7",
         "last_thread_id": null
       }
     }
